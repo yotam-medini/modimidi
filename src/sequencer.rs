@@ -37,6 +37,9 @@ type FluidSeqId = i16; // fluid_seq_id_t
 #[allow(improper_ctypes)]
 // # [ link(name = "fluid")]
 extern "C" {
+    fn delete_fluid_audio_driver(driver: *mut fluid_audio_driver_t);
+    fn delete_fluid_sequencer(seq: *mut fluid_sequencer_t);
+    fn delete_fluid_synth(synth: *mut fluid_synth_t);
     fn fluid_settings_setint(
         settings: *mut fluid_settings_t,
 	name: *const i8,
@@ -130,6 +133,19 @@ fn create_synth(sequencer: &mut Sequencer) {
     }
 }
 
+fn destroy_synth(sequencer: &mut Sequencer) {
+    println!("destroy_synth");
+    unsafe {
+        delete_fluid_sequencer(sequencer.sequencer_ptr);
+        sequencer.sequencer_ptr = std::ptr::null_mut();
+        delete_fluid_audio_driver(sequencer.audio_driver_ptr);
+        sequencer.audio_driver_ptr = std::ptr::null_mut();
+        delete_fluid_synth(sequencer.synth_ptr);
+        sequencer.synth_ptr = std::ptr::null_mut();
+    }
+}
+
+
 pub fn sequencer() {
     println!("sequencer");
     let mut sequencer = Sequencer {
@@ -152,6 +168,8 @@ pub fn sequencer() {
         sequencer.sequencer_ptr,
         sequencer.synth_seq_id, sequencer.my_seq_id,
         sequencer.now, sequencer.seq_duration);
+
+    destroy_synth(&mut sequencer);
 }
 
 
