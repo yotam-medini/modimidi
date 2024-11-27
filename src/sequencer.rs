@@ -115,6 +115,7 @@ extern "C" fn seq_callback(
         let the_sequencer = &mut *(data as *mut Sequencer);
         println!("seq_callback: time={}, event={:?}, eq={:?}, the_sequencer={}",
             time, event, seq, the_sequencer);
+        schedule_next_sequence(the_sequencer);
     }
 }
 
@@ -182,6 +183,7 @@ fn send_note_on(sequencer: &mut Sequencer, chan: i32, key: i16, date: u32) {
         fluid_event_set_source(evt, -1);
         fluid_event_set_dest(evt, sequencer.synth_seq_id);
         fluid_event_noteon(evt, chan, key, 127);
+        println!("send_note_on: date={}", date);
         let fluid_res = fluid_sequencer_send_at(
             sequencer.sequencer_ptr, evt, date, 1);
         println!("send_note_on: fluid_res={}", fluid_res);
@@ -190,21 +192,24 @@ fn send_note_on(sequencer: &mut Sequencer, chan: i32, key: i16, date: u32) {
 }
 
 fn schedule_next_callback(sequencer: &mut Sequencer) {
+    println!("schedule_next_callback");
     unsafe {
         // I want to be called back before the end of the next sequence
-        let callbackdate: u32 = sequencer.now + sequencer.seq_duration/2;
+        let callback_date: u32 = sequencer.now + sequencer.seq_duration/2;
         let evt = new_fluid_event();
         fluid_event_set_source(evt, -1);
         fluid_event_set_dest(evt, sequencer.my_seq_id);
         fluid_event_timer(evt, std::ptr::null_mut());
+        println!("schedule_next_callback: callback_date={}", callback_date);
         let fluid_res = fluid_sequencer_send_at(
-            sequencer.sequencer_ptr, evt, callbackdate, 1);
+            sequencer.sequencer_ptr, evt, callback_date, 1);
         println!("schedule_next_callback: fluid_res={}", fluid_res);
         delete_fluid_event(evt);
     }
 }
 
 fn schedule_next_sequence(sequencer: &mut Sequencer) {
+    println!("schedule_next_sequence");
     sequencer.now += sequencer.seq_duration;
 
     // the sequence to play
