@@ -39,6 +39,7 @@ type FluidSeqId = i16; // fluid_seq_id_t
 extern "C" {
     fn delete_fluid_audio_driver(driver: *mut fluid_audio_driver_t);
     fn delete_fluid_event(evt: *mut fluid_event_t);
+    fn fluid_event_timer(evt: *mut fluid_event_t, data: *mut c_void);
     fn delete_fluid_sequencer(seq: *mut fluid_sequencer_t);
     fn delete_fluid_synth(synth: *mut fluid_synth_t);
     fn fluid_event_noteon(
@@ -182,6 +183,21 @@ fn send_note_on(sequencer: &mut Sequencer, chan: i32, key: i16, date: u32) {
         let fluid_res = fluid_sequencer_send_at(
             sequencer.sequencer_ptr, evt, date, 1);
         println!("send_note_on: fluid_res={}", fluid_res);
+        delete_fluid_event(evt);
+    }
+}
+
+fn schedule_next_callback(sequencer: &mut Sequencer) {
+    unsafe {
+        // I want to be called back before the end of the next sequence
+        let callbackdate: u32 = sequencer.now + sequencer.seq_duration/2;
+        let evt = new_fluid_event();
+        fluid_event_set_source(evt, -1);
+        fluid_event_set_dest(evt, sequencer.my_seq_id);
+        fluid_event_timer(evt, std::ptr::null_mut());
+        let fluid_res = fluid_sequencer_send_at(
+            sequencer.sequencer_ptr, evt, callbackdate, 1);
+        println!("schedule_next_callback: fluid_res={}", fluid_res);
         delete_fluid_event(evt);
     }
 }
