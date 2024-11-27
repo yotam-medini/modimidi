@@ -38,12 +38,21 @@ type FluidSeqId = i16; // fluid_seq_id_t
 // # [ link(name = "fluid")]
 extern "C" {
     fn delete_fluid_audio_driver(driver: *mut fluid_audio_driver_t);
+    fn delete_fluid_event(evt: *mut fluid_event_t);
     fn delete_fluid_sequencer(seq: *mut fluid_sequencer_t);
     fn delete_fluid_synth(synth: *mut fluid_synth_t);
+    fn fluid_event_noteon(
+        evt: *mut fluid_event_t,
+        channel: i32,
+        key: i16, 
+        vel: i16);
+    fn fluid_event_set_dest(evt: *mut fluid_event_t, dest: FluidSeqId);
+    fn fluid_event_set_source(evt: *mut fluid_event_t, src: FluidSeqId);
     fn fluid_settings_setint(
         settings: *mut fluid_settings_t,
 	name: *const i8,
 	val: i32) -> i32;
+    fn new_fluid_event() -> *mut fluid_event_t;
     fn new_fluid_settings() -> *mut fluid_settings_t;
     fn new_fluid_audio_driver(
         settings: *mut fluid_settings_t,
@@ -60,6 +69,11 @@ extern "C" {
     fn fluid_sequencer_register_fluidsynth(
        seq: *mut fluid_sequencer_t,
        synth: *mut fluid_synth_t) -> FluidSeqId;
+    fn fluid_sequencer_send_at(
+        seq: *mut fluid_sequencer_t,
+        evt: *mut fluid_event_t,
+        time: u32,
+        absolute: i32) -> i32;
     fn fluid_synth_sfload(
         synth: *mut fluid_synth_t,
         path: *const i8,
@@ -155,6 +169,20 @@ fn load_sound_font(synth_ptr: *mut fluid_synth_t) {
     unsafe {
         let fond_id = fluid_synth_sfload(synth_ptr, path.as_ptr(), 1);
         println!("load_sound_font: fond_id={}", fond_id);
+    }
+}
+
+fn send_note_on(sequencer: &mut Sequencer, chan: i32, key: i16, date: u32) {
+    unsafe {
+        let evt = new_fluid_event();
+        println!("evt={:?}", evt);
+        fluid_event_set_source(evt, -1);
+        fluid_event_set_dest(evt, sequencer.synth_seq_id);
+        fluid_event_noteon(evt, chan, key, 127);
+        let fluid_res = fluid_sequencer_send_at(
+            sequencer.sequencer_ptr, evt, date, 1);
+        println!("send_note_on: fluid_res={}", fluid_res);
+        delete_fluid_event(evt);
     }
 }
 
