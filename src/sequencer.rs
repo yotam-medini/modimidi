@@ -8,6 +8,12 @@ pub struct fluid_audio_driver_t {
 
 #[repr(C)]
 #[derive(Debug, Default, Copy, Clone)]
+pub struct fluid_sequencer_t {
+    // ... fields of the struct ...
+}
+
+#[repr(C)]
+#[derive(Debug, Default, Copy, Clone)]
 pub struct fluid_settings_t {
     // ... fields of the struct ...
 }
@@ -15,12 +21,6 @@ pub struct fluid_settings_t {
 #[repr(C)]
 #[derive(Debug, Default, Copy, Clone)]
 pub struct fluid_synth_t {
-    // ... fields of the struct ...
-}
-
-#[repr(C)]
-#[derive(Debug, Default, Copy, Clone)]
-pub struct fluid_sequencer_t {
     // ... fields of the struct ...
 }
 
@@ -35,12 +35,14 @@ extern "C" {
     fn new_fluid_audio_driver(
         settings: *mut fluid_settings_t,
         synth: *mut fluid_synth_t) -> *mut fluid_audio_driver_t;
+    fn new_fluid_sequencer2(use_system_timer: i32) -> *mut fluid_sequencer_t;
     fn new_fluid_synth(settings: *mut fluid_settings_t) -> *mut fluid_synth_t;
 }
 
 struct Sequencer {
     synth_ptr: *mut fluid_synth_t,
     audio_driver_ptr: *mut fluid_audio_driver_t,
+    sequencer_ptr: *mut fluid_sequencer_t,
     synth_seq_id: i16,
     my_seq_id: i16,
     now: u32,
@@ -66,24 +68,31 @@ fn create_synth(sequencer: &mut Sequencer) {
 	sequencer.synth_ptr = new_fluid_synth(settings_ptr);
         sequencer.audio_driver_ptr =
             new_fluid_audio_driver(settings_ptr, sequencer.synth_ptr);
+        sequencer.sequencer_ptr = new_fluid_sequencer2(0);
     }
 }
 
 pub fn sequencer() {
     println!("sequencer");
     let mut sequencer = Sequencer {
-         synth_ptr: std::ptr::null_mut(),
-         audio_driver_ptr: std::ptr::null_mut(),
-	 synth_seq_id: 0,
-	 my_seq_id: 0,
-	 now: 0,
-	 seq_duration: 0,
+        synth_ptr: std::ptr::null_mut(),
+        audio_driver_ptr: std::ptr::null_mut(),
+        sequencer_ptr: std::ptr::null_mut(),
+        synth_seq_id: 0,
+        my_seq_id: 0,
+        now: 0,
+        seq_duration: 0,
     };
     create_synth(&mut sequencer);
     println!(
-        concat!("sequencer: synth_ptr={:?}, synth_seq_id={}, my_seq_id={}, ",
-             "now={}, dur={}"),
-        sequencer.synth_ptr, sequencer.synth_seq_id, sequencer.my_seq_id,
+        concat!(
+            "sequencer: synth_ptr={:?}, audio_driver_ptr={:?}, ",
+            "sequencer_ptr={:?}, ",
+            "synth_seq_id={}, my_seq_id={}, ",
+            "now={}, dur={}"),
+        sequencer.synth_ptr, sequencer.audio_driver_ptr,
+        sequencer.sequencer_ptr,
+        sequencer.synth_seq_id, sequencer.my_seq_id,
         sequencer.now, sequencer.seq_duration);
 }
 
