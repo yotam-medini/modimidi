@@ -1,6 +1,7 @@
-use std::fmt;
 use std::ffi::CString;
+use std::fmt;
 use std::os::raw::c_void;
+use std::{thread, time};
 
 #[repr(C)]
 #[derive(Debug, Default, Copy, Clone)]
@@ -250,5 +251,6 @@ pub fn sequencer() {
         sequencer.now = fluid_sequencer_get_tick(sequencer.sequencer_ptr);
     }
     schedule_next_sequence(&mut sequencer);
+    thread::sleep(time::Duration::from_millis(10000));
     destroy_synth(&mut sequencer);
 }
