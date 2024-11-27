@@ -39,8 +39,8 @@ extern "C" {
 }
 
 struct Sequencer {
-    synth: *mut fluid_synth_t,
-    a_driver: *mut fluid_audio_driver_t,
+    synth_ptr: *mut fluid_synth_t,
+    audio_driver_ptr: *mut fluid_audio_driver_t,
     synth_seq_id: i16,
     my_seq_id: i16,
     now: u32,
@@ -63,17 +63,17 @@ fn create_synth(sequencer: &mut Sequencer) {
 	ret  = fluid_settings_setint(settings_ptr, key.as_ptr(), 0);
 	println!("setting chorus: ret={}", ret);
 	let _synth = new_fluid_synth(settings_ptr);
-	sequencer.synth = new_fluid_synth(settings_ptr);
-        sequencer.a_driver =
-            new_fluid_audio_driver(settings_ptr, sequencer.synth);
+	sequencer.synth_ptr = new_fluid_synth(settings_ptr);
+        sequencer.audio_driver_ptr =
+            new_fluid_audio_driver(settings_ptr, sequencer.synth_ptr);
     }
 }
 
 pub fn sequencer() {
     println!("sequencer");
     let mut sequencer = Sequencer {
-         synth: std::ptr::null_mut(),
-         a_driver: std::ptr::null_mut(),
+         synth_ptr: std::ptr::null_mut(),
+         audio_driver_ptr: std::ptr::null_mut(),
 	 synth_seq_id: 0,
 	 my_seq_id: 0,
 	 now: 0,
@@ -81,9 +81,9 @@ pub fn sequencer() {
     };
     create_synth(&mut sequencer);
     println!(
-        concat!("sequencer: synth={:?}, synth_seq_id={}, my_seq_id={}, ",
+        concat!("sequencer: synth_ptr={:?}, synth_seq_id={}, my_seq_id={}, ",
              "now={}, dur={}"),
-        sequencer.synth, sequencer.synth_seq_id, sequencer.my_seq_id,
+        sequencer.synth_ptr, sequencer.synth_seq_id, sequencer.my_seq_id,
         sequencer.now, sequencer.seq_duration);
 }
 
