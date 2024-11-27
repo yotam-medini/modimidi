@@ -153,8 +153,8 @@ fn load_sound_font(synth_ptr: *mut fluid_synth_t) {
     let path = CString::new("/usr/share/sounds/sf2/FluidR3_GM.sf2").expect(
         "CString::new failed");
     unsafe {
-        let rc = fluid_synth_sfload(synth_ptr, path.as_ptr(), 1);
-        println!("load_sound_font: rc={}", rc);
+        let fond_id = fluid_synth_sfload(synth_ptr, path.as_ptr(), 1);
+        println!("load_sound_font: fond_id={}", fond_id);
     }
 }
 
