@@ -60,6 +60,10 @@ extern "C" {
     fn fluid_sequencer_register_fluidsynth(
        seq: *mut fluid_sequencer_t,
        synth: *mut fluid_synth_t) -> FluidSeqId;
+    fn fluid_synth_sfload(
+        synth: *mut fluid_synth_t,
+        path: *const i8,
+        reset_presets: i32) -> i32;
     fn new_fluid_sequencer2(use_system_timer: i32) -> *mut fluid_sequencer_t;
     fn new_fluid_synth(settings: *mut fluid_settings_t) -> *mut fluid_synth_t;
 }
@@ -98,7 +102,7 @@ extern "C" fn seq_callback(
 }
 
 fn create_synth(sequencer: &mut Sequencer) {
-    println!("createsynth");
+    println!("create_synth");
     unsafe {
         let settings_ptr = new_fluid_settings();
         // let settings = &mut *settings_ptr;
@@ -128,7 +132,7 @@ fn create_synth(sequencer: &mut Sequencer) {
             sequencer.sequencer_ptr, 
             key.as_ptr(),
             seq_callback, 
-            std::ptr::null_mut());
+            sequencer as *mut _ as *mut c_void);
         sequencer.seq_duration = 1000;
     }
 }
@@ -145,6 +149,14 @@ fn destroy_synth(sequencer: &mut Sequencer) {
     }
 }
 
+fn load_sound_font(synth_ptr: *mut fluid_synth_t) {
+    let path = CString::new("/usr/share/sounds/sf2/FluidR3_GM.sf2").expect(
+        "CString::new failed");
+    unsafe {
+        let rc = fluid_synth_sfload(synth_ptr, path.as_ptr(), 1);
+        println!("load_sound_font: rc={}", rc);
+    }
+}
 
 pub fn sequencer() {
     println!("sequencer");
@@ -168,8 +180,7 @@ pub fn sequencer() {
         sequencer.sequencer_ptr,
         sequencer.synth_seq_id, sequencer.my_seq_id,
         sequencer.now, sequencer.seq_duration);
+    load_sound_font(sequencer.synth_ptr);
 
     destroy_synth(&mut sequencer);
 }
-
-
