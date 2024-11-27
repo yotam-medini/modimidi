@@ -49,6 +49,7 @@ extern "C" {
         vel: i16);
     fn fluid_event_set_dest(evt: *mut fluid_event_t, dest: FluidSeqId);
     fn fluid_event_set_source(evt: *mut fluid_event_t, src: FluidSeqId);
+    fn fluid_sequencer_get_tick(seq: *mut fluid_sequencer_t) -> u32;
     fn fluid_settings_setint(
         settings: *mut fluid_settings_t,
 	name: *const i8,
@@ -202,6 +203,26 @@ fn schedule_next_callback(sequencer: &mut Sequencer) {
     }
 }
 
+fn schedule_next_sequence(sequencer: &mut Sequencer) {
+    sequencer.now += sequencer.seq_duration;
+
+    // the sequence to play
+    let now = sequencer.now;
+    let dur = sequencer.seq_duration;
+ 
+    // the beat : 2 beats per sequence
+    send_note_on(sequencer, 0, 60, now + dur/2);
+    send_note_on(sequencer, 0, 60, now + dur);
+
+    // melody
+    send_note_on(sequencer, 1, 64, now + dur/10);
+    send_note_on(sequencer, 1, 67, now + 4*dur/10);
+    send_note_on(sequencer, 1, 70, now + 8*dur/10);
+
+    // so that we are called back early enough to schedule the next sequence
+    schedule_next_callback(sequencer);
+}
+
 pub fn sequencer() {
     println!("sequencer");
     let mut sequencer = Sequencer {
@@ -225,6 +246,9 @@ pub fn sequencer() {
         sequencer.synth_seq_id, sequencer.my_seq_id,
         sequencer.now, sequencer.seq_duration);
     load_sound_font(sequencer.synth_ptr);
-
+    unsafe {
+        sequencer.now = fluid_sequencer_get_tick(sequencer.sequencer_ptr);
+    }
+    schedule_next_sequence(&mut sequencer);
     destroy_synth(&mut sequencer);
 }
