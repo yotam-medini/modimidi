@@ -1,83 +1,13 @@
-use std::ffi::CString;
+use std::{thread, time};
 use std::fmt;
 use std::os::raw::c_void;
-use std::{thread, time};
-
-#[repr(C)]
-#[derive(Debug, Default, Copy, Clone)]
-pub struct fluid_audio_driver_t {}
-
-#[repr(C)]
-#[derive(Debug, Default, Copy, Clone)]
-pub struct fluid_event_t {}
-
-#[repr(C)]
-#[derive(Debug, Default, Copy, Clone)]
-pub struct fluid_sequencer_t {}
-
-#[repr(C)]
-#[derive(Debug, Default, Copy, Clone)]
-pub struct fluid_settings_t {}
-
-#[repr(C)]
-#[derive(Debug, Default, Copy, Clone)]
-pub struct fluid_synth_t {}
-
-type FluidSeqId = i16; // fluid_seq_id_t
-
-#[allow(improper_ctypes)]
-extern "C" {
-    fn delete_fluid_audio_driver(driver: *mut fluid_audio_driver_t);
-    fn delete_fluid_event(evt: *mut fluid_event_t);
-    fn fluid_event_timer(evt: *mut fluid_event_t, data: *mut c_void);
-    fn delete_fluid_sequencer(seq: *mut fluid_sequencer_t);
-    fn delete_fluid_synth(synth: *mut fluid_synth_t);
-    fn fluid_event_noteon(
-        evt: *mut fluid_event_t,
-        channel: i32,
-        key: i16, 
-        vel: i16);
-    fn fluid_event_set_dest(evt: *mut fluid_event_t, dest: FluidSeqId);
-    fn fluid_event_set_source(evt: *mut fluid_event_t, src: FluidSeqId);
-    fn fluid_sequencer_get_tick(seq: *mut fluid_sequencer_t) -> u32;
-    fn fluid_settings_setint(
-        settings: *mut fluid_settings_t,
-	name: *const i8,
-	val: i32) -> i32;
-    fn new_fluid_event() -> *mut fluid_event_t;
-    fn new_fluid_settings() -> *mut fluid_settings_t;
-    fn new_fluid_audio_driver(
-        settings: *mut fluid_settings_t,
-        synth: *mut fluid_synth_t) -> *mut fluid_audio_driver_t;
-    fn fluid_sequencer_register_client(
-        seq: *mut fluid_sequencer_t, 
-        name: *const i8,
-        callback: extern "C" fn(
-            time: u32,
-            event: *mut fluid_event_t,
-            seq: *mut fluid_sequencer_t, 
-            data: *mut c_void),
-        data: *mut c_void) -> FluidSeqId;
-    fn fluid_sequencer_register_fluidsynth(
-       seq: *mut fluid_sequencer_t,
-       synth: *mut fluid_synth_t) -> FluidSeqId;
-    fn fluid_sequencer_send_at(
-        seq: *mut fluid_sequencer_t,
-        evt: *mut fluid_event_t,
-        time: u32,
-        absolute: i32) -> i32;
-    fn fluid_synth_sfload(
-        synth: *mut fluid_synth_t,
-        path: *const i8,
-        reset_presets: i32) -> i32;
-    fn new_fluid_sequencer2(use_system_timer: i32) -> *mut fluid_sequencer_t;
-    fn new_fluid_synth(settings: *mut fluid_settings_t) -> *mut fluid_synth_t;
-}
+use std::ffi::CString;
+use crate::cfluid;
 
 struct Sequencer {
-    synth_ptr: *mut fluid_synth_t,
-    audio_driver_ptr: *mut fluid_audio_driver_t,
-    sequencer_ptr: *mut fluid_sequencer_t,
+    synth_ptr: *mut cfluid::fluid_synth_t,
+    audio_driver_ptr: *mut cfluid::fluid_audio_driver_t,
+    sequencer_ptr: *mut cfluid::fluid_sequencer_t,
     synth_seq_id: i16,
     my_seq_id: i16,
     now: u32,
@@ -97,8 +27,8 @@ impl fmt::Display for Sequencer {
 
 extern "C" fn seq_callback(
     time: u32,
-    event: *mut fluid_event_t,
-    seq: *mut fluid_sequencer_t, 
+    event: *mut cfluid::fluid_event_t,
+    seq: *mut cfluid::fluid_sequencer_t, 
     data: *mut c_void) {
     unsafe {
         let the_sequencer = &mut *(data as *mut Sequencer);
@@ -111,31 +41,31 @@ extern "C" fn seq_callback(
 fn create_synth(sequencer: &mut Sequencer) {
     println!("create_synth");
     unsafe {
-        let settings_ptr = new_fluid_settings();
+        let settings_ptr = cfluid::new_fluid_settings();
         // let settings = &mut *settings_ptr;
 	let mut ret;
 	let mut key;
 	key =
 	    CString::new("synth.reverb.active").expect("CString::new failed");
-	ret  = fluid_settings_setint(settings_ptr, key.as_ptr(), 0);
+	ret  = cfluid::fluid_settings_setint(settings_ptr, key.as_ptr(), 0);
 	println!("setting reverb: ret={}", ret);
 	key =
 	    CString::new("synth.chorus.active").expect("CString::new failed");
-	ret  = fluid_settings_setint(settings_ptr, key.as_ptr(), 0);
+	ret  = cfluid::fluid_settings_setint(settings_ptr, key.as_ptr(), 0);
 	println!("setting chorus: ret={}", ret);
-	let _synth = new_fluid_synth(settings_ptr);
-	sequencer.synth_ptr = new_fluid_synth(settings_ptr);
+	let _synth = cfluid::new_fluid_synth(settings_ptr);
+	sequencer.synth_ptr = cfluid::new_fluid_synth(settings_ptr);
         sequencer.audio_driver_ptr =
-            new_fluid_audio_driver(settings_ptr, sequencer.synth_ptr);
-        sequencer.sequencer_ptr = new_fluid_sequencer2(0);
+            cfluid::new_fluid_audio_driver(settings_ptr, sequencer.synth_ptr);
+        sequencer.sequencer_ptr = cfluid::new_fluid_sequencer2(0);
 
         // register synth as first destination
-        sequencer.synth_seq_id = fluid_sequencer_register_fluidsynth(
+        sequencer.synth_seq_id = cfluid::fluid_sequencer_register_fluidsynth(
             sequencer.sequencer_ptr, sequencer.synth_ptr);
 
         // register myself as second destination
 	key = CString::new("me").expect("CString::new failed");
-        sequencer.my_seq_id = fluid_sequencer_register_client(
+        sequencer.my_seq_id = cfluid::fluid_sequencer_register_client(
             sequencer.sequencer_ptr, 
             key.as_ptr(),
             seq_callback, 
@@ -147,36 +77,36 @@ fn create_synth(sequencer: &mut Sequencer) {
 fn destroy_synth(sequencer: &mut Sequencer) {
     println!("destroy_synth");
     unsafe {
-        delete_fluid_sequencer(sequencer.sequencer_ptr);
+        cfluid::delete_fluid_sequencer(sequencer.sequencer_ptr);
         sequencer.sequencer_ptr = std::ptr::null_mut();
-        delete_fluid_audio_driver(sequencer.audio_driver_ptr);
+        cfluid::delete_fluid_audio_driver(sequencer.audio_driver_ptr);
         sequencer.audio_driver_ptr = std::ptr::null_mut();
-        delete_fluid_synth(sequencer.synth_ptr);
+        cfluid::delete_fluid_synth(sequencer.synth_ptr);
         sequencer.synth_ptr = std::ptr::null_mut();
     }
 }
 
-fn load_sound_font(synth_ptr: *mut fluid_synth_t) {
+fn load_sound_font(synth_ptr: *mut cfluid::fluid_synth_t) {
     let path = CString::new("/usr/share/sounds/sf2/FluidR3_GM.sf2").expect(
         "CString::new failed");
     unsafe {
-        let fond_id = fluid_synth_sfload(synth_ptr, path.as_ptr(), 1);
+        let fond_id = cfluid::fluid_synth_sfload(synth_ptr, path.as_ptr(), 1);
         println!("load_sound_font: fond_id={}", fond_id);
     }
 }
 
 fn send_note_on(sequencer: &mut Sequencer, chan: i32, key: i16, date: u32) {
     unsafe {
-        let evt = new_fluid_event();
+        let evt = cfluid::new_fluid_event();
         println!("evt={:?}", evt);
-        fluid_event_set_source(evt, -1);
-        fluid_event_set_dest(evt, sequencer.synth_seq_id);
-        fluid_event_noteon(evt, chan, key, 127);
+        cfluid::fluid_event_set_source(evt, -1);
+        cfluid::fluid_event_set_dest(evt, sequencer.synth_seq_id);
+        cfluid::fluid_event_noteon(evt, chan, key, 127);
         println!("send_note_on: date={}", date);
-        let fluid_res = fluid_sequencer_send_at(
+        let fluid_res = cfluid::fluid_sequencer_send_at(
             sequencer.sequencer_ptr, evt, date, 1);
         println!("send_note_on: fluid_res={}", fluid_res);
-        delete_fluid_event(evt);
+        cfluid::delete_fluid_event(evt);
     }
 }
 
@@ -185,15 +115,15 @@ fn schedule_next_callback(sequencer: &mut Sequencer) {
     unsafe {
         // I want to be called back before the end of the next sequence
         let callback_date: u32 = sequencer.now + sequencer.seq_duration/2;
-        let evt = new_fluid_event();
-        fluid_event_set_source(evt, -1);
-        fluid_event_set_dest(evt, sequencer.my_seq_id);
-        fluid_event_timer(evt, std::ptr::null_mut());
+        let evt = cfluid::new_fluid_event();
+        cfluid::fluid_event_set_source(evt, -1);
+        cfluid::fluid_event_set_dest(evt, sequencer.my_seq_id);
+        cfluid::fluid_event_timer(evt, std::ptr::null_mut());
         println!("schedule_next_callback: callback_date={}", callback_date);
-        let fluid_res = fluid_sequencer_send_at(
+        let fluid_res = cfluid::fluid_sequencer_send_at(
             sequencer.sequencer_ptr, evt, callback_date, 1);
         println!("schedule_next_callback: fluid_res={}", fluid_res);
-        delete_fluid_event(evt);
+        cfluid::delete_fluid_event(evt);
     }
 }
 
@@ -242,7 +172,8 @@ pub fn sequencer() {
         sequencer.now, sequencer.seq_duration);
     load_sound_font(sequencer.synth_ptr);
     unsafe {
-        sequencer.now = fluid_sequencer_get_tick(sequencer.sequencer_ptr);
+        sequencer.now = cfluid::fluid_sequencer_get_tick(
+            sequencer.sequencer_ptr);
     }
     schedule_next_sequence(&mut sequencer);
     thread::sleep(time::Duration::from_millis(10000));
