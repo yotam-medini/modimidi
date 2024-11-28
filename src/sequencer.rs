@@ -5,38 +5,27 @@ use std::{thread, time};
 
 #[repr(C)]
 #[derive(Debug, Default, Copy, Clone)]
-pub struct fluid_audio_driver_t {
-    // ... fields of the struct ...
-}
+pub struct fluid_audio_driver_t {}
 
 #[repr(C)]
 #[derive(Debug, Default, Copy, Clone)]
-pub struct fluid_event_t {
-    // ... fields of the struct ...
-}
+pub struct fluid_event_t {}
 
 #[repr(C)]
 #[derive(Debug, Default, Copy, Clone)]
-pub struct fluid_sequencer_t {
-    // ... fields of the struct ...
-}
+pub struct fluid_sequencer_t {}
 
 #[repr(C)]
 #[derive(Debug, Default, Copy, Clone)]
-pub struct fluid_settings_t {
-    // ... fields of the struct ...
-}
+pub struct fluid_settings_t {}
 
 #[repr(C)]
 #[derive(Debug, Default, Copy, Clone)]
-pub struct fluid_synth_t {
-    // ... fields of the struct ...
-}
+pub struct fluid_synth_t {}
 
 type FluidSeqId = i16; // fluid_seq_id_t
 
 #[allow(improper_ctypes)]
-// # [ link(name = "fluid")]
 extern "C" {
     fn delete_fluid_audio_driver(driver: *mut fluid_audio_driver_t);
     fn delete_fluid_event(evt: *mut fluid_event_t);
