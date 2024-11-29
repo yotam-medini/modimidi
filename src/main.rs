@@ -9,8 +9,53 @@ fn parse_number(s: &str) -> Result<u32, String> {
         .map_err(|e| format!("Invalid number '{}': {}", s, e))
 }
 
-fn parse_milliseconds(_s: &str) -> Result<u32, String> {
-   Ok(13)
+fn parse_milliseconds(s: &str) -> Result<u32, String> {
+    let mut err = String::new();
+    let mut parts = s.split(":");
+    let ms: Vec<&str> = parts.collect();
+    let mslen = ms.len();
+    let mut seconds: u32 = 0;
+    let mut milli: u32 = 0;
+    println!("mslen={mslen}");
+    if mslen > 2 {
+        err = format!("{} has {} colon separators", s, mslen-1);
+    } else {
+        let mut i = 0;
+        if mslen == 2 {
+            match ms[0].parse::<u32>() {
+                Ok(n) => { seconds = 1000*n },
+                Err(e) => {
+                    err = format!("Failed to parse {} reason: {}", ms[0], e);
+                },
+            }
+            i = 1;
+        }
+        if err.is_empty() {
+            parts = ms[i].split(".");
+            let sm: Vec<&str> = parts.collect();
+            let smlen = sm.len();
+            if smlen > 2 {
+                err = format!("{} has {} . separators", ms[i], smlen-1);
+            } else {
+               match sm[0].parse::<u32>() {
+                   Ok(n) => { seconds += n}, 
+                   Err(e) => {
+                       err = format!("Failed to parse {} reason: {}", sm[0], e);
+                   },
+               }
+            }
+            if err.is_empty() && (smlen == 2) {
+                match sm[1].parse::<u32>() {
+                    Ok(n) => { milli = n}, 
+                    Err(e) => {
+                        err = format!("Failed to parse {} reason: {}",
+                            sm[1], e);
+                    },
+                }
+            }
+        }
+    }
+    if err.is_empty() { Ok(1000*seconds + milli) } else { Err(err) }
 }
 
 fn args_get_matches () -> clap::ArgMatches {
