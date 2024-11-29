@@ -176,6 +176,6 @@ pub fn sequencer() {
             sequencer.sequencer_ptr);
     }
     schedule_next_sequence(&mut sequencer);
-    thread::sleep(time::Duration::from_millis(10000));
+    thread::sleep(time::Duration::from_millis(3000));
     destroy_synth(&mut sequencer);
 }
