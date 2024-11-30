@@ -9,12 +9,13 @@ fn parse_number(s: &str) -> Result<u32, String> {
         .map_err(|e| format!("Invalid number '{}': {}", s, e))
 }
 
-fn parseu32(s: &str, n: &mut u32, err: &mut String) -> bool {
+fn parseu32(s: &str, err: &mut String) -> u32 {
+   let mut ret: u32 = 0;
    match s.parse::<u32>() {
-       Ok(pn) => {*n = pn; err.clear(); },
+       Ok(pn) => {ret = pn; err.clear(); },
        Err(perr) => {*err = perr.to_string()},
    }
-   return err.is_empty()
+   ret
 }
 
 fn parse_milliseconds(s: &str) -> Result<u32, String> {
@@ -28,12 +29,10 @@ fn parse_milliseconds(s: &str) -> Result<u32, String> {
     if mslen > 2 {
         err = format!("{} has {} colon separators", s, mslen-1);
     } else {
-        let mut n: u32 = 0;
         let mut i = 0;
         if mslen == 2 {
-            if parseu32(ms[0], &mut n, &mut err) {
-                seconds = 1000*n;
-            } else {
+            seconds = 1000 * parseu32(ms[0], &mut err);
+            if !err.is_empty() {
                 err = format!("Failed to parse {} reason: {}", ms[0], err);
             }
             i = 1;
@@ -45,16 +44,14 @@ fn parse_milliseconds(s: &str) -> Result<u32, String> {
             if smlen > 2 {
                 err = format!("{} has {} . separators", ms[i], smlen-1);
             } else {
-               if parseu32(&sm[0], &mut n, &mut err) {
-                   seconds += n;
-               } else {
+               seconds += parseu32(&sm[0], &mut err);
+               if !err.is_empty() {
                    err = format!("Failed to parse {} reason: {}", sm[0], err);
                }
             }
             if err.is_empty() && (smlen == 2) {
-                if parseu32(&sm[1], &mut n, &mut err) {
-                    milli = n;
-                } else {
+                milli = parseu32(&sm[1], &mut err);
+                if !err.is_empty() {
                     err = format!("Failed to parse {} reason: {}", sm[1], err);
                 }
             }
