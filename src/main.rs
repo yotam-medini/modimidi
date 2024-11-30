@@ -9,6 +9,14 @@ fn parse_number(s: &str) -> Result<u32, String> {
         .map_err(|e| format!("Invalid number '{}': {}", s, e))
 }
 
+fn parseu32(s: &str, n: &mut u32, err: &mut String) -> bool {
+   match s.parse::<u32>() {
+       Ok(pn) => {*n = pn; err.clear(); },
+       Err(perr) => {*err = perr.to_string()},
+   }
+   return err.is_empty()
+}
+
 fn parse_milliseconds(s: &str) -> Result<u32, String> {
     let mut err = String::new();
     let mut parts = s.split(":");
@@ -20,13 +28,13 @@ fn parse_milliseconds(s: &str) -> Result<u32, String> {
     if mslen > 2 {
         err = format!("{} has {} colon separators", s, mslen-1);
     } else {
+        let mut n: u32 = 0;
         let mut i = 0;
         if mslen == 2 {
-            match ms[0].parse::<u32>() {
-                Ok(n) => { seconds = 1000*n },
-                Err(e) => {
-                    err = format!("Failed to parse {} reason: {}", ms[0], e);
-                },
+            if parseu32(ms[0], &mut n, &mut err) {
+                seconds = 1000*n;
+            } else {
+                err = format!("Failed to parse {} reason: {}", ms[0], err);
             }
             i = 1;
         }
@@ -37,20 +45,17 @@ fn parse_milliseconds(s: &str) -> Result<u32, String> {
             if smlen > 2 {
                 err = format!("{} has {} . separators", ms[i], smlen-1);
             } else {
-               match sm[0].parse::<u32>() {
-                   Ok(n) => { seconds += n}, 
-                   Err(e) => {
-                       err = format!("Failed to parse {} reason: {}", sm[0], e);
-                   },
+               if parseu32(&sm[0], &mut n, &mut err) {
+                   seconds += n;
+               } else {
+                   err = format!("Failed to parse {} reason: {}", sm[0], err);
                }
             }
             if err.is_empty() && (smlen == 2) {
-                match sm[1].parse::<u32>() {
-                    Ok(n) => { milli = n}, 
-                    Err(e) => {
-                        err = format!("Failed to parse {} reason: {}",
-                            sm[1], e);
-                    },
+                if parseu32(&sm[1], &mut n, &mut err) {
+                    milli = n;
+                } else {
+                    err = format!("Failed to parse {} reason: {}", sm[1], err);
                 }
             }
         }
