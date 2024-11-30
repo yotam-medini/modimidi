@@ -25,13 +25,12 @@ fn parse_milliseconds(s: &str) -> Result<u32, String> {
     let mslen = ms.len();
     let mut seconds: u32 = 0;
     let mut milli: u32 = 0;
-    println!("mslen={mslen}");
     if mslen > 2 {
         err = format!("{} has {} colon separators", s, mslen-1);
     } else {
         let mut i = 0;
         if mslen == 2 {
-            seconds = 1000 * parseu32(ms[0], &mut err);
+            seconds = 60 * parseu32(ms[0], &mut err);
             if !err.is_empty() {
                 err = format!("Failed to parse {} reason: {}", ms[0], err);
             }
@@ -70,6 +69,10 @@ fn args_get_matches () -> clap::ArgMatches {
             .required(false)
             .value_parser(parse_milliseconds)
         )
+        .arg(arg!(-e --end <TIME> "end time [minutes]:seconds[.millisecs]")
+            .required(false)
+            .value_parser(parse_milliseconds)
+        )
         .arg(
             arg!(--debugflags <FLAGS> "Debug bitwise flags")
             .required(false)
@@ -97,5 +100,6 @@ fn main() {
         }
     }
     let begin: u32 = *matches.get_one::<u32>("begin").unwrap_or(&0);
-    println!("begin={}", begin)
+    let end: u32 = *matches.get_one::<u32>("begin").unwrap_or(&0xffffffff);
+    println!("begin={}, end={}", begin, end)
 }
