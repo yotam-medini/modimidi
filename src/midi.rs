@@ -21,8 +21,8 @@ pub enum MetaEvent {
 }
 
 pub enum Event {
-    MidiEvent,
-    SysexEvent,
+    MidiEvent(MidiEvent),
+    SysexEvent(SysexEvent),
     MetaEvent(MetaEvent),
     Undef,
 }
@@ -74,8 +74,10 @@ fn get_variable_length_quantity(data: &Vec<u8>, offset: &mut usize) -> u32 {
     let mut done = false;
     let offs_limit = offs + 4;
     while (offs < offs_limit) && !done {
-        quantity = (quantity << 7) & (u32::from(data[offs]) & 0x7f);
-        done = (data[offs] & 0x80) == 0;
+        let b: u8 = data[offs];
+        println!("offs={}, b={:02x}", offs, b);
+        quantity = (quantity << 7) + (u32::from(b) & 0x7f);
+        done = (b & 0x80) == 0;
         offs += 1;
     }
     *offset = offs;
@@ -103,13 +105,27 @@ fn get_track_event(data: &Vec<u8>, offset: &mut usize) -> TrackEvent {
         delta_time: delta_time,
         event: Event::Undef,
     };
-    if event_first_byte == 0xff { // MetaEvent
-        println!("meta... {:#02x} {:#02x}", data[*offset + 1], data[*offset + 2]);
-        let meta_event = get_meta_event(data, offset);
-        println!("offset={}", offset);
-        te.event = Event::MetaEvent(meta_event);
+    match event_first_byte {
+        0xff => { // Meta Event
+            println!("meta... {:#02x} {:#02x}", data[*offset + 1], data[*offset + 2]);
+            let meta_event = get_meta_event(data, offset);
+            println!("offset={}", offset);
+            te.event = Event::MetaEvent(meta_event);
+        },
+        0xf0 | 0xf7 => { // Sysex Event
+            println!("Sysex Event")
+        },
+        _ => { // Midi Event
+            println!("midi event... {:#02x} {:#02x}", data[*offset + 1], data[*offset + 2]);
+        }
     }
     te
+}
+
+fn get_midi_event(data: &Vec<u8>, offset: &mut usize) -> MidiEvent {
+    let offs = *offset;
+    let mut midi_event = MidiEvent {};
+    midi_event
 }
 
 fn get_meta_event(data: &Vec<u8>, offset: &mut usize) -> MetaEvent {
@@ -123,6 +139,7 @@ fn get_meta_event(data: &Vec<u8>, offset: &mut usize) -> MetaEvent {
         0x01 => {
             *offset = offs + 2; 
             let length = get_variable_length_quantity(data, offset);
+            println!("length={}", length);
             let text = get_string(data, offset, length);
             let e = Text {
                name: text,
@@ -220,8 +237,21 @@ pub fn parse_midi_file(filename: &PathBuf) -> Midi {
     if midi.ok() {
         println!("#(data)={}", data.len());
         for w in 0..0x10 {
-            println!("header[{:02}]: {:#010b} {:#010b} {:#010b} {:#010b}",
-                4*w, data[4*w + 0], data[4*w + 1], data[4*w + 2], data[4*w + 3]);
+            let mut s4 = String::new();
+            for i in 0..4 {
+                let mut c: char = ' ';
+                let u8 = data[4*w + i];
+                if (0x20 <= u8) && (u8 <= 0x7f) {
+                    c = char::from_u32(u32::from(u8)).unwrap();
+                }
+                s4.push(c);
+            }
+            println!(
+                "header[{:02}]: {:#010b} {:#010b} {:#010b} {:#010b}  {:02x} {:02x} {:02x} {:02x} {}",
+                4*w,
+                data[4*w + 0], data[4*w + 1], data[4*w + 2], data[4*w + 3],
+                data[4*w + 0], data[4*w + 1], data[4*w + 2], data[4*w + 3],
+                s4);
         }
         let mut offset = 0;
         const MTHD: &str = "MThd";
