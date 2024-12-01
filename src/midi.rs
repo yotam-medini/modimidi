@@ -11,6 +11,9 @@ pub struct Track {
 pub struct Midi {
     error: String,
     format: u16,
+    ticks_per_quarter_note: u16,
+    negative_smpte_format: u8,
+    ticks_per_frame: u8,
     tracks: Vec<Track>,
 }
 
@@ -38,6 +41,9 @@ pub fn parse_midi_file(filename: &PathBuf) -> Midi {
     let mut midi = Midi {
         error: String::new(),
         format: 0xffff,
+        ticks_per_quarter_note: 0,
+        negative_smpte_format: 0,
+        ticks_per_frame: 0,
         tracks: Vec::<Track>::new(),
     };
     let meta = fs::metadata(filename);
@@ -77,18 +83,15 @@ pub fn parse_midi_file(filename: &PathBuf) -> Midi {
         let division : u16 = (u16::from(data[12]) << 8) | u16::from(data[13]);
         println!("division={:#018b}", division); // division=0b0000000110000000
         let bit15: u16 = division >> 15;
-        let mut ticks_per_quarter_note = 0u16;
-        let mut negative_smpte_format = 0u8;
-        let mut ticks_per_frame = 0u8;
         if bit15 == 0 {
-            ticks_per_quarter_note = division;
+            midi.ticks_per_quarter_note = division;
         } else {
-            negative_smpte_format = data[12] & 0x7f;
-            ticks_per_frame = data[13];
+            midi.negative_smpte_format = data[12] & 0x7f;
+            midi.ticks_per_frame = data[13];
         }
-        println!("ticks_per_quarter_note={}", ticks_per_quarter_note);
-        println!("ticks_per_frame={}", ticks_per_frame);
-        println!("negative_smpte_format={}", negative_smpte_format);
+        println!("ticks_per_quarter_note={}", midi.ticks_per_quarter_note);
+        println!("ticks_per_frame={}", midi.ticks_per_frame);
+        println!("negative_smpte_format={}", midi.negative_smpte_format);
     }
     return midi;
 }
