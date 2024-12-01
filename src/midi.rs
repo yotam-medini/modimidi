@@ -22,8 +22,10 @@ impl Midi {
         self.error.is_empty()
     }
     pub fn set_error(&mut self, err: String) {
-        eprintln!("{}", err);
-        self.error = err;
+        if self.ok() {
+            eprintln!("{}", err);
+            self.error = err;
+        }
     }
 }
 
@@ -59,7 +61,6 @@ pub fn parse_midi_file(filename: &PathBuf) -> Midi {
     let data: Vec<u8> =
         if midi.ok() {fs::read(filename).unwrap() } else { Vec::<u8>::new() };
     if midi.ok() {
-        // let data: Vec<u8> = fs::read(filename).unwrap();
         println!("#(data)={}", data.len());
         for w in 0..6 {
             println!("header[{:02}]: {:#010b} {:#010b} {:#010b} {:#010b}",
