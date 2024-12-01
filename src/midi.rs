@@ -51,13 +51,13 @@ impl Midi {
         }
     }
     fn read_track(&mut self, data: &Vec<u8>, offset: &mut usize) {
-        let mtrk = String::from("MTrk");
+        const MTRK: &str = "MTrk";
         println!("read_track: offset={}", offset);
         let chunk_type = get_chunk_type(data, offset);
         println!("read_track: chunk_type={}, offset={}", chunk_type, offset);
-        if chunk_type != mtrk {
+        if chunk_type != MTRK {
             self.set_error(format!("chunk_type={} != {} @ offset={}",
-                chunk_type, mtrk, offset));
+                chunk_type, MTRK, offset));
         }
     }
 }
@@ -92,10 +92,11 @@ pub fn parse_midi_file(filename: &PathBuf) -> Midi {
                 4*w, data[4*w + 0], data[4*w + 1], data[4*w + 2], data[4*w + 3]);
         }
         let mut offset = 0;
+        const MTHD: &str = "MThd";
         let mthd = get_chunk_type(&data, &mut offset);
         println!("mthd={}", mthd);
-        if mthd != String::from("MThd") {
-            midi.set_error(format!("Header chunk: {} != MThd", mthd));
+        if mthd != MTHD {
+            midi.set_error(format!("Header chunk: {} != {}", mthd, MTHD));
         }
     }
     if midi.ok() {
