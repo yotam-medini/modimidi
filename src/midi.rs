@@ -25,15 +25,51 @@ fn get_chunk_type(data: &Vec<u8>, offset: &mut usize) -> String {
 
 fn get_variable_length_quantity(data: &Vec<u8>, offset: &mut usize) -> u32 {
     let mut quantity: u32 = 0;
-    let offs: usize = *offset;
-    return quantity;
+    let mut offs: usize = *offset;
+    let mut done = false;
+    let offs_limit = offs + 4;
+    while (offs < offs_limit) && !done {
+        quantity = (quantity << 7) & (u32::from(data[offs]) & 0x7f);
+        done = (data[offs] & 0x80) == 0;
+        offs += 1;
+    }
+    *offset = offs;
+    quantity
 }
 
-pub struct Event {
+fn get_track_event(data: &Vec<u8>, offset: &mut usize) -> TrackEvent {
+    let delta_time = get_variable_length_quantity(data, offset);
+    println!("delta_time={}, offset={}", delta_time, offset);
+    println!("next byte={:#02x}", data[*offset]);
+    let te = TrackEvent {
+        delta_time: delta_time,
+        event: Event::MetaEvent{},
+    };
+    te
+}
+
+pub struct MidiEvent {
+}
+
+pub struct SysexEvent {
+}
+
+pub struct MetaEvent {
+}
+
+pub enum Event {
+    MidiEvent,
+    SysexEvent,
+    MetaEvent
+}
+
+pub struct TrackEvent {
+    delta_time: u32,
+    event: Event,
 }
 
 pub struct Track {
-    events: Vec<Event>,
+    track_events: Vec<TrackEvent>,
 }
 
 pub struct Midi {
@@ -76,13 +112,20 @@ impl Midi {
             self.set_error(format!("chunk_type={} != {} @ offset={}",
                 chunk_type, MTRK, offset));
         } else {
+            let offset_begin_of_track = *offset;
             let length = get_usize(&data, offset);
-            println!("length={}, offset={}", length, offset);
+            let offset_eot = offset_begin_of_track + length;
+            println!("length={}, offset={}, eot={}", length, offset, offset_eot);
             let mut track = Track {
-                events: Vec::<Event>::new(),
+                track_events: Vec::<TrackEvent>::new(),
             };
+            let mut eot = false;
+            while (!eot) & (*offset < offset_eot) {
+                let track_event = get_track_event(data, offset);
+                track.track_events.push(track_event);
+            }
             self.tracks.push(track);
-            *offset = *offset + length;
+            *offset = offset_begin_of_track + length;
         }
     }
 }
