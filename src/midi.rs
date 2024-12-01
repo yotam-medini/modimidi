@@ -2,7 +2,7 @@ use std::path::PathBuf;
 use std::fs;
 
 fn get_usize(data: &Vec<u8>, offset: &mut usize) -> usize {
-    let mut offs: usize = *offset;
+    let offs: usize = *offset;
     let ret: usize = 
         (usize::from(data[offs + 0]) << (3*8)) |
         (usize::from(data[offs + 1]) << (2*8)) |
@@ -21,6 +21,12 @@ fn get_chunk_type(data: &Vec<u8>, offset: &mut usize) -> String {
     }
     *offset = next_offset;
     chunk_type
+}
+
+fn get_variable_length_quantity(data: &Vec<u8>, offset: &mut usize) -> u32 {
+    let mut quantity: u32 = 0;
+    let offs: usize = *offset;
+    return quantity;
 }
 
 pub struct Event {
@@ -72,7 +78,11 @@ impl Midi {
         } else {
             let length = get_usize(&data, offset);
             println!("length={}, offset={}", length, offset);
-            offset = offset + length;
+            let mut track = Track {
+                events: Vec::<Event>::new(),
+            };
+            self.tracks.push(track);
+            *offset = *offset + length;
         }
     }
 }
@@ -116,11 +126,8 @@ pub fn parse_midi_file(filename: &PathBuf) -> Midi {
         }
     }
     if midi.ok() {
-        length = 
-            (usize::from(data[4]) << (3*8)) |
-            (usize::from(data[5]) << (2*8)) |
-            (usize::from(data[6]) << (1*8)) |
-            (usize::from(data[7]));
+        let mut offset: usize = 4;
+        length = get_usize(&data, &mut offset);
         midi.format = (u16::from(data[8]) << 8) | u16::from(data[9]);
         midi.ntrks = (u16::from(data[10]) << 8) | u16::from(data[11]);
         println!("length={}, format={}, ntrks={}",
