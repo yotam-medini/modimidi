@@ -1,6 +1,45 @@
 use std::path::PathBuf;
 use std::fs;
 
+pub struct MidiEvent {
+}
+
+pub struct SysexEvent {
+}
+
+pub struct SequenceTrackName {
+    name: String,
+}
+
+pub enum MetaEvent {
+    SequenceTrackName(SequenceTrackName),
+}
+
+pub enum Event {
+    MidiEvent,
+    SysexEvent,
+    MetaEvent
+}
+
+pub struct TrackEvent {
+    delta_time: u32,
+    event: Event,
+}
+
+pub struct Track {
+    track_events: Vec<TrackEvent>,
+}
+
+pub struct Midi {
+    error: String,
+    format: u16,
+    ntrks: u16,
+    ticks_per_quarter_note: u16,
+    negative_smpte_format: u8,
+    ticks_per_frame: u8,
+    tracks: Vec<Track>,
+}
+
 fn get_usize(data: &Vec<u8>, offset: &mut usize) -> usize {
     let offs: usize = *offset;
     let ret: usize = 
@@ -37,49 +76,52 @@ fn get_variable_length_quantity(data: &Vec<u8>, offset: &mut usize) -> u32 {
     quantity
 }
 
+fn get_string(data: &Vec<u8>, offset: &mut usize, length: u32) -> String {
+    let mut text = String::new();
+    let next_offset: usize = *offset + (length as usize);
+    for i in *offset..next_offset {
+        let cdata: char = char::from_u32(u32::from(data[i])).unwrap();
+        text.push(cdata);
+    }
+    *offset = next_offset;
+    println!("get_string: text={}", text);
+    text
+}
+
 fn get_track_event(data: &Vec<u8>, offset: &mut usize) -> TrackEvent {
     let delta_time = get_variable_length_quantity(data, offset);
     println!("delta_time={}, offset={}", delta_time, offset);
-    println!("next byte={:#02x}", data[*offset]);
+    let event_first_byte = data[*offset];
+    println!("event_first_byte={:#02x}", event_first_byte);
     let te = TrackEvent {
         delta_time: delta_time,
         event: Event::MetaEvent{},
     };
+    if event_first_byte == 0xff { // MetaEvent
+        println!("meta... {:#02x} {:#02x}", data[*offset + 1], data[*offset + 2]);
+        let meta_event = get_meta_event(data, offset);
+    }
     te
 }
 
-pub struct MidiEvent {
-}
-
-pub struct SysexEvent {
-}
-
-pub struct MetaEvent {
-}
-
-pub enum Event {
-    MidiEvent,
-    SysexEvent,
-    MetaEvent
-}
-
-pub struct TrackEvent {
-    delta_time: u32,
-    event: Event,
-}
-
-pub struct Track {
-    track_events: Vec<TrackEvent>,
-}
-
-pub struct Midi {
-    error: String,
-    format: u16,
-    ntrks: u16,
-    ticks_per_quarter_note: u16,
-    negative_smpte_format: u8,
-    ticks_per_frame: u8,
-    tracks: Vec<Track>,
+fn get_meta_event(data: &Vec<u8>, offset: &mut usize) -> MetaEvent {
+    let offs = *offset;
+    assert!(data[offs] == 0xff);
+    let seq_track_name = SequenceTrackName {
+        name: String::new(),
+    };
+    let mut meta_event = MetaEvent::SequenceTrackName(seq_track_name);
+    match data[offs + 1] {
+        0x03 => {
+            *offset = offs + 2; 
+            let length = get_variable_length_quantity(data, offset);
+            let text = get_string(data, offset, length);
+        },
+        _ => { 
+            eprintln!("Not yet supported MetaEvent {:#02x}", data[offs + 1]);
+        },
+    }
+    meta_event
 }
 
 impl Midi {
