@@ -15,9 +15,17 @@ pub struct SequenceTrackName {
     name: String,
 }
 
+pub struct TimeSignature {
+    nn: u8, // nunmerator
+    dd: u8, // negative power of 2, denominator
+    cc: u8, // MIDI clocks in a metronome click
+    bb: u8, // number of notated 32nd-notes in a MIDI quarter-note
+}
+
 pub enum MetaEvent {
     Text(Text),
     SequenceTrackName(SequenceTrackName),
+    TimeSignature(TimeSignature),
 }
 
 pub enum Event {
@@ -154,6 +162,20 @@ fn get_meta_event(data: &Vec<u8>, offset: &mut usize) -> MetaEvent {
                name: text,
             };
             meta_event = MetaEvent::SequenceTrackName(seq_track_name);
+        },
+        0x58 => {
+            if data[offs + 2] != 0x04 {
+                eprintln!("Unexpected byte {:02x} followeing 0x58 TimeSignature meta event",
+                    data[offs + 2]);
+            }
+            let time_signature = TimeSignature {
+                nn: data[offs + 3],
+                dd: data[offs + 4],
+                cc: data[offs + 5],
+                bb: data[offs + 6]
+            };
+            meta_event = MetaEvent::TimeSignature(time_signature);
+            *offset = offs + 7;                  ;
         },
         _ => { 
             eprintln!("Not yet supported MetaEvent {:#02x}", data[offs + 1]);
