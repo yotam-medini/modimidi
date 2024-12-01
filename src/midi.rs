@@ -11,6 +11,7 @@ pub struct Track {
 pub struct Midi {
     error: String,
     format: u16,
+    ntrks: u16,
     ticks_per_quarter_note: u16,
     negative_smpte_format: u8,
     ticks_per_frame: u8,
@@ -25,6 +26,13 @@ impl Midi {
         if self.ok() {
             eprintln!("{}", err);
             self.error = err;
+        }
+    }
+    fn read_one_track(&mut self, data: &Vec<u8>) {
+    }
+    fn read_tracks(&mut self, data: &Vec<u8>) {
+        for itrack in 0..self.ntrks {
+            println!("itrack={}", itrack);
         }
     }
 }
@@ -43,6 +51,7 @@ pub fn parse_midi_file(filename: &PathBuf) -> Midi {
     let mut midi = Midi {
         error: String::new(),
         format: 0xffff,
+        ntrks: 0,
         ticks_per_quarter_note: 0,
         negative_smpte_format: 0,
         ticks_per_frame: 0,
@@ -79,8 +88,12 @@ pub fn parse_midi_file(filename: &PathBuf) -> Midi {
             (u32::from(data[6]) << (1*8)) |
             (u32::from(data[7]));
         midi.format = (u16::from(data[8]) << 8) | u16::from(data[9]);
-        let ntrks : u16 = (u16::from(data[10]) << 8) | u16::from(data[11]);
-        println!("length={}, format={}, ntrks={}", length, midi.format, ntrks);
+        midi.ntrks = (u16::from(data[10]) << 8) | u16::from(data[11]);
+        println!("length={}, format={}, ntrks={}",
+            length, midi.format, midi.ntrks);
+        if length != 6 {
+            midi.set_error(format!("Unexpected length: {} != 6", length));
+        }
         let division : u16 = (u16::from(data[12]) << 8) | u16::from(data[13]);
         println!("division={:#018b}", division); // division=0b0000000110000000
         let bit15: u16 = division >> 15;
@@ -93,6 +106,14 @@ pub fn parse_midi_file(filename: &PathBuf) -> Midi {
         println!("ticks_per_quarter_note={}", midi.ticks_per_quarter_note);
         println!("ticks_per_frame={}", midi.ticks_per_frame);
         println!("negative_smpte_format={}", midi.negative_smpte_format);
+    }
+    if midi.ok() {
+        match midi.format {
+            0 => midi.read_one_track(&data),
+            1|2 => midi.read_tracks(&data),
+            _ => midi.set_error(format!("Unsupported midi format: {}",
+                midi.format))
+        }
     }
     return midi;
 }
