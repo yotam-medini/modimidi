@@ -2,6 +2,7 @@ use std::path::PathBuf;
 use clap::{arg, command, value_parser};
 mod cfluid;
 mod sequencer;
+mod midi;
 
 fn parse_number(s: &str) -> Result<u32, String> {
     let base = if s.starts_with("0x") { 16 } else { 10 };
@@ -101,5 +102,8 @@ fn main() {
     }
     let begin: u32 = *matches.get_one::<u32>("begin").unwrap_or(&0);
     let end: u32 = *matches.get_one::<u32>("begin").unwrap_or(&0xffffffff);
-    println!("begin={}, end={}", begin, end)
+    println!("begin={}, end={}", begin, end);
+    let midifile = matches.get_one::<PathBuf>("midifile").unwrap();
+    println!("midifile={:?}", midifile);
+    midi::parse_midi_file(&midifile);
 }
