@@ -7,18 +7,24 @@ pub struct MidiEvent {
 pub struct SysexEvent {
 }
 
+pub struct Text {
+    name: String,
+}
+
 pub struct SequenceTrackName {
     name: String,
 }
 
 pub enum MetaEvent {
+    Text(Text),
     SequenceTrackName(SequenceTrackName),
 }
 
 pub enum Event {
     MidiEvent,
     SysexEvent,
-    MetaEvent
+    MetaEvent(MetaEvent),
+    Undef,
 }
 
 pub struct TrackEvent {
@@ -93,13 +99,15 @@ fn get_track_event(data: &Vec<u8>, offset: &mut usize) -> TrackEvent {
     println!("delta_time={}, offset={}", delta_time, offset);
     let event_first_byte = data[*offset];
     println!("event_first_byte={:#02x}", event_first_byte);
-    let te = TrackEvent {
+    let mut te = TrackEvent {
         delta_time: delta_time,
-        event: Event::MetaEvent{},
+        event: Event::Undef,
     };
     if event_first_byte == 0xff { // MetaEvent
         println!("meta... {:#02x} {:#02x}", data[*offset + 1], data[*offset + 2]);
         let meta_event = get_meta_event(data, offset);
+        println!("offset={}", offset);
+        te.event = Event::MetaEvent(meta_event);
     }
     te
 }
@@ -107,15 +115,28 @@ fn get_track_event(data: &Vec<u8>, offset: &mut usize) -> TrackEvent {
 fn get_meta_event(data: &Vec<u8>, offset: &mut usize) -> MetaEvent {
     let offs = *offset;
     assert!(data[offs] == 0xff);
-    let seq_track_name = SequenceTrackName {
+    let mut seq_track_name = SequenceTrackName {
         name: String::new(),
     };
     let mut meta_event = MetaEvent::SequenceTrackName(seq_track_name);
     match data[offs + 1] {
+        0x01 => {
+            *offset = offs + 2; 
+            let length = get_variable_length_quantity(data, offset);
+            let text = get_string(data, offset, length);
+            let e = Text {
+               name: text,
+            };
+            meta_event = MetaEvent::Text(e);
+        },
         0x03 => {
             *offset = offs + 2; 
             let length = get_variable_length_quantity(data, offset);
             let text = get_string(data, offset, length);
+            seq_track_name = SequenceTrackName {
+               name: text,
+            };
+            meta_event = MetaEvent::SequenceTrackName(seq_track_name);
         },
         _ => { 
             eprintln!("Not yet supported MetaEvent {:#02x}", data[offs + 1]);
