@@ -10,16 +10,16 @@ pub struct Track {
 
 pub struct Midi {
     error: String,
-    format: u8,
+    format: u16,
     tracks: Vec<Track>,
 }
 
 impl Midi {
-    fn ok(&self) -> bool {
+    pub fn ok(&self) -> bool {
         self.error.is_empty()
     }
-    fn set_error(&mut self, err: String) {
-        println!("{}", err);
+    pub fn set_error(&mut self, err: String) {
+        eprintln!("{}", err);
         self.error = err;
     }
 }
@@ -37,24 +37,22 @@ pub fn parse_midi_file(filename: &PathBuf) -> Midi {
     println!("parse_midi_file({:?})", filename);
     let mut midi = Midi {
         error: String::new(),
-        format: 0xff,
+        format: 0xffff,
         tracks: Vec::<Track>::new(),
     };
     let meta = fs::metadata(filename);
     let mut file_size: u64 = 0;
-    let mut ok = true;
     match meta {
         Ok(mt) => { println!("mt={:?}", mt); file_size = mt.len(); },
         Err(e) => {
             println!("Error {:?}", e); 
-            midi.error = e.to_string();
-            ok = false; 
+            midi.set_error(format!("Error {:?}", e));
         }
     }
     println!("{:?} size={}", filename, file_size);
     let data: Vec<u8> =
-        if ok {fs::read(filename).unwrap() } else { Vec::<u8>::new() };
-    if ok {
+        if midi.ok() {fs::read(filename).unwrap() } else { Vec::<u8>::new() };
+    if midi.ok() {
         // let data: Vec<u8> = fs::read(filename).unwrap();
         println!("#(data)={}", data.len());
         for w in 0..6 {
@@ -64,19 +62,18 @@ pub fn parse_midi_file(filename: &PathBuf) -> Midi {
         let mthd = get_chunk_type(&data, 0);
         println!("mthd={}", mthd);
         if mthd != String::from("MThd") {
-            eprintln!("Header chunk: {} != MThd", mthd);
-            ok = false;
+            midi.set_error(format!("Header chunk: {} != MThd", mthd));
         }
     }
-    if ok {
+    if midi.ok() {
         let length: u32 = 
             (u32::from(data[4]) << (3*8)) |
             (u32::from(data[5]) << (2*8)) |
             (u32::from(data[6]) << (1*8)) |
             (u32::from(data[7]));
-        let midi_format : u16 = (u16::from(data[8]) << 8) | u16::from(data[9]);
+        midi.format = (u16::from(data[8]) << 8) | u16::from(data[9]);
         let ntrks : u16 = (u16::from(data[10]) << 8) | u16::from(data[11]);
-        println!("length={}, format={}, ntrks={}", length, midi_format, ntrks);
+        println!("length={}, format={}, ntrks={}", length, midi.format, ntrks);
         let division : u16 = (u16::from(data[12]) << 8) | u16::from(data[13]);
         println!("division={:#018b}", division); // division=0b0000000110000000
         let bit15: u16 = division >> 15;
