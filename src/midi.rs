@@ -14,6 +14,16 @@ pub struct Midi {
     tracks: Vec<Track>,
 }
 
+impl Midi {
+    fn ok(&self) -> bool {
+        self.error.is_empty()
+    }
+    fn set_error(&mut self, err: String) {
+        println!("{}", err);
+        self.error = err;
+    }
+}
+
 fn get_chunk_type(data: &Vec<u8>, offset: usize) -> String {
     let mut chunk_type = String::new();
     for i in offset..offset+4 {
