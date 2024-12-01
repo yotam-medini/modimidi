@@ -1,6 +1,17 @@
 use std::path::PathBuf;
 use std::fs;
 
+fn get_chunk_type(data: &Vec<u8>, offset: &mut usize) -> String {
+    let mut chunk_type = String::new();
+    let next_offset: usize = *offset + 4;
+    for i in *offset..next_offset {
+        let cdata: char = char::from_u32(u32::from(data[i])).unwrap();
+        chunk_type.push(cdata);
+    }
+    *offset = next_offset;
+    chunk_type
+}
+
 pub struct Event {
 }
 
@@ -29,21 +40,26 @@ impl Midi {
         }
     }
     fn read_one_track(&mut self, data: &Vec<u8>) {
+        let mut offset : usize = 14;
+        self.read_track(&data, &mut offset);
     }
     fn read_tracks(&mut self, data: &Vec<u8>) {
+        let mut offset : usize = 14;
         for itrack in 0..self.ntrks {
             println!("itrack={}", itrack);
+            self.read_track(&data, &mut offset);
         }
     }
-}
-
-fn get_chunk_type(data: &Vec<u8>, offset: usize) -> String {
-    let mut chunk_type = String::new();
-    for i in offset..offset+4 {
-        let cdata: char = char::from_u32(u32::from(data[i])).unwrap();
-        chunk_type.push(cdata);
+    fn read_track(&mut self, data: &Vec<u8>, offset: &mut usize) {
+        let mtrk = String::from("MTrk");
+        println!("read_track: offset={}", offset);
+        let chunk_type = get_chunk_type(data, offset);
+        println!("read_track: chunk_type={}, offset={}", chunk_type, offset);
+        if chunk_type != mtrk {
+            self.set_error(format!("chunk_type={} != {} @ offset={}",
+                chunk_type, mtrk, offset));
+        }
     }
-    chunk_type
 }
 
 pub fn parse_midi_file(filename: &PathBuf) -> Midi {
@@ -75,7 +91,8 @@ pub fn parse_midi_file(filename: &PathBuf) -> Midi {
             println!("header[{:02}]: {:#010b} {:#010b} {:#010b} {:#010b}",
                 4*w, data[4*w + 0], data[4*w + 1], data[4*w + 2], data[4*w + 3]);
         }
-        let mthd = get_chunk_type(&data, 0);
+        let mut offset = 0;
+        let mthd = get_chunk_type(&data, &mut offset);
         println!("mthd={}", mthd);
         if mthd != String::from("MThd") {
             midi.set_error(format!("Header chunk: {} != MThd", mthd));

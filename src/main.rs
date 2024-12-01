@@ -1,4 +1,5 @@
 use std::path::PathBuf;
+// use std::process::ExitCode;
 use clap::{arg, command, value_parser};
 mod cfluid;
 mod sequencer;
@@ -105,5 +106,8 @@ fn main() {
     println!("begin={}, end={}", begin, end);
     let midifile = matches.get_one::<PathBuf>("midifile").unwrap();
     println!("midifile={:?}", midifile);
-    midi::parse_midi_file(&midifile);
+    let parsed_midi = midi::parse_midi_file(&midifile);
+    let exit_code = if parsed_midi.ok() { 0 } else { 1 };
+    println!("exit_code={}", exit_code);
+    std::process::exit(exit_code);
 }
