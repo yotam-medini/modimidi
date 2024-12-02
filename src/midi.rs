@@ -26,9 +26,19 @@ pub struct SysexEvent {
 pub struct Text {
     name: String,
 }
+impl fmt::Display for Text {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "Text(name={})", self.name)
+    }
+}
 
 pub struct SequenceTrackName {
     name: String,
+}
+impl fmt::Display for SequenceTrackName {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "SequenceTrackName(name={})", self.name)
+    }
 }
 
 pub struct TimeSignature {
@@ -37,9 +47,19 @@ pub struct TimeSignature {
     cc: u8, // MIDI clocks in a metronome click
     bb: u8, // number of notated 32nd-notes in a MIDI quarter-note
 }
+impl fmt::Display for TimeSignature {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "TimeSignature(nn={}, dd={}, cc={}, bb={})", self.nn, self.dd, self.cc, self.bb)
+    }
+}
 
 pub struct SetTempo {
     tttttt: u32, // microseconds per MIDI quarter-note
+}
+impl fmt::Display for SetTempo {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "SetTempo(tttttt={})", self.tttttt)
+    }
 }
 
 pub struct EndOfTrack {
@@ -56,10 +76,10 @@ pub enum MetaEvent {
 impl fmt::Display for MetaEvent {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            MetaEvent::Text(t) => write!(f, "Text"),
-            MetaEvent::SequenceTrackName(name) => write!(f, "SequenceTrackName"),
-            MetaEvent::TimeSignature(ts) => write!(f, "TimeSignature"),
-            MetaEvent::SetTempo(st) => write!(f, "SetTempo"),
+            MetaEvent::Text(t) => write!(f, "{}", t),
+            MetaEvent::SequenceTrackName(name) => write!(f, "{}", name),
+            MetaEvent::TimeSignature(ts) => write!(f, "{}", ts),
+            MetaEvent::SetTempo(st) => write!(f, "{}", st),
             MetaEvent::EndOfTrack(eot) => write!(f, "EndOfTrack"),
             MetaEvent::Undef => write!(f, "Undef"),
         }
