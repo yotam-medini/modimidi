@@ -225,7 +225,7 @@ fn get_meta_event(data: &Vec<u8>, offset: &mut usize) -> MetaEvent {
                 println!("Unexpected n_bytes={} in EndOfTrack", n_bytes);
             }
             meta_event = MetaEvent::EndOfTrack(EndOfTrack {});
-            *offset = *offset + 2 + n_bytes;
+            *offset = offs + 3 + n_bytes;
         },
         0x51 => {
             let set_tempo = SetTempo { tttttt: get_sized_quantity(data, offset), };
@@ -342,6 +342,11 @@ pub fn parse_midi_file(filename: &PathBuf) -> Midi {
                 data[4*w + 0], data[4*w + 1], data[4*w + 2], data[4*w + 3],
                 data[4*w + 0], data[4*w + 1], data[4*w + 2], data[4*w + 3],
                 s4);
+        }
+        // last bytes
+        let begin_of_last_quad: usize = 4*(data.len()/4);
+        for i in begin_of_last_quad..data.len() {
+            println!("data[{}]={:02x}", i, data[usize::from(i)]);
         }
         let mut offset = 0;
         const MTHD: &str = "MThd";
