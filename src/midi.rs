@@ -60,10 +60,25 @@ pub enum Event {
     MetaEvent(MetaEvent),
     Undef,
 }
+impl fmt::Display for Event {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Event::MidiEvent(me) => write!(f, "MidiEvent"),
+            Event::SysexEvent(se) => write!(f, "SysexEvent"),
+            Event::MetaEvent(me) => write!(f, "MetaEvent"),
+            Event::Undef => write!(f, "Undef"),
+        }
+    }
+}
 
 pub struct TrackEvent {
     delta_time: u32,
     event: Event,
+}
+impl fmt::Display for TrackEvent {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "TrackEvent(delta_time={}, event={}", self.delta_time, self.event)
+    }
 }
 
 pub struct Track {
@@ -71,7 +86,12 @@ pub struct Track {
 }
 impl fmt::Display for Track {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "events[{}]:", self.track_events.len())
+        write!(f, "events[{}]: {}", self.track_events.len(), "{")?;
+        for (i, te) in self.track_events.iter().enumerate() {
+            write!(f, "    track_event=[{}]: {},\n", i, te)?;
+        }
+        write!(f, "{}", "  }")?;
+        Ok(())
     }
 }
 
