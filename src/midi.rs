@@ -51,6 +51,7 @@ pub enum MetaEvent {
     TimeSignature(TimeSignature),
     SetTempo(SetTempo),
     EndOfTrack(EndOfTrack),
+    Undef,
 }
 
 pub enum Event {
@@ -197,7 +198,7 @@ fn get_meta_event(data: &Vec<u8>, offset: &mut usize) -> MetaEvent {
     let mut seq_track_name = SequenceTrackName {
         name: String::new(),
     };
-    let mut meta_event = MetaEvent::SequenceTrackName(seq_track_name);
+    let mut meta_event = MetaEvent::Undef;
     match data[offs + 1] {
         0x01 => {
             *offset = offs + 2; 
