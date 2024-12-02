@@ -69,6 +69,11 @@ pub struct TrackEvent {
 pub struct Track {
     track_events: Vec<TrackEvent>,
 }
+impl fmt::Display for Track {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "events[{}]:", self.track_events.len())
+    }
+}
 
 pub struct Midi {
     error: String,
@@ -78,6 +83,23 @@ pub struct Midi {
     negative_smpte_format: u8,
     ticks_per_frame: u8,
     tracks: Vec<Track>,
+}
+impl fmt::Display for Midi {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "Midi{}format={}, ntrks={}, ", "{", self.format, self.ntrks)?;
+        if self.ticks_per_quarter_note != 0 {
+            write!(f, "ticks_per_quarter_note={:?}", self.ticks_per_quarter_note)?;
+        } else {
+            write!(f, "negative_smpte_format={}, ticks_per_frame={}",
+                self.negative_smpte_format, self.ticks_per_frame)?;
+        }
+        write!(f, ", tracks:\n")?;
+        for (i, track) in self.tracks.iter().enumerate() {
+            write!(f, "  track=[{}]: {},\n", i, track);
+        }
+        write!(f, "{}", "}")?;
+        Ok(())
+    }
 }
 
 fn get_usize(data: &Vec<u8>, offset: &mut usize) -> usize {

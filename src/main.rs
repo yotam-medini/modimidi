@@ -107,6 +107,7 @@ fn main() {
     let midifile = matches.get_one::<PathBuf>("midifile").unwrap();
     println!("midifile={:?}", midifile);
     let parsed_midi = midi::parse_midi_file(&midifile);
+    println!("parsed_midi={}", parsed_midi);
     let exit_code = if parsed_midi.ok() { 0 } else { 1 };
     println!("exit_code={}", exit_code);
     std::process::exit(exit_code);
