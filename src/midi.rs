@@ -10,7 +10,7 @@ pub struct NoteOn {
 }
 impl fmt::Display for NoteOn {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "NotOn(channel={}, key={}, velocity={})",
+        write!(f, "NoteOn(channel={}, key={}, velocity={})",
             self.channel, self.key, self.velocity)
     }
 }
@@ -18,6 +18,14 @@ impl fmt::Display for NoteOn {
 pub enum MidiEvent {
     NoteOn(NoteOn),
     Undef,
+}
+impl fmt::Display for MidiEvent {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            MidiEvent::NoteOn(note_on) => write!(f, "{}", note_on),
+            MidiEvent::Undef => write!(f, "Undef"),
+        }
+    }
 }
 
 pub struct SysexEvent {
@@ -80,7 +88,7 @@ impl fmt::Display for MetaEvent {
             MetaEvent::SequenceTrackName(name) => write!(f, "{}", name),
             MetaEvent::TimeSignature(ts) => write!(f, "{}", ts),
             MetaEvent::SetTempo(st) => write!(f, "{}", st),
-            MetaEvent::EndOfTrack(eot) => write!(f, "EndOfTrack"),
+            MetaEvent::EndOfTrack(_eot) => write!(f, "EndOfTrack"),
             MetaEvent::Undef => write!(f, "Undef"),
         }
     }
@@ -94,8 +102,8 @@ pub enum Event {
 impl fmt::Display for Event {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            Event::MidiEvent(me) => write!(f, "MidiEvent::"),
-            Event::SysexEvent(se) => write!(f, "SysexEvent"),
+            Event::MidiEvent(me) => write!(f, "MidiEvent::{}", me),
+            Event::SysexEvent(_se) => write!(f, "SysexEvent"),
             Event::MetaEvent(me) => write!(f, "MetaEvent::{}", me),
             Event::Undef => write!(f, "Undef"),
         }
@@ -268,9 +276,6 @@ fn get_midi_event(data: &Vec<u8>, offset: &mut usize) -> MidiEvent {
 fn get_meta_event(data: &Vec<u8>, offset: &mut usize) -> MetaEvent {
     let offs = *offset;
     assert!(data[offs] == 0xff);
-    let mut seq_track_name = SequenceTrackName {
-        name: String::new(),
-    };
     let mut meta_event = MetaEvent::Undef;
     match data[offs + 1] {
         0x01 => {
@@ -287,7 +292,7 @@ fn get_meta_event(data: &Vec<u8>, offset: &mut usize) -> MetaEvent {
             *offset = offs + 2; 
             let length = get_variable_length_quantity(data, offset);
             let text = get_string(data, offset, length);
-            seq_track_name = SequenceTrackName {
+            let seq_track_name = SequenceTrackName {
                name: text,
             };
             meta_event = MetaEvent::SequenceTrackName(seq_track_name);
@@ -355,7 +360,6 @@ impl Midi {
             self.set_error(format!("chunk_type={} != {} @ offset={}",
                 chunk_type, MTRK, offset));
         } else {
-            let offset_begin_of_track = *offset;
             let length = get_usize(&data, offset);
             let offset_eot = *offset + length;
             println!("length={}, offset={}, eot={}", length, offset, offset_eot);
@@ -366,6 +370,7 @@ impl Midi {
             while (!eot) & (*offset < offset_eot) {
                 let track_event = get_track_event(data, offset);
                 track.track_events.push(track_event);
+                // eot = check of track_event is EndOfTrack
             }
             self.tracks.push(track);
             *offset = offset_eot;
