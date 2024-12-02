@@ -1,8 +1,23 @@
 use std::cmp;
+use std::fmt;
 use std::path::PathBuf;
 use std::fs;
 
-pub struct MidiEvent {
+pub struct NoteOn {
+    channel: u8,
+    key: u8,
+    velocity: u8,
+}
+impl fmt::Display for NoteOn {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "NotOn(channel={}, key={}, velocity={})",
+            self.channel, self.key, self.velocity)
+    }
+}
+
+pub enum MidiEvent {
+    NoteOn(NoteOn),
+    Undef,
 }
 
 pub struct SysexEvent {
@@ -146,14 +161,33 @@ fn get_track_event(data: &Vec<u8>, offset: &mut usize) -> TrackEvent {
         },
         _ => { // Midi Event
             println!("midi event... {:#02x} {:#02x}", data[*offset + 1], data[*offset + 2]);
+            let midi_event = get_midi_event(data, offset);
+            println!("offset={}", offset);
+            te.event = Event::MidiEvent(midi_event);
         }
     }
     te
 }
 
 fn get_midi_event(data: &Vec<u8>, offset: &mut usize) -> MidiEvent {
-    // let offs = *offset;
-    let mut midi_event = MidiEvent {};
+    let offs = *offset;
+    let mut midi_event = MidiEvent::Undef;
+    let upper4 = (data[offs] >> 4) & 0xff;
+    match upper4 {
+        0x9 => {
+            let note_on = NoteOn {
+                channel: data[offs] & 0xf,
+                key: data[offs + 1],
+                velocity: data[offs + 2],
+            };
+            println!("note_on={}", note_on);
+            midi_event = MidiEvent::NoteOn(note_on);
+            *offset = offs + 3;
+        }
+        _ => {
+            eprintln!("Unsupported upper4={:x}", upper4);
+        },
+    }
     midi_event
 }
 
