@@ -53,7 +53,18 @@ pub enum MetaEvent {
     EndOfTrack(EndOfTrack),
     Undef,
 }
-
+impl fmt::Display for MetaEvent {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            MetaEvent::Text(t) => write!(f, "Text"),
+            MetaEvent::SequenceTrackName(name) => write!(f, "SequenceTrackName"),
+            MetaEvent::TimeSignature(ts) => write!(f, "TimeSignature"),
+            MetaEvent::SetTempo(st) => write!(f, "SetTempo"),
+            MetaEvent::EndOfTrack(eot) => write!(f, "EndOfTrack"),
+            MetaEvent::Undef => write!(f, "Undef"),
+        }
+    }
+}
 pub enum Event {
     MidiEvent(MidiEvent),
     SysexEvent(SysexEvent),
@@ -63,9 +74,9 @@ pub enum Event {
 impl fmt::Display for Event {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            Event::MidiEvent(me) => write!(f, "MidiEvent"),
+            Event::MidiEvent(me) => write!(f, "MidiEvent::"),
             Event::SysexEvent(se) => write!(f, "SysexEvent"),
-            Event::MetaEvent(me) => write!(f, "MetaEvent"),
+            Event::MetaEvent(me) => write!(f, "MetaEvent::{}", me),
             Event::Undef => write!(f, "Undef"),
         }
     }
@@ -86,7 +97,7 @@ pub struct Track {
 }
 impl fmt::Display for Track {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "events[{}]: {}", self.track_events.len(), "{")?;
+        write!(f, "events[{}]: {}", self.track_events.len(), "{\n")?;
         for (i, te) in self.track_events.iter().enumerate() {
             write!(f, "    track_event=[{}]: {},\n", i, te)?;
         }
