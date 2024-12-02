@@ -1,3 +1,4 @@
+use std::cmp;
 use std::path::PathBuf;
 use std::fs;
 
@@ -22,10 +23,15 @@ pub struct TimeSignature {
     bb: u8, // number of notated 32nd-notes in a MIDI quarter-note
 }
 
+pub struct SetTempo {
+    tttttt: u32, // microseconds per MIDI quarter-note
+}
+
 pub enum MetaEvent {
     Text(Text),
     SequenceTrackName(SequenceTrackName),
     TimeSignature(TimeSignature),
+    SetTempo(SetTempo),
 }
 
 pub enum Event {
@@ -89,6 +95,17 @@ fn get_variable_length_quantity(data: &Vec<u8>, offset: &mut usize) -> u32 {
         offs += 1;
     }
     *offset = offs;
+    quantity
+}
+
+fn get_sized_quantity(data: &Vec<u8>, offset: &mut usize) -> u32 {
+    let mut offs: usize = *offset + 2;
+    let n_bytes = data[offs] as usize;
+    let mut quantity: u32 = 0;
+    for i in offs+1..offs+1+n_bytes {
+        quantity = (quantity << 8) + u32::from(data[i]);
+    }
+    *offset = offs + 1 + n_bytes;
     quantity
 }
 
@@ -163,6 +180,10 @@ fn get_meta_event(data: &Vec<u8>, offset: &mut usize) -> MetaEvent {
             };
             meta_event = MetaEvent::SequenceTrackName(seq_track_name);
         },
+        0x51 => {
+            let set_tempo = SetTempo { tttttt: get_sized_quantity(data, offset), };
+            meta_event = MetaEvent::SetTempo(set_tempo);
+        },
         0x58 => {
             if data[offs + 2] != 0x04 {
                 eprintln!("Unexpected byte {:02x} followeing 0x58 TimeSignature meta event",
@@ -175,7 +196,7 @@ fn get_meta_event(data: &Vec<u8>, offset: &mut usize) -> MetaEvent {
                 bb: data[offs + 6]
             };
             meta_event = MetaEvent::TimeSignature(time_signature);
-            *offset = offs + 7;                  ;
+            *offset = offs + 7;
         },
         _ => { 
             eprintln!("Not yet supported MetaEvent {:#02x}", data[offs + 1]);
@@ -258,7 +279,7 @@ pub fn parse_midi_file(filename: &PathBuf) -> Midi {
         if midi.ok() {fs::read(filename).unwrap() } else { Vec::<u8>::new() };
     if midi.ok() {
         println!("#(data)={}", data.len());
-        for w in 0..0x10 {
+        for w in 0..cmp::min(0x20,(file_size/4) as usize) {
             let mut s4 = String::new();
             for i in 0..4 {
                 let mut c: char = ' ';
@@ -269,7 +290,7 @@ pub fn parse_midi_file(filename: &PathBuf) -> Midi {
                 s4.push(c);
             }
             println!(
-                "header[{:02}]: {:#010b} {:#010b} {:#010b} {:#010b}  {:02x} {:02x} {:02x} {:02x} {}",
+                "data[{:03}]: {:#010b} {:#010b} {:#010b} {:#010b}  {:02x} {:02x} {:02x} {:02x} {}",
                 4*w,
                 data[4*w + 0], data[4*w + 1], data[4*w + 2], data[4*w + 3],
                 data[4*w + 0], data[4*w + 1], data[4*w + 2], data[4*w + 3],
