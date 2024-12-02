@@ -27,11 +27,15 @@ pub struct SetTempo {
     tttttt: u32, // microseconds per MIDI quarter-note
 }
 
+pub struct EndOfTrack {
+}
+
 pub enum MetaEvent {
     Text(Text),
     SequenceTrackName(SequenceTrackName),
     TimeSignature(TimeSignature),
     SetTempo(SetTempo),
+    EndOfTrack(EndOfTrack),
 }
 
 pub enum Event {
@@ -99,7 +103,7 @@ fn get_variable_length_quantity(data: &Vec<u8>, offset: &mut usize) -> u32 {
 }
 
 fn get_sized_quantity(data: &Vec<u8>, offset: &mut usize) -> u32 {
-    let mut offs: usize = *offset + 2;
+    let offs: usize = *offset + 2;
     let n_bytes = data[offs] as usize;
     let mut quantity: u32 = 0;
     for i in offs+1..offs+1+n_bytes {
@@ -148,7 +152,7 @@ fn get_track_event(data: &Vec<u8>, offset: &mut usize) -> TrackEvent {
 }
 
 fn get_midi_event(data: &Vec<u8>, offset: &mut usize) -> MidiEvent {
-    let offs = *offset;
+    // let offs = *offset;
     let mut midi_event = MidiEvent {};
     midi_event
 }
@@ -179,6 +183,14 @@ fn get_meta_event(data: &Vec<u8>, offset: &mut usize) -> MetaEvent {
                name: text,
             };
             meta_event = MetaEvent::SequenceTrackName(seq_track_name);
+        },
+        0x2f => {
+            let n_bytes: usize = usize::from(data[offs + 2]);
+            if n_bytes != 0 {
+                println!("Unexpected n_bytes={} in EndOfTrack", n_bytes);
+            }
+            meta_event = MetaEvent::EndOfTrack(EndOfTrack {});
+            *offset = *offset + 2 + n_bytes;
         },
         0x51 => {
             let set_tempo = SetTempo { tttttt: get_sized_quantity(data, offset), };
@@ -220,7 +232,7 @@ impl Midi {
     }
     fn read_tracks(&mut self, data: &Vec<u8>, offset: &mut usize) {
         for itrack in 0..self.ntrks {
-            println!("itrack={}", itrack);
+            println!("itrack={}, offset={}", itrack, offset);
             if self.ok() {
                 self.read_track(&data, offset);
             }
@@ -237,7 +249,7 @@ impl Midi {
         } else {
             let offset_begin_of_track = *offset;
             let length = get_usize(&data, offset);
-            let offset_eot = offset_begin_of_track + length;
+            let offset_eot = *offset + length;
             println!("length={}, offset={}, eot={}", length, offset, offset_eot);
             let mut track = Track {
                 track_events: Vec::<TrackEvent>::new(),
@@ -248,7 +260,7 @@ impl Midi {
                 track.track_events.push(track_event);
             }
             self.tracks.push(track);
-            *offset = offset_begin_of_track + length;
+            *offset = offset_eot;
         }
     }
 }
