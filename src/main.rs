@@ -4,6 +4,7 @@ use clap::{arg, command, value_parser};
 mod cfluid;
 mod sequencer;
 mod midi;
+mod player;
 
 fn parse_number(s: &str) -> Result<u32, String> {
     let base = if s.starts_with("0x") { 16 } else { 10 };
@@ -109,6 +110,9 @@ fn main() {
     let parsed_midi = midi::parse_midi_file(&midifile);
     println!("parsed_midi={}", parsed_midi);
     let exit_code = if parsed_midi.ok() { 0 } else { 1 };
+    if parsed_midi.ok() {
+        player::play(&parsed_midi);
+    }
     println!("exit_code={}", exit_code);
     std::process::exit(exit_code);
 }
