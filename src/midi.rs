@@ -15,13 +15,26 @@ impl fmt::Display for NoteOn {
     }
 }
 
+pub struct ProgramChange {
+    channel: u8,
+    program: u8,
+}
+impl fmt::Display for ProgramChange {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "ProgramChange(channel={}, program={})",
+            self.channel, self.program)
+    }
+}
+
 pub enum MidiEvent {
     NoteOn(NoteOn),
+    ProgramChange(ProgramChange),
     Undef,
 }
 impl fmt::Display for MidiEvent {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
+            MidiEvent::ProgramChange(pc) => write!(f, "{}", pc),
             MidiEvent::NoteOn(note_on) => write!(f, "{}", note_on),
             MidiEvent::Undef => write!(f, "Undef"),
         }
@@ -154,7 +167,7 @@ impl fmt::Display for Midi {
         }
         write!(f, ", tracks:\n")?;
         for (i, track) in self.tracks.iter().enumerate() {
-            write!(f, "  track=[{}]: {},\n", i, track);
+            write!(f, "  track=[{}]: {},\n", i, track)?;
         }
         write!(f, "{}", "}")?;
         Ok(())
@@ -242,7 +255,8 @@ fn get_track_event(data: &Vec<u8>, offset: &mut usize) -> TrackEvent {
             println!("Sysex Event")
         },
         _ => { // Midi Event
-            println!("midi event... {:#02x} {:#02x}", data[*offset + 1], data[*offset + 2]);
+            println!("midi event... {:#02x} {:#02x} {:#02x}",
+                data[*offset + 0], data[*offset + 1], data[*offset + 2]);
             let midi_event = get_midi_event(data, offset);
             println!("offset={}", offset);
             te.event = Event::MidiEvent(midi_event);
@@ -265,7 +279,12 @@ fn get_midi_event(data: &Vec<u8>, offset: &mut usize) -> MidiEvent {
             println!("note_on={}", note_on);
             midi_event = MidiEvent::NoteOn(note_on);
             *offset = offs + 3;
-        }
+        },
+        0xc => {
+            let pc = ProgramChange{channel: data[offs] & 0xf, program: data[offs + 1]};
+            midi_event = MidiEvent::ProgramChange(pc);
+            *offset = offs + 2;
+        },
         _ => {
             eprintln!("Unsupported upper4={:x}", upper4);
         },
@@ -366,12 +385,13 @@ impl Midi {
             let mut track = Track {
                 track_events: Vec::<TrackEvent>::new(),
             };
-            let mut eot = false;
-            while (!eot) & (*offset < offset_eot) {
+            let mut got_eot = false;
+            while (!got_eot) & (*offset < offset_eot) {
                 let track_event = get_track_event(data, offset);
+                got_eot = matches!(track_event.event, Event::MetaEvent(MetaEvent::EndOfTrack(_)));
                 track.track_events.push(track_event);
-                // eot = check of track_event is EndOfTrack
             }
+            println!("got_eot={}", got_eot);
             self.tracks.push(track);
             *offset = offset_eot;
         }
@@ -404,7 +424,7 @@ pub fn parse_midi_file(filename: &PathBuf) -> Midi {
         if midi.ok() {fs::read(filename).unwrap() } else { Vec::<u8>::new() };
     if midi.ok() {
         println!("#(data)={}", data.len());
-        for w in 0..cmp::min(0x20,(file_size/4) as usize) {
+        for w in 0..cmp::min(0x40,(file_size/4) as usize) {
             let mut s4 = String::new();
             for i in 0..4 {
                 let mut c: char = ' ';
