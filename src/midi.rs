@@ -62,6 +62,15 @@ impl fmt::Display for SequenceTrackName {
     }
 }
 
+pub struct InstrumentName  { // 0xff 0x04
+    name: String,
+}
+impl fmt::Display for InstrumentName {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "InstrumentName(name={})", self.name)
+    }
+}
+
 pub struct TimeSignature {
     nn: u8, // nunmerator
     dd: u8, // negative power of 2, denominator
@@ -88,6 +97,7 @@ pub struct EndOfTrack {
 
 pub enum MetaEvent {
     Text(Text),
+    InstrumentName(InstrumentName),
     SequenceTrackName(SequenceTrackName),
     TimeSignature(TimeSignature),
     SetTempo(SetTempo),
@@ -98,6 +108,7 @@ impl fmt::Display for MetaEvent {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             MetaEvent::Text(t) => write!(f, "{}", t),
+            MetaEvent::InstrumentName(iname) => write!(f, "{}", iname),
             MetaEvent::SequenceTrackName(name) => write!(f, "{}", name),
             MetaEvent::TimeSignature(ts) => write!(f, "{}", ts),
             MetaEvent::SetTempo(st) => write!(f, "{}", st),
@@ -297,15 +308,16 @@ fn get_meta_event(data: &Vec<u8>, offset: &mut usize) -> MetaEvent {
     assert!(data[offs] == 0xff);
     let mut meta_event = MetaEvent::Undef;
     match data[offs + 1] {
-        0x01 => {
+        0x01 | 0x04 => {
             *offset = offs + 2; 
             let length = get_variable_length_quantity(data, offset);
             println!("length={}", length);
             let text = get_string(data, offset, length);
-            let e = Text {
-               name: text,
-            };
-            meta_event = MetaEvent::Text(e);
+            match data[offs + 1] {
+                0x01 => { meta_event = MetaEvent::Text(Text {name: text}) },
+                0x04 => { meta_event = MetaEvent::InstrumentName(InstrumentName {name: text}) },
+                _ => {},
+            }
         },
         0x03 => {
             *offset = offs + 2; 
