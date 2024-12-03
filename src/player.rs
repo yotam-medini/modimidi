@@ -115,8 +115,8 @@ fn send_note_on(sequencer: &mut Sequencer, chan: i32, key: i16, date: u32) {
     }
 }
 
-pub fn sequencer() {
-    println!("sequencer");
+pub fn play(parsed_midi: &midi::Midi) {
+    println!("play...");
     let mut sequencer = Sequencer {
         synth_ptr: std::ptr::null_mut(),
         audio_driver_ptr: std::ptr::null_mut(),
@@ -145,8 +145,4 @@ pub fn sequencer() {
     schedule_next_sequence(&mut sequencer);
     thread::sleep(time::Duration::from_millis(3000));
     destroy_synth(&mut sequencer);
-}
-
-pub fn play(parsed_midi: &midi::Midi) {
-    println!("play...");
 }
