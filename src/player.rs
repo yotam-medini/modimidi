@@ -129,7 +129,7 @@ pub fn play(parsed_midi: &midi::Midi) {
     create_synth(&mut sequencer);
     println!(
         concat!(
-            "sequencer: synth_ptr={:?}, audio_driver_ptr={:?}, ",
+            "play: sequencer: synth_ptr={:?}, audio_driver_ptr={:?}, ",
             "sequencer_ptr={:?}, ",
             "synth_seq_id={}, my_seq_id={}, ",
             "now={}, dur={}"),
@@ -139,10 +139,16 @@ pub fn play(parsed_midi: &midi::Midi) {
         sequencer.now, sequencer.seq_duration);
     load_sound_font(sequencer.synth_ptr);
     unsafe {
-        sequencer.now = cfluid::fluid_sequencer_get_tick(
-            sequencer.sequencer_ptr);
+        sequencer.now = cfluid::fluid_sequencer_get_tick(sequencer.sequencer_ptr);
+        println!("play: tick={}", sequencer.now);
     }
     schedule_next_sequence(&mut sequencer);
-    thread::sleep(time::Duration::from_millis(3000));
+    thread::sleep(time::Duration::from_millis(2000));
+    unsafe {
+        let tick = cfluid::fluid_sequencer_get_tick(sequencer.sequencer_ptr);
+        println!("after sleep tick={}", tick);
+        send_note_on(&mut sequencer, 0, 65, tick);
+        thread::sleep(time::Duration::from_millis(300));
+    }
     destroy_synth(&mut sequencer);
 }
