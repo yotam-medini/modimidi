@@ -44,7 +44,7 @@ impl fmt::Display for MidiEvent {
 pub struct SysexEvent {
 }
 
-pub struct Text {
+pub struct Text { // 0xff 0x01
     name: String,
 }
 impl fmt::Display for Text {
@@ -53,7 +53,7 @@ impl fmt::Display for Text {
     }
 }
 
-pub struct SequenceTrackName {
+pub struct SequenceTrackName { // 0xff 0x03
     name: String,
 }
 impl fmt::Display for SequenceTrackName {
@@ -71,7 +71,19 @@ impl fmt::Display for InstrumentName {
     }
 }
 
-pub struct TimeSignature {
+pub struct EndOfTrack { // 0xff 0x2f
+}
+
+pub struct SetTempo { // 0xff 0x51
+    tttttt: u32, // microseconds per MIDI quarter-note
+}
+impl fmt::Display for SetTempo {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "SetTempo(tttttt={})", self.tttttt)
+    }
+}
+
+pub struct TimeSignature { // 0xff 0x58
     nn: u8, // nunmerator
     dd: u8, // negative power of 2, denominator
     cc: u8, // MIDI clocks in a metronome click
@@ -83,25 +95,13 @@ impl fmt::Display for TimeSignature {
     }
 }
 
-pub struct SetTempo {
-    tttttt: u32, // microseconds per MIDI quarter-note
-}
-impl fmt::Display for SetTempo {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "SetTempo(tttttt={})", self.tttttt)
-    }
-}
-
-pub struct EndOfTrack {
-}
-
 pub enum MetaEvent {
     Text(Text),
-    InstrumentName(InstrumentName),
     SequenceTrackName(SequenceTrackName),
-    TimeSignature(TimeSignature),
-    SetTempo(SetTempo),
+    InstrumentName(InstrumentName),
     EndOfTrack(EndOfTrack),
+    SetTempo(SetTempo),
+    TimeSignature(TimeSignature),
     Undef,
 }
 impl fmt::Display for MetaEvent {
@@ -109,10 +109,10 @@ impl fmt::Display for MetaEvent {
         match self {
             MetaEvent::Text(t) => write!(f, "{}", t),
             MetaEvent::InstrumentName(iname) => write!(f, "{}", iname),
-            MetaEvent::SequenceTrackName(name) => write!(f, "{}", name),
-            MetaEvent::TimeSignature(ts) => write!(f, "{}", ts),
-            MetaEvent::SetTempo(st) => write!(f, "{}", st),
             MetaEvent::EndOfTrack(_eot) => write!(f, "EndOfTrack"),
+            MetaEvent::SequenceTrackName(name) => write!(f, "{}", name),
+            MetaEvent::SetTempo(st) => write!(f, "{}", st),
+            MetaEvent::TimeSignature(ts) => write!(f, "{}", ts),
             MetaEvent::Undef => write!(f, "Undef"),
         }
     }
