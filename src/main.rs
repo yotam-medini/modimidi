@@ -2,7 +2,7 @@ use std::path::PathBuf;
 // use std::process::ExitCode;
 use clap::{arg, command, value_parser};
 mod cfluid;
-mod sequencer;
+mod seqdemo;
 mod midi;
 mod player;
 
@@ -103,7 +103,7 @@ fn main() {
     if let Some(seqdemo) = matches.get_one::<bool>("seqdemo") {
         println!("seqdemo={}", seqdemo);
         if *seqdemo {
-            sequencer::sequencer();
+            seqdemo::sequencer();
             return;
         }
     }
