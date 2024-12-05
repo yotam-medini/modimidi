@@ -7,10 +7,10 @@ use crate::cfluid;
 pub struct Sequencer {
     synth_ptr: *mut cfluid::fluid_synth_t,
     audio_driver_ptr: *mut cfluid::fluid_audio_driver_t,
-    sequencer_ptr: *mut cfluid::fluid_sequencer_t,
-    synth_seq_id: i16,
+    pub sequencer_ptr: *mut cfluid::fluid_sequencer_t,
+    pub synth_seq_id: i16,
     my_seq_id: i16,
-    now: u32,
+    pub now: u32,
     seq_duration: u32,
 }
 

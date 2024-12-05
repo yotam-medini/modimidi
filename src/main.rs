@@ -120,7 +120,7 @@ fn main() {
     println!("parsed_midi={}", parsed_midi);
     let exit_code = if parsed_midi.ok() { 0 } else { 1 };
     if parsed_midi.ok() {
-        player::play(&parsed_midi);
+        player::play(&mut sequencer, &parsed_midi);
     }
     sequencer::destroy_sequencer(&mut sequencer);
     println!("exit_code={}", exit_code);

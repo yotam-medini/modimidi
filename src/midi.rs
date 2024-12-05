@@ -3,7 +3,19 @@ use std::fmt;
 use std::path::PathBuf;
 use std::fs;
 
-pub struct NoteOn {
+pub struct NoteOff { // 0x8?
+    channel: u8,
+    key: u8,
+    velocity: u8,
+}
+impl fmt::Display for NoteOff {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "NoteOff(channel={}, key={}, velocity={})",
+            self.channel, self.key, self.velocity)
+    }
+}
+
+pub struct NoteOn { // 0x9?
     channel: u8,
     key: u8,
     velocity: u8,
@@ -15,7 +27,19 @@ impl fmt::Display for NoteOn {
     }
 }
 
-pub struct ProgramChange {
+pub struct ControlChange { // 0xb
+    channel: u8,
+    number: u8,
+    value: u8,
+}
+impl fmt::Display for ControlChange {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "ControlChange(channel={}, number={}, value={})",
+            self.channel, self.number, self.value)
+    }
+}
+
+pub struct ProgramChange { // 0xc
     channel: u8,
     program: u8,
 }
@@ -27,7 +51,9 @@ impl fmt::Display for ProgramChange {
 }
 
 pub enum MidiEvent {
+    NoteOff(NoteOff),
     NoteOn(NoteOn),
+    ControlChange(ControlChange),
     ProgramChange(ProgramChange),
     Undef,
 }
@@ -35,6 +61,8 @@ impl fmt::Display for MidiEvent {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             MidiEvent::ProgramChange(pc) => write!(f, "{}", pc),
+            MidiEvent::ControlChange(cc) => write!(f, "{}", cc),
+            MidiEvent::NoteOff(note_off) => write!(f, "{}", note_off),
             MidiEvent::NoteOn(note_on) => write!(f, "{}", note_on),
             MidiEvent::Undef => write!(f, "Undef"),
         }
@@ -281,6 +309,16 @@ fn get_midi_event(data: &Vec<u8>, offset: &mut usize) -> MidiEvent {
     let mut midi_event = MidiEvent::Undef;
     let upper4 = (data[offs] >> 4) & 0xff;
     match upper4 {
+        0x8 => {
+            let note_off = NoteOff {
+                channel: data[offs] & 0xf,
+                key: data[offs + 1],
+                velocity: data[offs + 2],
+            };
+            println!("note_off={}", note_off);
+            midi_event = MidiEvent::NoteOff(note_off);
+            *offset = offs + 3;
+        },
         0x9 => {
             let note_on = NoteOn {
                 channel: data[offs] & 0xf,
@@ -289,6 +327,15 @@ fn get_midi_event(data: &Vec<u8>, offset: &mut usize) -> MidiEvent {
             };
             println!("note_on={}", note_on);
             midi_event = MidiEvent::NoteOn(note_on);
+            *offset = offs + 3;
+        },
+        0xb => {
+            let cc = ControlChange{
+                channel: data[offs] & 0xf,
+                number: data[offs + 1],
+                value: data[offs + 2],
+            };
+            midi_event = MidiEvent::ControlChange(cc);
             *offset = offs + 3;
         },
         0xc => {
