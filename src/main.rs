@@ -82,6 +82,11 @@ fn args_get_matches () -> clap::ArgMatches {
             .default_value("0")
             .value_parser(parse_number),
         )
+	.arg(
+	    arg!(--soundfounts <PATH> "Path to sound fonts file")
+            .required(false)
+            .default_value("/usr/share/sounds/sf2/FluidR3_GM.sf2")
+	)
         .arg(arg!([midifile] "The midi file to play")
             .required(true)
             .value_parser(value_parser!(PathBuf))

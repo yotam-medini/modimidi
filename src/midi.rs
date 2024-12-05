@@ -108,9 +108,9 @@ impl fmt::Display for MetaEvent {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             MetaEvent::Text(t) => write!(f, "{}", t),
+            MetaEvent::SequenceTrackName(name) => write!(f, "{}", name),
             MetaEvent::InstrumentName(iname) => write!(f, "{}", iname),
             MetaEvent::EndOfTrack(_eot) => write!(f, "EndOfTrack"),
-            MetaEvent::SequenceTrackName(name) => write!(f, "{}", name),
             MetaEvent::SetTempo(st) => write!(f, "{}", st),
             MetaEvent::TimeSignature(ts) => write!(f, "{}", ts),
             MetaEvent::Undef => write!(f, "Undef"),
@@ -135,8 +135,8 @@ impl fmt::Display for Event {
 }
 
 pub struct TrackEvent {
-    delta_time: u32,
-    event: Event,
+    pub delta_time: u32,
+    pub event: Event,
 }
 impl fmt::Display for TrackEvent {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -145,7 +145,7 @@ impl fmt::Display for TrackEvent {
 }
 
 pub struct Track {
-    track_events: Vec<TrackEvent>,
+    pub track_events: Vec<TrackEvent>,
 }
 impl fmt::Display for Track {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -165,7 +165,7 @@ pub struct Midi {
     ticks_per_quarter_note: u16,
     negative_smpte_format: u8,
     ticks_per_frame: u8,
-    tracks: Vec<Track>,
+    pub tracks: Vec<Track>,
 }
 impl fmt::Display for Midi {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
