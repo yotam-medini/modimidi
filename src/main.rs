@@ -2,9 +2,10 @@ use std::path::PathBuf;
 // use std::process::ExitCode;
 use clap::{arg, command, value_parser};
 mod cfluid;
-mod seqdemo;
 mod midi;
 mod player;
+mod seqdemo;
+mod sequencer;
 
 fn parse_number(s: &str) -> Result<u32, String> {
     let base = if s.starts_with("0x") { 16 } else { 10 };
@@ -97,9 +98,8 @@ fn args_get_matches () -> clap::ArgMatches {
 
 fn main() {
     let matches = args_get_matches();
-    if let Some(debug_flags) = matches.get_one::<u32>("debugflags") {
-        println!("debug_flags={}", debug_flags);
-    }
+    let debug_flags = matches.get_one::<u32>("debugflags").unwrap();
+    println!("debug_flags={}", debug_flags);
     if let Some(seqdemo) = matches.get_one::<bool>("seqdemo") {
         println!("seqdemo={}", seqdemo);
         if *seqdemo {
@@ -107,6 +107,10 @@ fn main() {
             return;
         }
     }
+    // let soundfounts: &str = matches.get_one::<String>("soundfounts").unwrap();
+    let soundfounts = matches.get_one::<String>("soundfounts").unwrap();
+    println!("soundfounts={soundfounts}");
+    let mut sequencer = sequencer::create_sequencer(soundfounts);
     let begin: u32 = *matches.get_one::<u32>("begin").unwrap_or(&0);
     let end: u32 = *matches.get_one::<u32>("begin").unwrap_or(&0xffffffff);
     println!("begin={}, end={}", begin, end);
@@ -118,6 +122,7 @@ fn main() {
     if parsed_midi.ok() {
         player::play(&parsed_midi);
     }
+    sequencer::destroy_sequencer(&mut sequencer);
     println!("exit_code={}", exit_code);
     std::process::exit(exit_code);
 }
