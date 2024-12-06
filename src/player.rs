@@ -19,6 +19,26 @@ fn send_note_on(sequencer: &mut sequencer::Sequencer, chan: i32, key: i16, date:
     }
 }
 
+fn play_note(
+    sequencer: &mut sequencer::Sequencer,
+    chan: i32,
+    key: i16,
+    vel: i16,
+    dur: u32,
+    date: u32) {
+    unsafe {
+        let evt = cfluid::new_fluid_event();
+        cfluid::fluid_event_set_source(evt, -1);
+        cfluid::fluid_event_set_dest(evt, sequencer.synth_seq_id);
+        cfluid::fluid_event_note(evt, chan, key, vel, dur);
+        println!("fluid_sequencer_send_at: date={}", date);
+        let fluid_res = cfluid::fluid_sequencer_send_at(
+            sequencer.sequencer_ptr, evt, date, 0); // 1 absolute, 0 relative
+        println!("play_note: fluid_res={}", fluid_res);
+        cfluid::delete_fluid_event(evt);
+    }
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 struct IndexEvent {
     time: u32, // sum of delta_time
@@ -78,6 +98,39 @@ fn get_index_events(parsed_midi: &midi::Midi) -> Vec<IndexEvent> {
     index_events
 }
 
+fn get_note_duration(
+    parsed_midi: &midi::Midi,
+    index_events: &Vec<IndexEvent>,
+    i: usize,
+    note_on: &midi::NoteOn) -> u32 {
+    let mut curr_event_time: u32 = 0;
+    let mut end_note_found = false;
+    let mut j = i + 1;
+    while (!end_note_found) && (j < index_events.len()) {
+        let index_event = &index_events[j];
+        let track_event = &parsed_midi.tracks[index_event.track].track_events[index_event.tei];
+        curr_event_time = index_event.time;
+        match track_event.event {
+            midi::Event::MidiEvent(ref me) => {
+                match me {
+                    midi::MidiEvent::NoteOn(e) => {
+                        end_note_found = (e.velocity == 0) &&
+                            (e.channel == note_on.channel) && (e.key == note_on.key);
+                    },
+                    midi::MidiEvent::NoteOff(e) => {
+                        end_note_found = (e.channel == note_on.channel) && (e.key == note_on.key);
+                    },
+                    _ => {},
+                }
+            },
+            _ => {},
+        }
+        j += 1;
+    }
+    let duration = curr_event_time - index_events[i].time;
+    duration
+}
+
 pub fn play(sequencer: &mut sequencer::Sequencer, parsed_midi: &midi::Midi) {
     println!("play...");
     let index_events = get_index_events(parsed_midi);
@@ -103,10 +156,23 @@ pub fn play(sequencer: &mut sequencer::Sequencer, parsed_midi: &midi::Midi) {
           midi::Event::MidiEvent(ref me) => {
               println!("i={}, MidiEvent={} ", i, me);
               match me {
-                  midi::MidiEvent::NoteOn(e) => { println!("{}", e); },
+                  midi::MidiEvent::NoteOn(ref e) => {
+                      println!("{}", e); 
+                      if e.velocity != 0 {
+                          let duration = get_note_duration(parsed_midi, &index_events, i, e);
+                          println!("duration={}", duration);
+                          play_note(
+                              sequencer, 
+                              i32::from(e.channel),
+                              i16::from(e.key),
+                              i16::from(e.velocity),
+                              duration,
+                              index_event.time);
+                      }
+                  },
                   midi::MidiEvent::ProgramChange(e) => {
                       println!("{}", e);
-                      let mut ret = 0;
+                      let ret;
                       unsafe {
                           ret = cfluid::fluid_synth_program_select(
                               sequencer.synth_ptr,
@@ -128,7 +194,7 @@ pub fn play(sequencer: &mut sequencer::Sequencer, parsed_midi: &midi::Midi) {
     unsafe {
         let tick = cfluid::fluid_sequencer_get_tick(sequencer.sequencer_ptr);
         println!("after sleep tick={}", tick);
-        send_note_on(sequencer, 0, 65, tick);
-        thread::sleep(time::Duration::from_millis(300));
+        // send_note_on(sequencer, 0, 65, tick);
+        thread::sleep(time::Duration::from_millis(5000));
     }
 }

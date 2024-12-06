@@ -4,9 +4,9 @@ use std::path::PathBuf;
 use std::fs;
 
 pub struct NoteOff { // 0x8?
-    channel: u8,
-    key: u8,
-    velocity: u8,
+    pub channel: u8,
+    pub key: u8,
+    pub velocity: u8,
 }
 impl fmt::Display for NoteOff {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -16,9 +16,9 @@ impl fmt::Display for NoteOff {
 }
 
 pub struct NoteOn { // 0x9?
-    channel: u8,
-    key: u8,
-    velocity: u8,
+    pub channel: u8,
+    pub key: u8,
+    pub velocity: u8,
 }
 impl fmt::Display for NoteOn {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
