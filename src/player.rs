@@ -104,7 +104,21 @@ pub fn play(sequencer: &mut sequencer::Sequencer, parsed_midi: &midi::Midi) {
               println!("i={}, MidiEvent={} ", i, me);
               match me {
                   midi::MidiEvent::NoteOn(e) => { println!("{}", e); },
-                  midi::MidiEvent::ProgramChange(e) => { println!("{}", e); },
+                  midi::MidiEvent::ProgramChange(e) => {
+                      println!("{}", e);
+                      let mut ret = 0;
+                      unsafe {
+                          ret = cfluid::fluid_synth_program_select(
+                              sequencer.synth_ptr,
+                              i32::from(e.channel),
+                              sequencer.sfont_id,
+                              0,
+                              i32::from(e.program));
+                      }
+                      if ret != cfluid::FLUID_OK {
+                          eprintln!("fluid_synth_program_select failed ret={}", ret);
+                      }
+                  },
                   _ => { println!("play: unsupported");},
               }
           },

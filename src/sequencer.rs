@@ -5,10 +5,11 @@ use std::ffi::CString;
 use crate::cfluid;
 
 pub struct Sequencer {
-    synth_ptr: *mut cfluid::fluid_synth_t,
+    pub synth_ptr: *mut cfluid::fluid_synth_t,
     audio_driver_ptr: *mut cfluid::fluid_audio_driver_t,
     pub sequencer_ptr: *mut cfluid::fluid_sequencer_t,
     pub synth_seq_id: i16,
+    pub sfont_id: i32,
     my_seq_id: i16,
     pub now: u32,
     seq_duration: u32,
@@ -37,7 +38,7 @@ extern "C" fn seq_callback(
     }
 }
 
-fn create_synth(sequencer: &mut Sequencer) {
+fn create_synth(sequencer: &mut Sequencer, sound_font_path: &String) {
     println!("create_synth");
     unsafe {
         let settings_ptr = cfluid::new_fluid_settings();
@@ -54,6 +55,10 @@ fn create_synth(sequencer: &mut Sequencer) {
 	println!("setting chorus: ret={}", ret);
 	let _synth = cfluid::new_fluid_synth(settings_ptr);
 	sequencer.synth_ptr = cfluid::new_fluid_synth(settings_ptr);
+        let sf_path = sound_font_path.to_owned(); 
+        let c_str_sf_path = CString::new(sf_path).unwrap();
+        sequencer.sfont_id = cfluid::fluid_synth_sfload(
+            sequencer.synth_ptr, c_str_sf_path.as_ptr(), 1);
         sequencer.audio_driver_ptr =
             cfluid::new_fluid_audio_driver(settings_ptr, sequencer.synth_ptr);
         sequencer.sequencer_ptr = cfluid::new_fluid_sequencer2(0);
@@ -89,11 +94,12 @@ pub fn create_sequencer(sound_font_path: &String) -> Sequencer {
         audio_driver_ptr: std::ptr::null_mut(),
         sequencer_ptr: std::ptr::null_mut(),
         synth_seq_id: 0,
+        sfont_id: -1,
         my_seq_id: 0,
         now: 0,
         seq_duration: 0,
     };
-    create_synth(&mut sequencer);
+    create_synth(&mut sequencer, sound_font_path);
     println!(
         concat!(
             "sequencer: synth_ptr={:?}, audio_driver_ptr={:?}, ",

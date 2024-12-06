@@ -40,8 +40,8 @@ impl fmt::Display for ControlChange {
 }
 
 pub struct ProgramChange { // 0xc
-    channel: u8,
-    program: u8,
+    pub channel: u8,
+    pub program: u8,
 }
 impl fmt::Display for ProgramChange {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {

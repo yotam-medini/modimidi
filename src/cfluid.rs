@@ -1,5 +1,7 @@
 use std::os::raw::c_void;
 
+pub const FLUID_OK: i32 = 0;
+
 #[repr(C)]
 #[derive(Debug, Default, Copy, Clone)]
 pub struct fluid_audio_driver_t {}
