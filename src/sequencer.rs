@@ -74,6 +74,8 @@ fn create_synth(sequencer: &mut Sequencer, sound_font_path: &String) {
             key.as_ptr(),
             seq_callback, 
             sequencer as *mut _ as *mut c_void);
+        println!("sequencer time_scale={}",
+            cfluid::fluid_sequencer_get_time_scale(sequencer.sequencer_ptr));
         sequencer.seq_duration = 1000;
     }
 }

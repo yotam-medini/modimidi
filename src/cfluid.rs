@@ -45,6 +45,7 @@ extern "C" {
     pub fn fluid_event_set_source(evt: *mut fluid_event_t, src: FluidSeqId);
     pub fn fluid_event_timer(evt: *mut fluid_event_t, data: *mut c_void);
     pub fn fluid_sequencer_get_tick(seq: *mut fluid_sequencer_t) -> u32;
+    pub fn fluid_sequencer_get_time_scale(seq: *mut fluid_sequencer_t) -> f64;
     pub fn fluid_sequencer_register_client(
         seq: *mut fluid_sequencer_t, 
         name: *const i8,
@@ -62,6 +63,7 @@ extern "C" {
         evt: *mut fluid_event_t,
         time: u32,
         absolute: i32) -> i32;
+    pub fn fluid_sequencer_set_time_scale(seq: *mut fluid_sequencer_t, scale: f64);
     pub fn fluid_settings_setint(
         settings: *mut fluid_settings_t,
 	name: *const i8,

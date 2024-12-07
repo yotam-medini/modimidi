@@ -194,7 +194,7 @@ pub fn play(sequencer: &mut sequencer::Sequencer, parsed_midi: &midi::Midi) {
     unsafe {
         let tick = cfluid::fluid_sequencer_get_tick(sequencer.sequencer_ptr);
         println!("after sleep tick={}", tick);
-        // send_note_on(sequencer, 0, 65, tick);
+        // send_note_on(&mut sequencer, 0, 65, tick);
         thread::sleep(time::Duration::from_millis(5000));
     }
 }
