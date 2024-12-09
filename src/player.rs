@@ -164,6 +164,9 @@ pub fn play(sequencer: &mut sequencer::Sequencer, parsed_midi: &midi::Midi) {
       microseconds_per_quarter: 500000u64,
       k_ticks_per_quarter: 1000 * u64::from(parsed_midi.ticks_per_quarter_note), // SMPTE not yet
     };
+    let t0;
+    unsafe { t0 = cfluid::fluid_sequencer_get_tick(sequencer.sequencer_ptr); }
+    println!("t0={}", t0);
     for (i, index_event) in index_events.iter().enumerate() {
        let track_event = &parsed_midi.tracks[index_event.track].track_events[index_event.tei];
        match track_event.event {
@@ -223,8 +226,10 @@ pub fn play(sequencer: &mut sequencer::Sequencer, parsed_midi: &midi::Midi) {
     }
     unsafe {
         let tick = cfluid::fluid_sequencer_get_tick(sequencer.sequencer_ptr);
-        println!("after sleep tick={}", tick);
+        println!("before sleep tick={}", tick);
         // send_note_on(&mut sequencer, 0, 65, tick);
         thread::sleep(time::Duration::from_millis(5000));
+        let tend = cfluid::fluid_sequencer_get_tick(sequencer.sequencer_ptr);
+        println!("after sleep tick={}", tend);
     }
 }
