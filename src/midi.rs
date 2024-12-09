@@ -103,7 +103,7 @@ pub struct EndOfTrack { // 0xff 0x2f
 }
 
 pub struct SetTempo { // 0xff 0x51
-    tttttt: u32, // microseconds per MIDI quarter-note
+    pub tttttt: u32, // microseconds per MIDI quarter-note
 }
 impl fmt::Display for SetTempo {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -190,7 +190,7 @@ pub struct Midi {
     error: String,
     format: u16,
     ntrks: u16,
-    ticks_per_quarter_note: u16,
+    pub ticks_per_quarter_note: u16,
     negative_smpte_format: u8,
     ticks_per_frame: u8,
     pub tracks: Vec<Track>,

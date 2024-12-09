@@ -131,6 +131,10 @@ fn get_note_duration(
     duration
 }
 
+fn round_div(n: u32, d: u32) -> u32 {
+    (n + d/2) / d
+}
+
 pub fn play(sequencer: &mut sequencer::Sequencer, parsed_midi: &midi::Midi) {
     println!("play...");
     let index_events = get_index_events(parsed_midi);
@@ -139,6 +143,10 @@ pub fn play(sequencer: &mut sequencer::Sequencer, parsed_midi: &midi::Midi) {
         println!("play: tick={}", sequencer.now);
     }
     thread::sleep(time::Duration::from_millis(2000));
+    // 1-tick = (microseconds_per_quarter / parsed_midi.ticks_per_quarter_note)/1000 milliseconds
+    let mut microseconds_per_quarter: u32 = 500000;
+    let ticks_per_quarter: u32 = u32::from(parsed_midi.ticks_per_quarter_note); // SMPTE not yet
+    let k_ticks_per_quarter = 1000*ticks_per_quarter;
     for (i, index_event) in index_events.iter().enumerate() {
        let track_event = &parsed_midi.tracks[index_event.track].track_events[index_event.tei];
        match track_event.event {
@@ -149,6 +157,9 @@ pub fn play(sequencer: &mut sequencer::Sequencer, parsed_midi: &midi::Midi) {
                   midi::MetaEvent::SequenceTrackName(e) => { println!("{}", e); },
                   midi::MetaEvent::InstrumentName(e) => { println!("{}", e); },
                   midi::MetaEvent::EndOfTrack(_e) => {println!("EndOfTrack {}", index_event.track);},
+                  midi::MetaEvent::SetTempo(st) => {
+                      microseconds_per_quarter = st.tttttt;
+                  },
                   midi::MetaEvent::TimeSignature(e) => { println!("{}", e); }
                   _ => { println!("play: unsupported");},
               }
@@ -159,14 +170,16 @@ pub fn play(sequencer: &mut sequencer::Sequencer, parsed_midi: &midi::Midi) {
                   midi::MidiEvent::NoteOn(ref e) => {
                       println!("{}", e); 
                       if e.velocity != 0 {
-                          let duration = get_note_duration(parsed_midi, &index_events, i, e);
-                          println!("duration={}", duration);
+                          let duration_ticks = get_note_duration(parsed_midi, &index_events, i, e);
+                          let duration_ms =
+                              round_div(duration_ticks*microseconds_per_quarter, k_ticks_per_quarter);
+                          println!("duration_ticks={}, duration_ms={}", duration_ticks, duration_ms);
                           play_note(
                               sequencer, 
                               i32::from(e.channel),
                               i16::from(e.key),
                               i16::from(e.velocity),
-                              duration,
+                              duration_ticks, // NOT good!
                               index_event.time);
                       }
                   },

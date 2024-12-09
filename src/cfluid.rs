@@ -29,6 +29,7 @@ extern "C" {
     pub fn delete_fluid_audio_driver(driver: *mut fluid_audio_driver_t);
     pub fn delete_fluid_event(evt: *mut fluid_event_t);
     pub fn delete_fluid_sequencer(seq: *mut fluid_sequencer_t);
+    pub fn delete_fluid_settings(settings: *mut fluid_settings_t);
     pub fn delete_fluid_synth(synth: *mut fluid_synth_t);
     pub fn fluid_event_note(
         evt: *mut fluid_event_t,
