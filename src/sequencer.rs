@@ -10,23 +10,23 @@ pub struct Sequencer {
     pub sequencer_ptr: *mut cfluid::fluid_sequencer_t,
     pub synth_seq_id: i16,
     pub sfont_id: i32,
-    my_seq_id: i16,
+    pub my_seq_id: i16,
     pub now: u32,
-    seq_duration: u32,
 }
 
 impl fmt::Display for Sequencer {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, concat!(
            "Structure(settings={:?}, syn={:?}, a={:?}, seq={:?}, seq_id={}, my={}, ",
-           "now={}, dur={}"),
+           "now={}"),
            self.settings_ptr,
            self.synth_ptr, self.audio_driver_ptr, self.sequencer_ptr,
            self.synth_seq_id, self.my_seq_id,
-           self.now, self.seq_duration)
+           self.now)
     }
 }
 
+#[cfg(feature = "obsolete_seq_callback")]
 extern "C" fn seq_callback(
     time: u32,
     event: *mut cfluid::fluid_event_t,
@@ -67,16 +67,8 @@ fn create_synth(sequencer: &mut Sequencer, sound_font_path: &String) {
         sequencer.synth_seq_id = cfluid::fluid_sequencer_register_fluidsynth(
             sequencer.sequencer_ptr, sequencer.synth_ptr);
 
-        // register myself as second destination
-	key = CString::new("me").expect("CString::new failed");
-        sequencer.my_seq_id = cfluid::fluid_sequencer_register_client(
-            sequencer.sequencer_ptr, 
-            key.as_ptr(),
-            seq_callback, 
-            sequencer as *mut _ as *mut c_void);
         println!("sequencer time_scale={}",
             cfluid::fluid_sequencer_get_time_scale(sequencer.sequencer_ptr));
-        sequencer.seq_duration = 1000;
     }
 }
 
@@ -100,7 +92,6 @@ pub fn create_sequencer(sound_font_path: &String) -> Sequencer {
         sfont_id: -1,
         my_seq_id: 0,
         now: 0,
-        seq_duration: 0,
     };
     create_synth(&mut sequencer, sound_font_path);
     println!(
@@ -108,11 +99,11 @@ pub fn create_sequencer(sound_font_path: &String) -> Sequencer {
             "sequencer: synth_ptr={:?}, audio_driver_ptr={:?}, ",
             "sequencer_ptr={:?}, ",
             "synth_seq_id={}, my_seq_id={}, ",
-            "now={}, dur={}"),
+            "now={}"),
         sequencer.synth_ptr, sequencer.audio_driver_ptr,
         sequencer.sequencer_ptr,
         sequencer.synth_seq_id, sequencer.my_seq_id,
-        sequencer.now, sequencer.seq_duration);
+        sequencer.now);
     load_sound_font(sequencer.synth_ptr);
     sequencer
 }

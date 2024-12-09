@@ -1,5 +1,7 @@
 use std::{thread, time};
 use std::fmt;
+use std::os::raw::c_void;
+use std::ffi::CString;
 use crate::cfluid;
 use crate::midi;
 use crate::sequencer;
@@ -151,6 +153,27 @@ impl Timing {
   }
 }
 
+struct CallbackData<'a> {
+    sequencer: &'a sequencer::Sequencer,
+    parsed_midi: &'a midi::Midi,
+    index_events: &'a Vec<IndexEvent>,
+    timing: &'a Timing,
+    next_index_event: usize,
+}
+
+extern "C" fn seq_callback(
+    time: u32,
+    event: *mut cfluid::fluid_event_t,
+    seq: *mut cfluid::fluid_sequencer_t, 
+    data: *mut c_void) {
+    unsafe {
+        let cb_data = &mut *(data as *mut CallbackData);
+        println!("seq_callback: {}:{} #(index_events)={}, next_index_event={}",
+            file!(), line!(),
+            cb_data.index_events.len(), cb_data.next_index_event);
+    }
+}
+
 pub fn play(sequencer: &mut sequencer::Sequencer, parsed_midi: &midi::Midi) {
     println!("play...");
     let index_events = get_index_events(parsed_midi);
@@ -158,12 +181,29 @@ pub fn play(sequencer: &mut sequencer::Sequencer, parsed_midi: &midi::Midi) {
         sequencer.now = cfluid::fluid_sequencer_get_tick(sequencer.sequencer_ptr);
         println!("play: tick={}", sequencer.now);
     }
-    thread::sleep(time::Duration::from_millis(2000));
+    thread::sleep(time::Duration::from_millis(1000));
+
     // 1-tick = (microseconds_per_quarter / parsed_midi.ticks_per_quarter)/1000 milliseconds
     let mut timing = Timing {
       microseconds_per_quarter: 500000u64,
       k_ticks_per_quarter: 1000 * u64::from(parsed_midi.ticks_per_quarter_note), // SMPTE not yet
     };
+
+    let callback_data = CallbackData {
+        sequencer: sequencer,
+        parsed_midi: parsed_midi,
+        index_events: &index_events,
+        timing: &timing,
+        next_index_event: 0,
+    };
+    let key = CString::new("me").expect("CString::new failed");
+    unsafe {
+        sequencer.my_seq_id = cfluid::fluid_sequencer_register_client(
+            sequencer.sequencer_ptr, 
+            key.as_ptr(),
+            seq_callback, 
+            &callback_data as *const CallbackData as *mut c_void);
+    }
     let t0;
     unsafe { t0 = cfluid::fluid_sequencer_get_tick(sequencer.sequencer_ptr); }
     println!("t0={}", t0);
