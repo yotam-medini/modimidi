@@ -6,21 +6,6 @@ use crate::cfluid;
 use crate::midi;
 use crate::sequencer;
 
-fn send_note_on(sequencer: &mut sequencer::Sequencer, chan: i32, key: i16, date: u32) {
-    unsafe {
-        let evt = cfluid::new_fluid_event();
-        println!("evt={:?}", evt);
-        cfluid::fluid_event_set_source(evt, -1);
-        cfluid::fluid_event_set_dest(evt, sequencer.synth_seq_id);
-        cfluid::fluid_event_noteon(evt, chan, key, 127);
-        println!("send_note_on: date={}", date);
-        let fluid_res = cfluid::fluid_sequencer_send_at(
-            sequencer.sequencer_ptr, evt, date, 1);
-        println!("send_note_on: fluid_res={}", fluid_res);
-        cfluid::delete_fluid_event(evt);
-    }
-}
-
 fn play_note(
     sequencer: &mut sequencer::Sequencer,
     chan: i32,

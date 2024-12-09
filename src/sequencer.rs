@@ -1,5 +1,4 @@
 use std::fmt;
-use std::os::raw::c_void;
 use std::ffi::CString;
 use crate::cfluid;
 
