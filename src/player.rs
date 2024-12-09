@@ -131,8 +131,24 @@ fn get_note_duration(
     duration
 }
 
-fn round_div(n: u32, d: u32) -> u32 {
-    (n + d/2) / d
+fn round_div(n: u64, d: u64) -> u32 {
+    let q: u64 = (n + d/2) / d;
+    if q > u64::from(u32::MAX) {
+        eprintln!("overflow @ round_div({}, {})", n, d);
+    }
+    let ret : u32 = q as u32;
+    ret
+}
+
+struct Timing {
+  microseconds_per_quarter: u64,
+  k_ticks_per_quarter: u64, // 1000 * ticks_per_quarter
+}
+impl Timing {
+  fn ticks_to_ms(&self, ticks: u32) -> u32 {
+    let numer = u64::from(ticks) * self.microseconds_per_quarter;
+    round_div(numer, self.k_ticks_per_quarter)
+  }
 }
 
 pub fn play(sequencer: &mut sequencer::Sequencer, parsed_midi: &midi::Midi) {
@@ -143,10 +159,11 @@ pub fn play(sequencer: &mut sequencer::Sequencer, parsed_midi: &midi::Midi) {
         println!("play: tick={}", sequencer.now);
     }
     thread::sleep(time::Duration::from_millis(2000));
-    // 1-tick = (micsecs_per_quarter / parsed_midi.ticks_per_quarter_note)/1000 milliseconds
-    let mut micsecs_per_quarter: u32 = 500000;
-    let ticks_per_quarter: u32 = u32::from(parsed_midi.ticks_per_quarter_note); // SMPTE not yet
-    let k_ticks_per_quarter = 1000*ticks_per_quarter;
+    // 1-tick = (microseconds_per_quarter / parsed_midi.ticks_per_quarter)/1000 milliseconds
+    let mut timing = Timing {
+      microseconds_per_quarter: 500000u64,
+      k_ticks_per_quarter: 1000 * u64::from(parsed_midi.ticks_per_quarter_note), // SMPTE not yet
+    };
     for (i, index_event) in index_events.iter().enumerate() {
        let track_event = &parsed_midi.tracks[index_event.track].track_events[index_event.tei];
        match track_event.event {
@@ -158,7 +175,7 @@ pub fn play(sequencer: &mut sequencer::Sequencer, parsed_midi: &midi::Midi) {
                   midi::MetaEvent::InstrumentName(e) => { println!("{}", e); },
                   midi::MetaEvent::EndOfTrack(_e) => {println!("EndOfTrack {}", index_event.track);},
                   midi::MetaEvent::SetTempo(st) => {
-                      micsecs_per_quarter = st.tttttt;
+                      timing.microseconds_per_quarter = u64::from(st.tttttt);
                   },
                   midi::MetaEvent::TimeSignature(e) => { println!("{}", e); }
                   _ => { println!("play: unsupported");},
@@ -171,10 +188,8 @@ pub fn play(sequencer: &mut sequencer::Sequencer, parsed_midi: &midi::Midi) {
                       println!("{}", e); 
                       if e.velocity != 0 {
                           let duration_ticks = get_note_duration(parsed_midi, &index_events, i, e);
-                          let duration_ms =
-                              round_div(duration_ticks*micsecs_per_quarter, k_ticks_per_quarter);
-                          let date_ms =
-                              round_div(index_event.time*micsecs_per_quarter, k_ticks_per_quarter);
+                          let duration_ms = timing.ticks_to_ms(duration_ticks);
+                          let date_ms = timing.ticks_to_ms(index_event.time);
                           println!("duration_ticks={}, duration_ms={}", duration_ticks, duration_ms);
                           play_note(
                               sequencer, 
