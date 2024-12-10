@@ -2,6 +2,7 @@ use std::{thread, time};
 use std::fmt;
 use std::os::raw::c_void;
 use std::ffi::CString;
+use std::sync::{Arc, Mutex, Condvar};
 use crate::cfluid;
 use crate::midi;
 use crate::sequencer;
@@ -145,6 +146,7 @@ struct CallbackData<'a> {
     timing: &'a mut Timing,
     next_index_event: usize,
     t0_ms: u32,
+    mtx_cvar: &'a Arc<(Mutex<bool>, Condvar)>
 }
 
 fn handle_next_batch_events(cb_data: &mut CallbackData) {
@@ -261,6 +263,7 @@ pub fn play(seq_ctl: &mut sequencer::SequencerControl, parsed_midi: &midi::Midi)
       k_ticks_per_quarter: 1000 * u64::from(parsed_midi.ticks_per_quarter_note), // SMPTE not yet
     };
 
+    let mut mtx_cvar = Arc::new((Mutex::new(false), Condvar::new()));
     let t0;
     unsafe { t0 = cfluid::fluid_sequencer_get_tick(seq_ctl.sequencer_ptr); }
     println!("t0={}", t0);
@@ -271,6 +274,7 @@ pub fn play(seq_ctl: &mut sequencer::SequencerControl, parsed_midi: &midi::Midi)
         timing: &mut timing,
         next_index_event: 0,
         t0_ms: t0,
+        mtx_cvar: &mtx_cvar,
     };
     let callback_data_ptr = &callback_data as *const CallbackData as *mut c_void;
     let key = CString::new("me").expect("CString::new failed");
