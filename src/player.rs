@@ -159,6 +159,19 @@ extern "C" fn seq_callback(
     }
 }
 
+fn schedule_next_callback(sequencer : &mut sequencer::Sequencer) {
+    unsafe { 
+      let sequencer_ptr = sequencer.sequencer_ptr;
+      let now = cfluid::fluid_sequencer_get_tick(sequencer_ptr); 
+      let evt = cfluid::new_fluid_event();
+      cfluid::fluid_event_set_source(evt, -1);
+      cfluid::fluid_event_set_dest(evt, sequencer.my_seq_id);
+      let fluid_res = cfluid::fluid_sequencer_send_at(sequencer_ptr, evt, now + 100, 1);
+      println!("{}:{} fluid_res={}", file!(), line!(), fluid_res);
+      cfluid::delete_fluid_event(evt);
+    }
+}
+
 pub fn play(sequencer: &mut sequencer::Sequencer, parsed_midi: &midi::Midi) {
     println!("play...");
     let index_events = get_index_events(parsed_midi);
@@ -181,17 +194,22 @@ pub fn play(sequencer: &mut sequencer::Sequencer, parsed_midi: &midi::Midi) {
         timing: &timing,
         next_index_event: 0,
     };
+    let callback_data_ptr = &callback_data as *const CallbackData as *mut c_void;
     let key = CString::new("me").expect("CString::new failed");
+    let my_seq_id: i16;
     unsafe {
-        sequencer.my_seq_id = cfluid::fluid_sequencer_register_client(
+        my_seq_id = cfluid::fluid_sequencer_register_client(
             sequencer.sequencer_ptr, 
             key.as_ptr(),
             seq_callback, 
-            &callback_data as *const CallbackData as *mut c_void);
+            callback_data_ptr);
     }
+    sequencer.my_seq_id = my_seq_id;
     let t0;
     unsafe { t0 = cfluid::fluid_sequencer_get_tick(sequencer.sequencer_ptr); }
     println!("t0={}", t0);
+    schedule_next_callback(sequencer);
+    
     for (i, index_event) in index_events.iter().enumerate() {
        let track_event = &parsed_midi.tracks[index_event.track].track_events[index_event.tei];
        match track_event.event {
