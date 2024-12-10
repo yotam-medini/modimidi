@@ -139,11 +139,82 @@ impl Timing {
 }
 
 struct CallbackData<'a> {
-    seq_ctl: &'a sequencer::SequencerControl,
+    seq_ctl: &'a mut sequencer::SequencerControl,
     parsed_midi: &'a midi::Midi,
     index_events: &'a Vec<IndexEvent>,
-    timing: &'a Timing,
+    timing: &'a mut Timing,
     next_index_event: usize,
+    t0_ms: u32,
+}
+
+fn handle_next_batch_events(cb_data: &mut CallbackData) {
+    let mut done = false;
+    let now;
+    unsafe { now = cfluid::fluid_sequencer_get_tick(cb_data.seq_ctl.sequencer_ptr); }
+    let end_ms = now + cb_data.seq_ctl.batch_duration_ms;
+    while (cb_data.next_index_event < cb_data.index_events.len()) && !done {
+        let index_event = &cb_data.index_events[cb_data.next_index_event];
+        done = done || (cb_data.t0_ms + index_event.time > end_ms);
+        let track_event = &cb_data.parsed_midi.tracks[index_event.track].track_events[index_event.tei];
+        match track_event.event {
+            midi::Event::MetaEvent(ref me) => {
+                println!("i={}, MetaEvent={}", cb_data.next_index_event, me);
+                match me {
+                    midi::MetaEvent::Text(e) => { println!("{}", e); },
+                    midi::MetaEvent::SequenceTrackName(e) => { println!("{}", e); },
+                    midi::MetaEvent::InstrumentName(e) => { println!("{}", e); },
+                    midi::MetaEvent::EndOfTrack(_e) => {
+                        println!("EndOfTrack {}", index_event.track);
+                    },
+                    midi::MetaEvent::SetTempo(st) => {
+                        cb_data.timing.microseconds_per_quarter = u64::from(st.tttttt);
+                    },
+                    midi::MetaEvent::TimeSignature(e) => { println!("{}", e); }
+                    _ => { println!("play: unsupported");},
+                }
+            },
+            midi::Event::MidiEvent(ref me) => {
+                println!("i={}, MidiEvent={} ", cb_data.next_index_event, me);
+                match me {
+                    midi::MidiEvent::NoteOn(ref e) => {
+                        println!("{}", e); 
+                        if e.velocity != 0 {
+                            let duration_ticks = get_note_duration(cb_data.parsed_midi,
+                                cb_data.index_events, cb_data.next_index_event, e);
+                            let duration_ms = cb_data.timing.ticks_to_ms(duration_ticks);
+                            let date_ms = cb_data.timing.ticks_to_ms(index_event.time);
+                            println!("dur_ticks={}, dur_ms={}", duration_ticks, duration_ms);
+                            play_note(
+                                cb_data.seq_ctl, 
+                                i32::from(e.channel),
+                                i16::from(e.key),
+                                i16::from(e.velocity),
+                                duration_ms,
+                                date_ms);
+                        }
+                    },
+                    midi::MidiEvent::ProgramChange(e) => {
+                        println!("{}", e);
+                        let ret;
+                        unsafe {
+                            ret = cfluid::fluid_synth_program_select(
+                                cb_data.seq_ctl.synth_ptr,
+                                i32::from(e.channel),
+                                cb_data.seq_ctl.sfont_id,
+                                0,
+                                i32::from(e.program));
+                        }
+                        if ret != cfluid::FLUID_OK {
+                            eprintln!("fluid_synth_program_select failed ret={}", ret);
+                        }
+                    },
+                    _ => { println!("play: unsupported");},
+                }
+           },
+           _ => { },
+        }
+        cb_data.next_index_event += 1;
+    }
 }
 
 extern "C" fn seq_callback(
@@ -157,6 +228,7 @@ extern "C" fn seq_callback(
         println!("seq_callback: {}:{} time={}, #(index_events)={}, next_index_event={}",
             file!(), line!(),
             time, cb_data.index_events.len(), cb_data.next_index_event);
+        handle_next_batch_events(cb_data);
     }
 }
 
@@ -189,12 +261,16 @@ pub fn play(seq_ctl: &mut sequencer::SequencerControl, parsed_midi: &midi::Midi)
       k_ticks_per_quarter: 1000 * u64::from(parsed_midi.ticks_per_quarter_note), // SMPTE not yet
     };
 
+    let t0;
+    unsafe { t0 = cfluid::fluid_sequencer_get_tick(seq_ctl.sequencer_ptr); }
+    println!("t0={}", t0);
     let callback_data = CallbackData {
         seq_ctl: seq_ctl,
         parsed_midi: parsed_midi,
         index_events: &index_events,
-        timing: &timing,
+        timing: &mut timing,
         next_index_event: 0,
+        t0_ms: t0,
     };
     let callback_data_ptr = &callback_data as *const CallbackData as *mut c_void;
     let key = CString::new("me").expect("CString::new failed");
@@ -207,11 +283,9 @@ pub fn play(seq_ctl: &mut sequencer::SequencerControl, parsed_midi: &midi::Midi)
             callback_data_ptr);
     }
     seq_ctl.my_seq_id = my_seq_id;
-    let t0;
-    unsafe { t0 = cfluid::fluid_sequencer_get_tick(seq_ctl.sequencer_ptr); }
-    println!("t0={}", t0);
     schedule_next_callback(seq_ctl);
-    
+
+ if false {    
     for (i, index_event) in index_events.iter().enumerate() {
        let track_event = &parsed_midi.tracks[index_event.track].track_events[index_event.tei];
        match track_event.event {
@@ -269,6 +343,7 @@ pub fn play(seq_ctl: &mut sequencer::SequencerControl, parsed_midi: &midi::Midi)
           _ => { },
        }
     }
+ }
     unsafe {
         let tick = cfluid::fluid_sequencer_get_tick(seq_ctl.sequencer_ptr);
         println!("before sleep tick={}", tick);
