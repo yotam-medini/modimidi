@@ -10,6 +10,7 @@ pub struct SequencerControl {
     pub synth_seq_id: i16,
     pub sfont_id: i32,
     pub my_seq_id: i16,
+    pub batch_duration_ms: u32,
     pub now: u32,
 }
 
@@ -77,6 +78,7 @@ pub fn create_sequencer(sound_font_path: &String) -> SequencerControl {
         synth_seq_id: 0,
         sfont_id: -1,
         my_seq_id: 0,
+        batch_duration_ms: 10000,
         now: 0,
     };
     create_synth(&mut sequencer, sound_font_path);
