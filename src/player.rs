@@ -7,7 +7,7 @@ use crate::midi;
 use crate::sequencer;
 
 fn play_note(
-    sequencer: &mut sequencer::Sequencer,
+    seq_ctl: &mut sequencer::SequencerControl,
     chan: i32,
     key: i16,
     vel: i16,
@@ -16,11 +16,11 @@ fn play_note(
     unsafe {
         let evt = cfluid::new_fluid_event();
         cfluid::fluid_event_set_source(evt, -1);
-        cfluid::fluid_event_set_dest(evt, sequencer.synth_seq_id);
+        cfluid::fluid_event_set_dest(evt, seq_ctl.synth_seq_id);
         cfluid::fluid_event_note(evt, chan, key, vel, dur);
         println!("fluid_sequencer_send_at: date={}", date);
         let fluid_res = cfluid::fluid_sequencer_send_at(
-            sequencer.sequencer_ptr, evt, date, 0); // 1 absolute, 0 relative
+            seq_ctl.sequencer_ptr, evt, date, 0); // 1 absolute, 0 relative
         println!("play_note: fluid_res={}", fluid_res);
         cfluid::delete_fluid_event(evt);
     }
@@ -139,7 +139,7 @@ impl Timing {
 }
 
 struct CallbackData<'a> {
-    sequencer: &'a sequencer::Sequencer,
+    seq_ctl: &'a sequencer::SequencerControl,
     parsed_midi: &'a midi::Midi,
     index_events: &'a Vec<IndexEvent>,
     timing: &'a Timing,
@@ -151,33 +151,35 @@ extern "C" fn seq_callback(
     event: *mut cfluid::fluid_event_t,
     seq: *mut cfluid::fluid_sequencer_t, 
     data: *mut c_void) {
+    println!("{}:{} seq_callback thread id={:?}", file!(), line!(), std::thread::current().id());
     unsafe {
         let cb_data = &mut *(data as *mut CallbackData);
-        println!("seq_callback: {}:{} #(index_events)={}, next_index_event={}",
+        println!("seq_callback: {}:{} time={}, #(index_events)={}, next_index_event={}",
             file!(), line!(),
-            cb_data.index_events.len(), cb_data.next_index_event);
+            time, cb_data.index_events.len(), cb_data.next_index_event);
     }
 }
 
-fn schedule_next_callback(sequencer : &mut sequencer::Sequencer) {
+fn schedule_next_callback(seq_ctl : &mut sequencer::SequencerControl) {
     unsafe { 
-      let sequencer_ptr = sequencer.sequencer_ptr;
+      let sequencer_ptr = seq_ctl.sequencer_ptr;
       let now = cfluid::fluid_sequencer_get_tick(sequencer_ptr); 
       let evt = cfluid::new_fluid_event();
       cfluid::fluid_event_set_source(evt, -1);
-      cfluid::fluid_event_set_dest(evt, sequencer.my_seq_id);
+      cfluid::fluid_event_set_dest(evt, seq_ctl.my_seq_id);
+      println!("{}:{} now={}", file!(), line!(), now);
       let fluid_res = cfluid::fluid_sequencer_send_at(sequencer_ptr, evt, now + 100, 1);
       println!("{}:{} fluid_res={}", file!(), line!(), fluid_res);
       cfluid::delete_fluid_event(evt);
     }
 }
 
-pub fn play(sequencer: &mut sequencer::Sequencer, parsed_midi: &midi::Midi) {
-    println!("play...");
+pub fn play(seq_ctl: &mut sequencer::SequencerControl, parsed_midi: &midi::Midi) {
+    println!("play... thread id={:?}", std::thread::current().id());
     let index_events = get_index_events(parsed_midi);
     unsafe {
-        sequencer.now = cfluid::fluid_sequencer_get_tick(sequencer.sequencer_ptr);
-        println!("play: tick={}", sequencer.now);
+        seq_ctl.now = cfluid::fluid_sequencer_get_tick(seq_ctl.sequencer_ptr);
+        println!("play: tick={}", seq_ctl.now);
     }
     thread::sleep(time::Duration::from_millis(1000));
 
@@ -188,7 +190,7 @@ pub fn play(sequencer: &mut sequencer::Sequencer, parsed_midi: &midi::Midi) {
     };
 
     let callback_data = CallbackData {
-        sequencer: sequencer,
+        seq_ctl: seq_ctl,
         parsed_midi: parsed_midi,
         index_events: &index_events,
         timing: &timing,
@@ -199,16 +201,16 @@ pub fn play(sequencer: &mut sequencer::Sequencer, parsed_midi: &midi::Midi) {
     let my_seq_id: i16;
     unsafe {
         my_seq_id = cfluid::fluid_sequencer_register_client(
-            sequencer.sequencer_ptr, 
+            seq_ctl.sequencer_ptr, 
             key.as_ptr(),
             seq_callback, 
             callback_data_ptr);
     }
-    sequencer.my_seq_id = my_seq_id;
+    seq_ctl.my_seq_id = my_seq_id;
     let t0;
-    unsafe { t0 = cfluid::fluid_sequencer_get_tick(sequencer.sequencer_ptr); }
+    unsafe { t0 = cfluid::fluid_sequencer_get_tick(seq_ctl.sequencer_ptr); }
     println!("t0={}", t0);
-    schedule_next_callback(sequencer);
+    schedule_next_callback(seq_ctl);
     
     for (i, index_event) in index_events.iter().enumerate() {
        let track_event = &parsed_midi.tracks[index_event.track].track_events[index_event.tei];
@@ -238,7 +240,7 @@ pub fn play(sequencer: &mut sequencer::Sequencer, parsed_midi: &midi::Midi) {
                           let date_ms = timing.ticks_to_ms(index_event.time);
                           println!("duration_ticks={}, duration_ms={}", duration_ticks, duration_ms);
                           play_note(
-                              sequencer, 
+                              seq_ctl, 
                               i32::from(e.channel),
                               i16::from(e.key),
                               i16::from(e.velocity),
@@ -251,9 +253,9 @@ pub fn play(sequencer: &mut sequencer::Sequencer, parsed_midi: &midi::Midi) {
                       let ret;
                       unsafe {
                           ret = cfluid::fluid_synth_program_select(
-                              sequencer.synth_ptr,
+                              seq_ctl.synth_ptr,
                               i32::from(e.channel),
-                              sequencer.sfont_id,
+                              seq_ctl.sfont_id,
                               0,
                               i32::from(e.program));
                       }
@@ -268,11 +270,11 @@ pub fn play(sequencer: &mut sequencer::Sequencer, parsed_midi: &midi::Midi) {
        }
     }
     unsafe {
-        let tick = cfluid::fluid_sequencer_get_tick(sequencer.sequencer_ptr);
+        let tick = cfluid::fluid_sequencer_get_tick(seq_ctl.sequencer_ptr);
         println!("before sleep tick={}", tick);
         // send_note_on(&mut sequencer, 0, 65, tick);
         thread::sleep(time::Duration::from_millis(5000));
-        let tend = cfluid::fluid_sequencer_get_tick(sequencer.sequencer_ptr);
+        let tend = cfluid::fluid_sequencer_get_tick(seq_ctl.sequencer_ptr);
         println!("after sleep tick={}", tend);
     }
 }

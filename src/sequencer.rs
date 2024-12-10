@@ -2,7 +2,7 @@ use std::fmt;
 use std::ffi::CString;
 use crate::cfluid;
 
-pub struct Sequencer {
+pub struct SequencerControl {
     settings_ptr: *mut cfluid::fluid_settings_t,
     pub synth_ptr: *mut cfluid::fluid_synth_t,
     audio_driver_ptr: *mut cfluid::fluid_audio_driver_t,
@@ -13,10 +13,10 @@ pub struct Sequencer {
     pub now: u32,
 }
 
-impl fmt::Display for Sequencer {
+impl fmt::Display for SequencerControl {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, concat!(
-           "Structure(settings={:?}, syn={:?}, a={:?}, seq={:?}, seq_id={}, my={}, ",
+           "SequencerControl(settings={:?}, syn={:?}, a={:?}, seq={:?}, seq_id={}, my={}, ",
            "now={}"),
            self.settings_ptr,
            self.synth_ptr, self.audio_driver_ptr, self.sequencer_ptr,
@@ -25,49 +25,36 @@ impl fmt::Display for Sequencer {
     }
 }
 
-#[cfg(feature = "obsolete_seq_callback")]
-extern "C" fn seq_callback(
-    time: u32,
-    event: *mut cfluid::fluid_event_t,
-    seq: *mut cfluid::fluid_sequencer_t, 
-    data: *mut c_void) {
-    unsafe {
-        let the_sequencer = &mut *(data as *mut Sequencer);
-        println!("seq_callback: time={}, event={:?}, eq={:?}, the_sequencer={}",
-            time, event, seq, the_sequencer);
-    }
-}
-
-fn create_synth(sequencer: &mut Sequencer, sound_font_path: &String) {
+fn create_synth(seq_ctl: &mut SequencerControl, sound_font_path: &String) {
     println!("create_synth");
     unsafe {
-        sequencer.settings_ptr = cfluid::new_fluid_settings();
+        seq_ctl.settings_ptr = cfluid::new_fluid_settings();
 	let mut ret;
 	let mut key;
 	key =
 	    CString::new("synth.reverb.active").expect("CString::new failed");
-	ret  = cfluid::fluid_settings_setint(sequencer.settings_ptr, key.as_ptr(), 0);
+	ret  = cfluid::fluid_settings_setint(seq_ctl.settings_ptr, key.as_ptr(), 0);
 	println!("setting reverb: ret={}", ret);
 	key =
 	    CString::new("synth.chorus.active").expect("CString::new failed");
-	ret  = cfluid::fluid_settings_setint(sequencer.settings_ptr, key.as_ptr(), 0);
+	ret  = cfluid::fluid_settings_setint(seq_ctl.settings_ptr, key.as_ptr(), 0);
 	println!("setting chorus: ret={}", ret);
-	let _synth = cfluid::new_fluid_synth(sequencer.settings_ptr);
-	sequencer.synth_ptr = cfluid::new_fluid_synth(sequencer.settings_ptr);
+	let _synth = cfluid::new_fluid_synth(seq_ctl.settings_ptr);
+	seq_ctl.synth_ptr = cfluid::new_fluid_synth(seq_ctl.settings_ptr);
         let sf_path = sound_font_path.to_owned(); 
         let c_str_sf_path = CString::new(sf_path).unwrap();
-        sequencer.sfont_id = cfluid::fluid_synth_sfload(
-            sequencer.synth_ptr, c_str_sf_path.as_ptr(), 1);
-        sequencer.audio_driver_ptr =
-            cfluid::new_fluid_audio_driver(sequencer.settings_ptr, sequencer.synth_ptr);
-        sequencer.sequencer_ptr = cfluid::new_fluid_sequencer2(0);
+        seq_ctl.sfont_id = cfluid::fluid_synth_sfload(
+            seq_ctl.synth_ptr, c_str_sf_path.as_ptr(), 1);
+        seq_ctl.audio_driver_ptr =
+            cfluid::new_fluid_audio_driver(seq_ctl.settings_ptr, seq_ctl.synth_ptr);
+        seq_ctl.sequencer_ptr = cfluid::new_fluid_sequencer2(0);
 
         // register synth as first destination
-        sequencer.synth_seq_id = cfluid::fluid_sequencer_register_fluidsynth(
-            sequencer.sequencer_ptr, sequencer.synth_ptr);
+        seq_ctl.synth_seq_id = cfluid::fluid_sequencer_register_fluidsynth(
+            seq_ctl.sequencer_ptr, seq_ctl.synth_ptr);
 
         println!("sequencer time_scale={}",
-            cfluid::fluid_sequencer_get_time_scale(sequencer.sequencer_ptr));
+            cfluid::fluid_sequencer_get_time_scale(seq_ctl.sequencer_ptr));
     }
 }
 
@@ -80,9 +67,9 @@ fn load_sound_font(synth_ptr: *mut cfluid::fluid_synth_t) {
     }
 }
 
-pub fn create_sequencer(sound_font_path: &String) -> Sequencer {
+pub fn create_sequencer(sound_font_path: &String) -> SequencerControl {
     println!("create_sequencer({})", sound_font_path);
-    let mut sequencer = Sequencer {
+    let mut sequencer = SequencerControl {
         settings_ptr: std::ptr::null_mut(),
         synth_ptr: std::ptr::null_mut(),
         audio_driver_ptr: std::ptr::null_mut(),
@@ -107,7 +94,7 @@ pub fn create_sequencer(sound_font_path: &String) -> Sequencer {
     sequencer
 }
 
-pub fn destroy_sequencer(sequencer: &mut Sequencer) {
+pub fn destroy_sequencer(sequencer: &mut SequencerControl) {
     println!("destroy_synth");
     unsafe {
         cfluid::delete_fluid_sequencer(sequencer.sequencer_ptr);
