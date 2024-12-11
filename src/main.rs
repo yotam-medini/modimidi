@@ -118,12 +118,12 @@ fn main() {
     // let soundfounts: &str = matches.get_one::<String>("soundfounts").unwrap();
     let soundfounts = matches.get_one::<String>("soundfounts").unwrap();
     println!("soundfounts={soundfounts}");
-    let mut sequencer = sequencer::create_sequencer(soundfounts);
+    let batch_duration_ms: u32 = *matches.get_one::<u32>("batchduration").unwrap();
+    println!("{}:{} batch_duration_ms={}", file!(), line!(), batch_duration_ms);
+    let mut sequencer = sequencer::create_sequencer(soundfounts, batch_duration_ms);
     let begin: u32 = *matches.get_one::<u32>("begin").unwrap_or(&0);
     let end: u32 = *matches.get_one::<u32>("begin").unwrap_or(&0xffffffff);
     println!("begin={}, end={}", begin, end);
-    let batch_duration_ms = matches.get_one::<u32>("batchduration").unwrap();
-    println!("{}:{} batch_duration_ms={}", file!(), line!(), batch_duration_ms);
     let midifile = matches.get_one::<PathBuf>("midifile").unwrap();
     println!("midifile={:?}", midifile);
     let parsed_midi = midi::parse_midi_file(&midifile);

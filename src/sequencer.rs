@@ -70,7 +70,9 @@ fn load_sound_font(synth_ptr: *mut cfluid::fluid_synth_t) {
     }
 }
 
-pub fn create_sequencer(sound_font_path: &String) -> SequencerControl {
+pub fn create_sequencer(
+    sound_font_path: &String,
+    batch_duration_ms: u32) -> SequencerControl {
     println!("create_sequencer({})", sound_font_path);
     let mut sequencer = SequencerControl {
         settings_ptr: std::ptr::null_mut(),
@@ -81,7 +83,7 @@ pub fn create_sequencer(sound_font_path: &String) -> SequencerControl {
         sfont_id: -1,
         periodic_seq_id: 0,
         final_seq_id: 0,
-        batch_duration_ms: 10000,
+        batch_duration_ms: batch_duration_ms,
         now: 0,
     };
     create_synth(&mut sequencer, sound_font_path);
