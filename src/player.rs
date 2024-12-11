@@ -27,6 +27,18 @@ fn play_note(
     }
 }
 
+fn send_final_event(seq_ctl: &mut sequencer::SequencerControl, date: u32) {
+    unsafe {
+        let evt = cfluid::new_fluid_event();
+        cfluid::fluid_event_set_source(evt, -1);
+        cfluid::fluid_event_set_dest(evt, seq_ctl.final_seq_id);
+        let fluid_res = cfluid::fluid_sequencer_send_at(
+            seq_ctl.sequencer_ptr, evt, date, 0); // 1 absolute, 0 relative
+        println!("send_final_event: date={}, fluid_res={}", date, fluid_res);
+        cfluid::delete_fluid_event(evt);
+    }
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 struct IndexEvent {
     time: u32, // sum of delta_time
@@ -217,29 +229,53 @@ fn handle_next_batch_events(cb_data: &mut CallbackData) {
         }
         cb_data.next_index_event += 1;
     }
-    if cb_data.next_index_event == cb_data.index_events.len() {
-      println!("{}:{} thread={:?} all events played", file!(), line!(), std::thread::current().id());
-      let mtx_cvar = Arc::clone(&cb_data.mtx_cvar); // Clone the Arc
-      let (lock, cvar) = &*mtx_cvar;
-      let mut lock_guard = lock.lock().unwrap();
-      *lock_guard = true; // Example usage
-      cvar.notify_all(); // Notify threads
-      println!("{}:{} mtx_cvar={:?}", file!(), line!(), cb_data.mtx_cvar);
+    let len = cb_data.index_events.len();
+    if cb_data.next_index_event == len {
+        let date;
+        if len == 0 {
+            unsafe { date = cfluid::fluid_sequencer_get_tick(cb_data.seq_ctl.sequencer_ptr); }
+        } else {
+            date = cb_data.index_events[cb_data.index_events.len() - 1].time;
+        }
+        let date_ms = cb_data.timing.ticks_to_ms(date);
+        send_final_event(cb_data.seq_ctl, date_ms);
     }
 }
 
-extern "C" fn seq_callback(
+extern "C" fn periodic_callback(
     time: u32,
     event: *mut cfluid::fluid_event_t,
     _seq: *mut cfluid::fluid_sequencer_t, 
     data: *mut c_void) {
-    println!("{}:{} seq_callback thread id={:?}", file!(), line!(), std::thread::current().id());
+    println!("{}:{} periodic_callback thread id={:?}", file!(), line!(), std::thread::current().id());
     unsafe {
         let cb_data = &mut *(data as *mut CallbackData);
-        println!("seq_callback: {}:{} time={}, #(index_events)={}, next_index_event={}",
+        println!("periodic_callback: {}:{} time={}, #(index_events)={}, next_index_event={}",
             file!(), line!(),
             time, cb_data.index_events.len(), cb_data.next_index_event);
         handle_next_batch_events(cb_data);
+    }
+}
+
+extern "C" fn final_callback(
+    time: u32,
+    event: *mut cfluid::fluid_event_t,
+    _seq: *mut cfluid::fluid_sequencer_t, 
+    data: *mut c_void) {
+    println!("{}:{} final_callback thread id={:?}", file!(), line!(), std::thread::current().id());
+    unsafe {
+        let cb_data = &mut *(data as *mut CallbackData);
+        println!("final_callback: {}:{} time={}, #(index_events)={}, next_index_event={}",
+            file!(), line!(),
+            time, cb_data.index_events.len(), cb_data.next_index_event);
+        println!("{}:{} thread={:?} all events played",
+            file!(), line!(), std::thread::current().id());
+        let mtx_cvar = Arc::clone(&cb_data.mtx_cvar); // Clone the Arc
+        let (lock, cvar) = &*mtx_cvar;
+        let mut lock_guard = lock.lock().unwrap();
+        *lock_guard = true; // Example usage
+        cvar.notify_all(); // Notify threads
+        println!("{}:{} mtx_cvar={:?}", file!(), line!(), cb_data.mtx_cvar);
     }
 }
 
@@ -286,16 +322,24 @@ pub fn play(seq_ctl: &mut sequencer::SequencerControl, parsed_midi: &midi::Midi)
         mtx_cvar: Arc::clone(&mtx_cvar),
     };
     let callback_data_ptr = &callback_data as *const CallbackData as *mut c_void;
-    let key = CString::new("periodic").expect("CString::new failed");
+    let key_periodic = CString::new("periodic").expect("CString::new failed");
+    let key_final = CString::new("final").expect("CString::new failed");
     let periodic_seq_id: i16;
+    let final_seq_id: i16;
     unsafe {
         periodic_seq_id = cfluid::fluid_sequencer_register_client(
             seq_ctl.sequencer_ptr, 
-            key.as_ptr(),
-            seq_callback, 
+            key_periodic.as_ptr(),
+            periodic_callback, 
+            callback_data_ptr);
+        final_seq_id = cfluid::fluid_sequencer_register_client(
+            seq_ctl.sequencer_ptr, 
+            key_final.as_ptr(),
+            final_callback, 
             callback_data_ptr);
     }
     seq_ctl.periodic_seq_id = periodic_seq_id;
+    seq_ctl.final_seq_id = final_seq_id;
     schedule_next_callback(seq_ctl);
 
  if false {    
@@ -364,5 +408,4 @@ pub fn play(seq_ctl: &mut sequencer::SequencerControl, parsed_midi: &midi::Midi)
         locked = cvar.wait(locked).unwrap();
     }
     println!("Got the notification!");
-    thread::sleep(time::Duration::from_millis(3000)); // TEMPORARY
 }

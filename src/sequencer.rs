@@ -10,6 +10,7 @@ pub struct SequencerControl {
     pub synth_seq_id: i16,
     pub sfont_id: i32,
     pub periodic_seq_id: i16,
+    pub final_seq_id: i16,
     pub batch_duration_ms: u32,
     pub now: u32,
 }
@@ -17,11 +18,12 @@ pub struct SequencerControl {
 impl fmt::Display for SequencerControl {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, concat!(
-           "SequencerControl(settings={:?}, syn={:?}, a={:?}, seq={:?}, seq_id={}, my={}, ",
+           "SequencerControl(settings={:?}, syn={:?}, a={:?}, seq={:?}, seq_id={}, ",
+           "final={}, my={}, ",
            "now={}"),
            self.settings_ptr,
            self.synth_ptr, self.audio_driver_ptr, self.sequencer_ptr,
-           self.synth_seq_id, self.periodic_seq_id,
+           self.synth_seq_id, self.periodic_seq_id, self.final_seq_id,
            self.now)
     }
 }
@@ -78,6 +80,7 @@ pub fn create_sequencer(sound_font_path: &String) -> SequencerControl {
         synth_seq_id: 0,
         sfont_id: -1,
         periodic_seq_id: 0,
+        final_seq_id: 0,
         batch_duration_ms: 10000,
         now: 0,
     };
