@@ -346,65 +346,6 @@ pub fn play(seq_ctl: &mut sequencer::SequencerControl, parsed_midi: &midi::Midi)
     seq_ctl.final_seq_id = final_seq_id;
     schedule_next_callback(seq_ctl, t0_ms);
 
- if false {    
-    for (i, index_event) in index_events.iter().enumerate() {
-       let track_event = &parsed_midi.tracks[index_event.track].track_events[index_event.tei];
-       match track_event.event {
-          midi::Event::MetaEvent(ref me) => {
-              println!("i={}, MetaEvent={}", i, me);
-              match me {
-                  midi::MetaEvent::Text(e) => { println!("{}", e); },
-                  midi::MetaEvent::SequenceTrackName(e) => { println!("{}", e); },
-                  midi::MetaEvent::InstrumentName(e) => { println!("{}", e); },
-                  midi::MetaEvent::EndOfTrack(_e) => {println!("EndOfTrack {}", index_event.track);},
-                  midi::MetaEvent::SetTempo(st) => {
-                      timing.microseconds_per_quarter = u64::from(st.tttttt);
-                  },
-                  midi::MetaEvent::TimeSignature(e) => { println!("{}", e); }
-                  _ => { println!("play: unsupported");},
-              }
-          },
-          midi::Event::MidiEvent(ref me) => {
-              println!("i={}, MidiEvent={} ", i, me);
-              match me {
-                  midi::MidiEvent::NoteOn(ref e) => {
-                      println!("{}", e); 
-                      if e.velocity != 0 {
-                          let duration_ticks = get_note_duration(parsed_midi, &index_events, i, e);
-                          let duration_ms = timing.ticks_to_ms(duration_ticks);
-                          let date_ms = timing.ticks_to_ms(index_event.time);
-                          println!("duration_ticks={}, duration_ms={}", duration_ticks, duration_ms);
-                          play_note(
-                              seq_ctl, 
-                              i32::from(e.channel),
-                              i16::from(e.key),
-                              i16::from(e.velocity),
-                              duration_ms,
-                              date_ms);
-                      }
-                  },
-                  midi::MidiEvent::ProgramChange(e) => {
-                      println!("{}", e);
-                      let ret;
-                      unsafe {
-                          ret = cfluid::fluid_synth_program_select(
-                              seq_ctl.synth_ptr,
-                              i32::from(e.channel),
-                              seq_ctl.sfont_id,
-                              0,
-                              i32::from(e.program));
-                      }
-                      if ret != cfluid::FLUID_OK {
-                          eprintln!("fluid_synth_program_select failed ret={}", ret);
-                      }
-                  },
-                  _ => { println!("play: unsupported");},
-              }
-          },
-          _ => { },
-       }
-    }
- }
     let (lock, cvar) = &*mtx_cvar;
     let mut locked = lock.lock().unwrap();
     println!("{}:{} Waiting on locked thread={:?}", file!(), line!(), std::thread::current().id());
