@@ -19,9 +19,9 @@ fn play_note(
         cfluid::fluid_event_set_source(evt, -1);
         cfluid::fluid_event_set_dest(evt, seq_ctl.synth_seq_id);
         cfluid::fluid_event_note(evt, chan, key, vel, dur);
-        println!("fluid_sequencer_send_at: date={}", date);
+        println!("fluid_event_note fluid_sequencer_send_at: date={}", date);
         let fluid_res = cfluid::fluid_sequencer_send_at(
-            seq_ctl.sequencer_ptr, evt, date, 0); // 1 absolute, 0 relative
+            seq_ctl.sequencer_ptr, evt, date, 1); // 1 absolute, 0 relative
         println!("play_note: fluid_res={}", fluid_res);
         cfluid::delete_fluid_event(evt);
     }
@@ -33,7 +33,7 @@ fn send_final_event(seq_ctl: &mut sequencer::SequencerControl, date: u32) {
         cfluid::fluid_event_set_source(evt, -1);
         cfluid::fluid_event_set_dest(evt, seq_ctl.final_seq_id);
         let fluid_res = cfluid::fluid_sequencer_send_at(
-            seq_ctl.sequencer_ptr, evt, date, 0); // 1 absolute, 0 relative
+            seq_ctl.sequencer_ptr, evt, date, 1); // 1 absolute, 0 relative
         println!("send_final_event: date={}, fluid_res={}", date, fluid_res);
         cfluid::delete_fluid_event(evt);
     }
@@ -196,7 +196,8 @@ fn handle_next_batch_events(cb_data: &mut CallbackData) {
                             let duration_ticks = get_note_duration(cb_data.parsed_midi,
                                 cb_data.index_events, cb_data.next_index_event, e);
                             let duration_ms = cb_data.timing.ticks_to_ms(duration_ticks);
-                            let date_ms = cb_data.timing.ticks_to_ms(index_event.time);
+                            let date_ms = cb_data.timing.ticks_to_ms(index_event.time) +
+                                cb_data.t0_ms;
                             println!("dur_ticks={}, dur_ms={}", duration_ticks, duration_ms);
                             play_note(
                                 cb_data.seq_ctl, 
@@ -237,7 +238,7 @@ fn handle_next_batch_events(cb_data: &mut CallbackData) {
         } else {
             date = cb_data.index_events[cb_data.index_events.len() - 1].time;
         }
-        let date_ms = cb_data.timing.ticks_to_ms(date);
+        let date_ms = cb_data.timing.ticks_to_ms(date) + cb_data.t0_ms;
         send_final_event(cb_data.seq_ctl, date_ms);
     }
 }
