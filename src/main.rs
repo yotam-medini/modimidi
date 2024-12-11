@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 // use std::process::ExitCode;
-use clap::{arg, command, value_parser};
+use clap::{Arg, arg, command, value_parser};
 mod cfluid;
 mod midi;
 mod player;
@@ -88,6 +88,14 @@ fn args_get_matches () -> clap::ArgMatches {
             .required(false)
             .default_value("/usr/share/sounds/sf2/FluidR3_GM.sf2")
 	)
+	.arg(
+
+            Arg::new("batchduration")
+                .long("batchduration")
+                .value_parser(clap::value_parser!(u32))
+                .default_value("10000") // Default value if not specified
+                .help("sequencer batch duration in milliseconds"),
+	)
         .arg(arg!([midifile] "The midi file to play")
             .required(true)
             .value_parser(value_parser!(PathBuf))
@@ -114,6 +122,8 @@ fn main() {
     let begin: u32 = *matches.get_one::<u32>("begin").unwrap_or(&0);
     let end: u32 = *matches.get_one::<u32>("begin").unwrap_or(&0xffffffff);
     println!("begin={}, end={}", begin, end);
+    let batch_duration_ms = matches.get_one::<u32>("batchduration").unwrap();
+    println!("{}:{} batch_duration_ms={}", file!(), line!(), batch_duration_ms);
     let midifile = matches.get_one::<PathBuf>("midifile").unwrap();
     println!("midifile={:?}", midifile);
     let parsed_midi = midi::parse_midi_file(&midifile);

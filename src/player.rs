@@ -184,7 +184,7 @@ fn handle_next_batch_events(cb_data: &mut CallbackData) {
                         cb_data.timing.microseconds_per_quarter = u64::from(st.tttttt);
                     },
                     midi::MetaEvent::TimeSignature(e) => { println!("{}", e); }
-                    _ => { println!("play: unsupported");},
+                    _ => { println!("{}:{} play: ignored", file!(), line!());},
                 }
             },
             midi::Event::MidiEvent(ref me) => {
@@ -222,7 +222,7 @@ fn handle_next_batch_events(cb_data: &mut CallbackData) {
                             eprintln!("fluid_synth_program_select failed ret={}", ret);
                         }
                     },
-                    _ => { println!("play: unsupported");},
+                    _ => { println!("{}:{} play: ignored", file!(), line!());},
                 }
            },
            _ => { },
@@ -254,6 +254,9 @@ extern "C" fn periodic_callback(
             file!(), line!(),
             time, cb_data.index_events.len(), cb_data.next_index_event);
         handle_next_batch_events(cb_data);
+        let now = cfluid::fluid_sequencer_get_tick(cb_data.seq_ctl.sequencer_ptr);
+        let now_ms = cb_data.timing.ticks_to_ms(now);
+        schedule_next_callback(cb_data.seq_ctl, now_ms + cb_data.seq_ctl.batch_duration_ms/2);
     }
 }
 
@@ -279,16 +282,15 @@ extern "C" fn final_callback(
     }
 }
 
-fn schedule_next_callback(seq_ctl : &mut sequencer::SequencerControl) {
+fn schedule_next_callback(seq_ctl : &mut sequencer::SequencerControl, date_ms: u32) {
+    println!("{}:{} date_ms={}", file!(), line!(), date_ms);
     unsafe { 
       let sequencer_ptr = seq_ctl.sequencer_ptr;
-      let now = cfluid::fluid_sequencer_get_tick(sequencer_ptr); 
       let evt = cfluid::new_fluid_event();
       cfluid::fluid_event_set_source(evt, -1);
       cfluid::fluid_event_set_dest(evt, seq_ctl.periodic_seq_id);
-      println!("{}:{} now={}", file!(), line!(), now);
-      let fluid_res = cfluid::fluid_sequencer_send_at(sequencer_ptr, evt, now + 100, 1);
-      println!("{}:{} fluid_res={}", file!(), line!(), fluid_res);
+      let fluid_res = cfluid::fluid_sequencer_send_at(sequencer_ptr, evt, date_ms, 1);
+      println!("{}:{} date_ms={}, fluid_res={}", file!(), line!(), date_ms, fluid_res);
       cfluid::delete_fluid_event(evt);
     }
 }
@@ -311,14 +313,15 @@ pub fn play(seq_ctl: &mut sequencer::SequencerControl, parsed_midi: &midi::Midi)
     let mtx_cvar = Arc::new((Mutex::new(false), Condvar::new()));
     let t0;
     unsafe { t0 = cfluid::fluid_sequencer_get_tick(seq_ctl.sequencer_ptr); }
-    println!("t0={}", t0);
+    let t0_ms = timing.ticks_to_ms(t0);
+    println!("t0={}, t0_ms={}", t0, t0_ms);
     let callback_data = CallbackData {
         seq_ctl: seq_ctl,
         parsed_midi: parsed_midi,
         index_events: &index_events,
         timing: &mut timing,
         next_index_event: 0,
-        t0_ms: t0,
+        t0_ms: t0_ms,
         mtx_cvar: Arc::clone(&mtx_cvar),
     };
     let callback_data_ptr = &callback_data as *const CallbackData as *mut c_void;
@@ -340,7 +343,7 @@ pub fn play(seq_ctl: &mut sequencer::SequencerControl, parsed_midi: &midi::Midi)
     }
     seq_ctl.periodic_seq_id = periodic_seq_id;
     seq_ctl.final_seq_id = final_seq_id;
-    schedule_next_callback(seq_ctl);
+    schedule_next_callback(seq_ctl, t0_ms);
 
  if false {    
     for (i, index_event) in index_events.iter().enumerate() {
