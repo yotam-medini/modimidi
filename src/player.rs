@@ -146,7 +146,7 @@ struct CallbackData<'a> {
     timing: &'a mut Timing,
     next_index_event: usize,
     t0_ms: u32,
-    mtx_cvar: &'a Arc<(Mutex<bool>, Condvar)>
+    mtx_cvar: Arc<(Mutex<bool>, Condvar)>
 }
 
 fn handle_next_batch_events(cb_data: &mut CallbackData) {
@@ -217,12 +217,21 @@ fn handle_next_batch_events(cb_data: &mut CallbackData) {
         }
         cb_data.next_index_event += 1;
     }
+    if cb_data.next_index_event == cb_data.index_events.len() {
+      println!("{}:{} thread={:?} all events played", file!(), line!(), std::thread::current().id());
+      let mtx_cvar = Arc::clone(&cb_data.mtx_cvar); // Clone the Arc
+      let (lock, cvar) = &*mtx_cvar;
+      let mut lock_guard = lock.lock().unwrap();
+      *lock_guard = true; // Example usage
+      cvar.notify_all(); // Notify threads
+      println!("{}:{} mtx_cvar={:?}", file!(), line!(), cb_data.mtx_cvar);
+    }
 }
 
 extern "C" fn seq_callback(
     time: u32,
     event: *mut cfluid::fluid_event_t,
-    seq: *mut cfluid::fluid_sequencer_t, 
+    _seq: *mut cfluid::fluid_sequencer_t, 
     data: *mut c_void) {
     println!("{}:{} seq_callback thread id={:?}", file!(), line!(), std::thread::current().id());
     unsafe {
@@ -240,7 +249,7 @@ fn schedule_next_callback(seq_ctl : &mut sequencer::SequencerControl) {
       let now = cfluid::fluid_sequencer_get_tick(sequencer_ptr); 
       let evt = cfluid::new_fluid_event();
       cfluid::fluid_event_set_source(evt, -1);
-      cfluid::fluid_event_set_dest(evt, seq_ctl.my_seq_id);
+      cfluid::fluid_event_set_dest(evt, seq_ctl.periodic_seq_id);
       println!("{}:{} now={}", file!(), line!(), now);
       let fluid_res = cfluid::fluid_sequencer_send_at(sequencer_ptr, evt, now + 100, 1);
       println!("{}:{} fluid_res={}", file!(), line!(), fluid_res);
@@ -263,7 +272,7 @@ pub fn play(seq_ctl: &mut sequencer::SequencerControl, parsed_midi: &midi::Midi)
       k_ticks_per_quarter: 1000 * u64::from(parsed_midi.ticks_per_quarter_note), // SMPTE not yet
     };
 
-    let mut mtx_cvar = Arc::new((Mutex::new(false), Condvar::new()));
+    let mtx_cvar = Arc::new((Mutex::new(false), Condvar::new()));
     let t0;
     unsafe { t0 = cfluid::fluid_sequencer_get_tick(seq_ctl.sequencer_ptr); }
     println!("t0={}", t0);
@@ -274,19 +283,19 @@ pub fn play(seq_ctl: &mut sequencer::SequencerControl, parsed_midi: &midi::Midi)
         timing: &mut timing,
         next_index_event: 0,
         t0_ms: t0,
-        mtx_cvar: &mtx_cvar,
+        mtx_cvar: Arc::clone(&mtx_cvar),
     };
     let callback_data_ptr = &callback_data as *const CallbackData as *mut c_void;
-    let key = CString::new("me").expect("CString::new failed");
-    let my_seq_id: i16;
+    let key = CString::new("periodic").expect("CString::new failed");
+    let periodic_seq_id: i16;
     unsafe {
-        my_seq_id = cfluid::fluid_sequencer_register_client(
+        periodic_seq_id = cfluid::fluid_sequencer_register_client(
             seq_ctl.sequencer_ptr, 
             key.as_ptr(),
             seq_callback, 
             callback_data_ptr);
     }
-    seq_ctl.my_seq_id = my_seq_id;
+    seq_ctl.periodic_seq_id = periodic_seq_id;
     schedule_next_callback(seq_ctl);
 
  if false {    
@@ -348,12 +357,12 @@ pub fn play(seq_ctl: &mut sequencer::SequencerControl, parsed_midi: &midi::Midi)
        }
     }
  }
-    unsafe {
-        let tick = cfluid::fluid_sequencer_get_tick(seq_ctl.sequencer_ptr);
-        println!("before sleep tick={}", tick);
-        // send_note_on(&mut sequencer, 0, 65, tick);
-        thread::sleep(time::Duration::from_millis(5000));
-        let tend = cfluid::fluid_sequencer_get_tick(seq_ctl.sequencer_ptr);
-        println!("after sleep tick={}", tend);
+    let (lock, cvar) = &*mtx_cvar;
+    let mut locked = lock.lock().unwrap();
+    println!("{}:{} Waiting on locked thread={:?}", file!(), line!(), std::thread::current().id());
+    while !*locked {
+        locked = cvar.wait(locked).unwrap();
     }
+    println!("Got the notification!");
+    thread::sleep(time::Duration::from_millis(3000)); // TEMPORARY
 }

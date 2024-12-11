@@ -9,7 +9,7 @@ pub struct SequencerControl {
     pub sequencer_ptr: *mut cfluid::fluid_sequencer_t,
     pub synth_seq_id: i16,
     pub sfont_id: i32,
-    pub my_seq_id: i16,
+    pub periodic_seq_id: i16,
     pub batch_duration_ms: u32,
     pub now: u32,
 }
@@ -21,7 +21,7 @@ impl fmt::Display for SequencerControl {
            "now={}"),
            self.settings_ptr,
            self.synth_ptr, self.audio_driver_ptr, self.sequencer_ptr,
-           self.synth_seq_id, self.my_seq_id,
+           self.synth_seq_id, self.periodic_seq_id,
            self.now)
     }
 }
@@ -77,7 +77,7 @@ pub fn create_sequencer(sound_font_path: &String) -> SequencerControl {
         sequencer_ptr: std::ptr::null_mut(),
         synth_seq_id: 0,
         sfont_id: -1,
-        my_seq_id: 0,
+        periodic_seq_id: 0,
         batch_duration_ms: 10000,
         now: 0,
     };
@@ -86,11 +86,11 @@ pub fn create_sequencer(sound_font_path: &String) -> SequencerControl {
         concat!(
             "sequencer: synth_ptr={:?}, audio_driver_ptr={:?}, ",
             "sequencer_ptr={:?}, ",
-            "synth_seq_id={}, my_seq_id={}, ",
+            "synth_seq_id={}, periodic_seq_id={}, ",
             "now={}"),
         sequencer.synth_ptr, sequencer.audio_driver_ptr,
         sequencer.sequencer_ptr,
-        sequencer.synth_seq_id, sequencer.my_seq_id,
+        sequencer.synth_seq_id, sequencer.periodic_seq_id,
         sequencer.now);
     load_sound_font(sequencer.synth_ptr);
     sequencer
