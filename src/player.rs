@@ -161,10 +161,17 @@ struct CallbackData<'a> {
     mtx_cvar: Arc<(Mutex<bool>, Condvar)>
 }
 
-fn handle_next_batch_events(cb_data: &mut CallbackData) {
+impl<'a> CallbackData<'a> {
+  fn all_events_sent(&self) -> bool {
+    self.next_index_event == self.index_events.len()
+  }
+}
+
+fn handle_next_batch_events(cb_data: &mut CallbackData) -> bool {
     let mut done = false;
     let now;
     unsafe { now = cfluid::fluid_sequencer_get_tick(cb_data.seq_ctl.sequencer_ptr); }
+    println!("{}:{} now={}", file!(), line!(), now);
     let end_ms = now + cb_data.seq_ctl.batch_duration_ms;
     while (cb_data.next_index_event < cb_data.index_events.len()) && !done {
         let index_event = &cb_data.index_events[cb_data.next_index_event];
@@ -231,21 +238,27 @@ fn handle_next_batch_events(cb_data: &mut CallbackData) {
         cb_data.next_index_event += 1;
     }
     let len = cb_data.index_events.len();
-    if cb_data.next_index_event == len {
+    let final_event = cb_data.next_index_event == len;
+    if final_event {
+        unsafe {
+            cfluid::fluid_sequencer_unregister_client(
+                cb_data.seq_ctl.sequencer_ptr, cb_data.seq_ctl.periodic_seq_id);
+        }
         let date;
         if len == 0 {
             unsafe { date = cfluid::fluid_sequencer_get_tick(cb_data.seq_ctl.sequencer_ptr); }
         } else {
             date = cb_data.index_events[cb_data.index_events.len() - 1].time;
         }
-        let date_ms = cb_data.timing.ticks_to_ms(date) + cb_data.t0_ms;
+        let date_ms = cb_data.timing.ticks_to_ms(date) + cb_data.t0_ms + 1000;
         send_final_event(cb_data.seq_ctl, date_ms);
     }
+    final_event
 }
 
 extern "C" fn periodic_callback(
     time: u32,
-    event: *mut cfluid::fluid_event_t,
+    _event: *mut cfluid::fluid_event_t,
     _seq: *mut cfluid::fluid_sequencer_t, 
     data: *mut c_void) {
     println!("{}:{} periodic_callback thread id={:?}", file!(), line!(), std::thread::current().id());
@@ -254,18 +267,27 @@ extern "C" fn periodic_callback(
         println!("periodic_callback: {}:{} time={}, #(index_events)={}, next_index_event={}",
             file!(), line!(),
             time, cb_data.index_events.len(), cb_data.next_index_event);
-        handle_next_batch_events(cb_data);
-        let now = cfluid::fluid_sequencer_get_tick(cb_data.seq_ctl.sequencer_ptr);
-        let now_ms = cb_data.timing.ticks_to_ms(now);
-        schedule_next_callback(cb_data.seq_ctl, now_ms + cb_data.seq_ctl.batch_duration_ms/2);
+        // libfluidsynth in its fluid_sequencer_unregister_client(...) !!
+        // call the callback (if any), to free underlying memory (e.g. seqbind structure)
+        // so
+        if !cb_data.all_events_sent() {
+            let final_event_sent = handle_next_batch_events(cb_data);
+            if !final_event_sent {
+                let now = cfluid::fluid_sequencer_get_tick(cb_data.seq_ctl.sequencer_ptr);
+                println!("{}:{} now={}", file!(), line!(), now);
+                let now_ms = cb_data.timing.ticks_to_ms(now);
+                schedule_next_callback(cb_data.seq_ctl, now_ms + cb_data.seq_ctl.batch_duration_ms/2);
+            }
+        }
     }
 }
 
 extern "C" fn final_callback(
     time: u32,
-    event: *mut cfluid::fluid_event_t,
+    _event: *mut cfluid::fluid_event_t,
     _seq: *mut cfluid::fluid_sequencer_t, 
     data: *mut c_void) {
+    println!("{}:{} time={}", file!(), line!(), time);
     println!("{}:{} final_callback thread id={:?}", file!(), line!(), std::thread::current().id());
     unsafe {
         let cb_data = &mut *(data as *mut CallbackData);
@@ -352,5 +374,11 @@ pub fn play(seq_ctl: &mut sequencer::SequencerControl, parsed_midi: &midi::Midi)
     while !*locked {
         locked = cvar.wait(locked).unwrap();
     }
-    println!("Got the notification!");
+    println!("{}:{} Got notification! thread={:?}", file!(), line!(), std::thread::current().id());
+    if false {
+        unsafe {
+            cfluid::fluid_sequencer_unregister_client(seq_ctl.sequencer_ptr, periodic_seq_id);
+            cfluid::fluid_sequencer_unregister_client(seq_ctl.sequencer_ptr, final_seq_id);
+        }
+    }
 }

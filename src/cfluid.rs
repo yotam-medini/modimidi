@@ -65,6 +65,7 @@ extern "C" {
         time: u32,
         absolute: i32) -> i32;
     pub fn fluid_sequencer_set_time_scale(seq: *mut fluid_sequencer_t, scale: f64);
+    pub fn fluid_sequencer_unregister_client(seq: *mut fluid_sequencer_t, seq_id: FluidSeqId);
     pub fn fluid_settings_setint(
         settings: *mut fluid_settings_t,
 	name: *const i8,
