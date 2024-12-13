@@ -19,10 +19,13 @@ fn play_note(
         cfluid::fluid_event_set_source(evt, -1);
         cfluid::fluid_event_set_dest(evt, seq_ctl.synth_seq_id);
         cfluid::fluid_event_note(evt, chan, key, vel, dur);
-        println!("fluid_event_note fluid_sequencer_send_at: date={}", date);
+        println!("fluid_event_note fluid_sequencer_send_at: key={}, date={:5}, dur={:4}, date+dur={:5}", 
+            key, date, dur, date+dur);
         let fluid_res = cfluid::fluid_sequencer_send_at(
             seq_ctl.sequencer_ptr, evt, date, 1); // 1 absolute, 0 relative
-        println!("play_note: fluid_res={}", fluid_res);
+        if fluid_res != cfluid::FLUID_OK {
+            println!("play_note: fluid_res={}", fluid_res);
+        }
         cfluid::delete_fluid_event(evt);
     }
 }
@@ -147,7 +150,9 @@ struct Timing {
 impl Timing {
   fn ticks_to_ms(&self, ticks: u32) -> u32 {
     let numer = u64::from(ticks) * self.microseconds_per_quarter;
-    round_div(numer, self.k_ticks_per_quarter)
+    let ret = round_div(numer, self.k_ticks_per_quarter);
+    println!("Timing: μsecper♩={}, ticks={}, ms={}", self.k_ticks_per_quarter, ticks, ret);
+    ret
   }
 }
 
@@ -171,7 +176,8 @@ fn handle_next_batch_events(cb_data: &mut CallbackData) -> bool {
     let mut done = false;
     let now;
     unsafe { now = cfluid::fluid_sequencer_get_tick(cb_data.seq_ctl.sequencer_ptr); }
-    println!("{}:{} now={}", file!(), line!(), now);
+    let first_tick = cb_data.index_events[cb_data.next_index_event].time;
+    println!("{}:{} now={}, 1st_tick={}, ,={}", file!(), line!(), now, first_tick, now < first_tick);
     let end_ms = now + cb_data.seq_ctl.batch_duration_ms;
     while (cb_data.next_index_event < cb_data.index_events.len()) && !done {
         let index_event = &cb_data.index_events[cb_data.next_index_event];
@@ -189,6 +195,7 @@ fn handle_next_batch_events(cb_data: &mut CallbackData) -> bool {
                     },
                     midi::MetaEvent::SetTempo(st) => {
                         cb_data.timing.microseconds_per_quarter = u64::from(st.tttttt);
+                        // cb_data.timing.microseconds_per_quarter = 1000000;
                     },
                     midi::MetaEvent::TimeSignature(e) => { println!("{}", e); }
                     _ => { println!("{}:{} play: ignored", file!(), line!());},
