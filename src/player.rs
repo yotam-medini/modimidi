@@ -101,6 +101,90 @@ fn get_index_events(parsed_midi: &midi::Midi) -> Vec<IndexEvent> {
     index_events
 }
 
+struct NoteEvent {
+    chan: i32,
+    key: i16,
+    vel: i16,
+    dur_ms: u32,
+    date_ms: u32,
+}
+
+struct ProgramChange {
+    channel: i16,
+    program: i32,
+}
+
+enum AbsEvent {
+    NoteEvent(NoteEvent),
+    ProgramChange(ProgramChange),
+}
+
+struct DynamicTiming {
+  microseconds_per_quarter: u64,
+  k_ticks_per_quarter: u64, // 1000 * ticks_per_quarter
+  ticks_ref: u32,
+  ms_ref: u32,
+}
+impl DynamicTiming {
+  fn ticks_to_ms(&self, ticks: u32) -> u32 {
+    let numer = u64::from(ticks) * self.microseconds_per_quarter;
+    let ret = round_div(numer, self.k_ticks_per_quarter);
+    println!("Timing: μsecper♩={}, ticks={}, ms={}", self.k_ticks_per_quarter, ticks, ret);
+    ret
+  }
+  fn abs_ticks_to_ms(&self, abs_ticks: u32) -> u32 {
+    let numer = u64::from(abs_ticks - self.ticks_ref) * self.microseconds_per_quarter;
+    let add = round_div(numer, self.k_ticks_per_quarter);
+    let ret = self.ms_ref + add;
+    println!("Timing: μsecper♩={}, abs_ticks={}, ms={}", self.k_ticks_per_quarter, abs_ticks, ret);
+    ret
+  }
+}
+
+fn get_abs_events(parsed_midi: &midi::Midi, index_events: &Vec<IndexEvent>) -> Vec<AbsEvent> {
+    // Assuming sequencer time scale = 1000
+    // See https://mido.readthedocs.io/en/stable/files/midi.html
+    let mut dynamic_timing = DynamicTiming {
+        microseconds_per_quarter: 500000u64,
+        k_ticks_per_quarter: 1000 * u64::from(parsed_midi.ticks_per_quarter_note), // SMPTE not yet
+        ticks_ref: 0,
+        ms_ref: 0,    
+    };
+    let abs_events = Vec::<AbsEvent>::new();
+    for (i, index_event) in index_events.iter().enumerate() {
+        let event = &parsed_midi.tracks[index_event.track].track_events[index_event.tei].event;
+        let track_event = &parsed_midi.tracks[index_event.track].track_events[index_event.tei];
+        println!("[{:3}] time={} track_event={}", i, index_event.time, track_event); 
+        match track_event.event {
+            midi::Event::MetaEvent(ref me) => {
+                match me {
+                    midi::MetaEvent::SetTempo(st) => {
+                        println!("{}:{} SetTempo.... not yet implemented", file!(), line!());
+                    },
+                    _ => { println!("{}:{} play: ignored", file!(), line!());},
+                }
+            },
+            midi::Event::MidiEvent(ref me) => {
+                match me {
+                    midi::MidiEvent::NoteOn(ref e) => {
+                        println!("{}", e); 
+                        if e.velocity != 0 {
+                            println!("{}:{} MoteOn.... not yet implemented", file!(), line!());
+                        }
+                    },
+                    midi::MidiEvent::ProgramChange(e) => {
+                        println!("{}:{} ProgramChange.... not yet implemented", file!(), line!());
+                    },
+                    _ => { println!("{}:{} play: ignored", file!(), line!());},
+                }
+           },
+           _ => { },
+        }
+    }
+    
+    abs_events
+}
+
 fn get_note_duration(
     parsed_midi: &midi::Midi,
     index_events: &Vec<IndexEvent>,
