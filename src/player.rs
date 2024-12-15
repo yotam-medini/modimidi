@@ -110,7 +110,7 @@ struct NoteEvent {
 }
 impl fmt::Display for NoteEvent {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "NoteEvent(c={}, key={}, vel={}, dur_ms={}, date_ms={})",
+        write!(f, "NoteEvent(c={:2}, key={:2}, vel={:3}, dur_ms={:4}, date_ms={:6})",
             self.channel, self.key, self.velocity, self.duration_ms, self.date_ms)
     }
 }
@@ -218,6 +218,10 @@ fn get_abs_events(parsed_midi: &midi::Midi, index_events: &Vec<IndexEvent>) -> V
            },
            _ => { },
         }
+    }
+    println!("abs_events:");
+    for (i, ae) in abs_events.iter().enumerate() {
+        println!("[{:4}] {}", i, ae);
     }
     
     abs_events
@@ -450,6 +454,7 @@ fn schedule_next_callback(seq_ctl : &mut sequencer::SequencerControl, date_ms: u
 pub fn play(seq_ctl: &mut sequencer::SequencerControl, parsed_midi: &midi::Midi) {
     println!("play... thread id={:?}", std::thread::current().id());
     let index_events = get_index_events(parsed_midi);
+    let abs_events = get_abs_events(parsed_midi, &index_events);
     unsafe {
         seq_ctl.now = cfluid::fluid_sequencer_get_tick(seq_ctl.sequencer_ptr);
         println!("play: tick={}", seq_ctl.now);
