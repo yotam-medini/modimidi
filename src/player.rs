@@ -102,43 +102,68 @@ fn get_index_events(parsed_midi: &midi::Midi) -> Vec<IndexEvent> {
 }
 
 struct NoteEvent {
-    chan: i32,
+    channel: i32,
     key: i16,
-    vel: i16,
-    dur_ms: u32,
+    velocity: i16,
+    duration_ms: u32,
     date_ms: u32,
+}
+impl fmt::Display for NoteEvent {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "NoteEvent(c={}, key={}, vel={}, dur_ms={}, date_ms={})",
+            self.channel, self.key, self.velocity, self.duration_ms, self.date_ms)
+    }
 }
 
 struct ProgramChange {
-    channel: i16,
+    channel: i32,
     program: i32,
+}
+impl fmt::Display for ProgramChange {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "ProgramChange(channel={}, program={})", self.channel, self.program)
+    }
 }
 
 enum AbsEvent {
     NoteEvent(NoteEvent),
     ProgramChange(ProgramChange),
 }
+impl fmt::Display for AbsEvent {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            AbsEvent::NoteEvent(e) => write!(f, "{}", e),
+            AbsEvent::ProgramChange(e) => write!(f, "{}", e),
+        }
+    }
+}
 
 struct DynamicTiming {
-  microseconds_per_quarter: u64,
-  k_ticks_per_quarter: u64, // 1000 * ticks_per_quarter
-  ticks_ref: u32,
-  ms_ref: u32,
+    microseconds_per_quarter: u64,
+    k_ticks_per_quarter: u64, // 1000 * ticks_per_quarter
+    ticks_ref: u32,
+    ms_ref: u32,
 }
 impl DynamicTiming {
-  fn ticks_to_ms(&self, ticks: u32) -> u32 {
-    let numer = u64::from(ticks) * self.microseconds_per_quarter;
-    let ret = round_div(numer, self.k_ticks_per_quarter);
-    println!("Timing: μsecper♩={}, ticks={}, ms={}", self.k_ticks_per_quarter, ticks, ret);
-    ret
-  }
-  fn abs_ticks_to_ms(&self, abs_ticks: u32) -> u32 {
-    let numer = u64::from(abs_ticks - self.ticks_ref) * self.microseconds_per_quarter;
-    let add = round_div(numer, self.k_ticks_per_quarter);
-    let ret = self.ms_ref + add;
-    println!("Timing: μsecper♩={}, abs_ticks={}, ms={}", self.k_ticks_per_quarter, abs_ticks, ret);
-    ret
-  }
+    fn set_microseconds_per_quarter(&mut self, curr_ticks: u32, microseconds_per_quarter: u64) {
+        self.ms_ref = self.abs_ticks_to_ms(curr_ticks);
+        self.ticks_ref = curr_ticks;
+        self.microseconds_per_quarter = microseconds_per_quarter;
+    }
+    fn ticks_to_ms(&self, ticks: u32) -> u32 {
+        let numer = u64::from(ticks) * self.microseconds_per_quarter;
+        let ret = round_div(numer, self.k_ticks_per_quarter);
+        println!("Timing: μsecper♩={}, ticks={}, ms={}", self.k_ticks_per_quarter, ticks, ret);
+        ret
+    }
+    fn abs_ticks_to_ms(&self, abs_ticks: u32) -> u32 {
+        let numer = u64::from(abs_ticks - self.ticks_ref) * self.microseconds_per_quarter;
+        let add = round_div(numer, self.k_ticks_per_quarter);
+        let ret = self.ms_ref + add;
+        println!("Timing: μsecper♩={}, abs_ticks={}, ms={}",
+            self.k_ticks_per_quarter, abs_ticks, ret);
+        ret
+    }
 }
 
 fn get_abs_events(parsed_midi: &midi::Midi, index_events: &Vec<IndexEvent>) -> Vec<AbsEvent> {
@@ -150,16 +175,16 @@ fn get_abs_events(parsed_midi: &midi::Midi, index_events: &Vec<IndexEvent>) -> V
         ticks_ref: 0,
         ms_ref: 0,    
     };
-    let abs_events = Vec::<AbsEvent>::new();
+    let mut abs_events = Vec::<AbsEvent>::new();
     for (i, index_event) in index_events.iter().enumerate() {
-        let event = &parsed_midi.tracks[index_event.track].track_events[index_event.tei].event;
         let track_event = &parsed_midi.tracks[index_event.track].track_events[index_event.tei];
         println!("[{:3}] time={} track_event={}", i, index_event.time, track_event); 
         match track_event.event {
             midi::Event::MetaEvent(ref me) => {
                 match me {
                     midi::MetaEvent::SetTempo(st) => {
-                        println!("{}:{} SetTempo.... not yet implemented", file!(), line!());
+                        dynamic_timing.set_microseconds_per_quarter(
+                            index_event.time, u64::from(st.tttttt));
                     },
                     _ => { println!("{}:{} play: ignored", file!(), line!());},
                 }
@@ -169,11 +194,24 @@ fn get_abs_events(parsed_midi: &midi::Midi, index_events: &Vec<IndexEvent>) -> V
                     midi::MidiEvent::NoteOn(ref e) => {
                         println!("{}", e); 
                         if e.velocity != 0 {
-                            println!("{}:{} MoteOn.... not yet implemented", file!(), line!());
+                            let duration_ticks = get_note_duration(
+                                parsed_midi, index_events, i, e);
+                            let note_event = NoteEvent {
+                                channel: i32::from(e.channel),
+                                key: i16::from(e.key),
+                                velocity: i16::from(e.velocity),
+                                duration_ms: dynamic_timing.ticks_to_ms(duration_ticks),
+                                date_ms: dynamic_timing.abs_ticks_to_ms(index_event.time),
+                            };
+                            abs_events.push(AbsEvent::NoteEvent(note_event));
                         }
                     },
                     midi::MidiEvent::ProgramChange(e) => {
-                        println!("{}:{} ProgramChange.... not yet implemented", file!(), line!());
+                        let pc = ProgramChange {
+                            channel: i32::from(e.channel),
+                            program: i32::from(e.program),
+                        };
+                        abs_events.push(AbsEvent::ProgramChange(pc));
                     },
                     _ => { println!("{}:{} play: ignored", file!(), line!());},
                 }
