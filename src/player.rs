@@ -484,22 +484,18 @@ pub fn play(seq_ctl: &mut sequencer::SequencerControl, parsed_midi: &midi::Midi)
     let callback_data_ptr = &callback_data as *const CallbackData as *mut c_void;
     let key_periodic = CString::new("periodic").expect("CString::new failed");
     let key_final = CString::new("final").expect("CString::new failed");
-    let periodic_seq_id: i16;
-    let final_seq_id: i16;
     unsafe {
-        periodic_seq_id = cfluid::fluid_sequencer_register_client(
+        seq_ctl.periodic_seq_id = cfluid::fluid_sequencer_register_client(
             seq_ctl.sequencer_ptr, 
             key_periodic.as_ptr(),
             periodic_callback, 
             callback_data_ptr);
-        final_seq_id = cfluid::fluid_sequencer_register_client(
+        seq_ctl.final_seq_id = cfluid::fluid_sequencer_register_client(
             seq_ctl.sequencer_ptr, 
             key_final.as_ptr(),
             final_callback, 
             callback_data_ptr);
     }
-    seq_ctl.periodic_seq_id = periodic_seq_id;
-    seq_ctl.final_seq_id = final_seq_id;
     schedule_next_callback(seq_ctl, t0_ms);
 
     let (lock, cvar) = &*mtx_cvar;
@@ -511,8 +507,8 @@ pub fn play(seq_ctl: &mut sequencer::SequencerControl, parsed_midi: &midi::Midi)
     println!("{}:{} Got notification! thread={:?}", file!(), line!(), std::thread::current().id());
     if false {
         unsafe {
-            cfluid::fluid_sequencer_unregister_client(seq_ctl.sequencer_ptr, periodic_seq_id);
-            cfluid::fluid_sequencer_unregister_client(seq_ctl.sequencer_ptr, final_seq_id);
+            cfluid::fluid_sequencer_unregister_client(seq_ctl.sequencer_ptr, seq_ctl.periodic_seq_id);
+            cfluid::fluid_sequencer_unregister_client(seq_ctl.sequencer_ptr, seq_ctl.final_seq_id);
         }
     }
 }
