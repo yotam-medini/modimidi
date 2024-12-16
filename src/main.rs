@@ -90,6 +90,14 @@ fn args_get_matches () -> clap::ArgMatches {
 	)
 	.arg(
 
+            Arg::new("delay")
+                .long("delay")
+                .value_parser(clap::value_parser!(u32))
+                .default_value("200") // Default value if not specified
+                .help("Initial extra playing delay in milliseconds"),
+	)
+	.arg(
+
             Arg::new("batchduration")
                 .long("batchduration")
                 .value_parser(clap::value_parser!(u32))
@@ -120,7 +128,9 @@ fn main() {
     println!("soundfounts={soundfounts}");
     let batch_duration_ms: u32 = *matches.get_one::<u32>("batchduration").unwrap();
     println!("{}:{} batch_duration_ms={}", file!(), line!(), batch_duration_ms);
-    let mut sequencer = sequencer::create_sequencer(soundfounts, batch_duration_ms);
+    let initial_delay_ms: u32 = *matches.get_one::<u32>("delay").unwrap();
+    println!("{}:{} initial_delay_ms={}", file!(), line!(), initial_delay_ms);
+    let mut sequencer = sequencer::create_sequencer(soundfounts, batch_duration_ms, initial_delay_ms);
     let begin: u32 = *matches.get_one::<u32>("begin").unwrap_or(&0);
     let end: u32 = *matches.get_one::<u32>("begin").unwrap_or(&0xffffffff);
     println!("begin={}, end={}", begin, end);

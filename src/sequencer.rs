@@ -12,6 +12,7 @@ pub struct SequencerControl {
     pub periodic_seq_id: i16,
     pub final_seq_id: i16,
     pub batch_duration_ms: u32,
+    pub initial_delay_ms: u32,
     pub now: u32,
 }
 
@@ -20,10 +21,12 @@ impl fmt::Display for SequencerControl {
         write!(f, concat!(
            "SequencerControl(settings={:?}, syn={:?}, a={:?}, seq={:?}, seq_id={}, ",
            "final={}, my={}, ",
+           "batch_duration_ms={}, initial_delay_ms={}, ",
            "now={}"),
            self.settings_ptr,
            self.synth_ptr, self.audio_driver_ptr, self.sequencer_ptr,
            self.synth_seq_id, self.periodic_seq_id, self.final_seq_id,
+           self.batch_duration_ms, self.initial_delay_ms,
            self.now)
     }
 }
@@ -72,7 +75,8 @@ fn load_sound_font(synth_ptr: *mut cfluid::fluid_synth_t) {
 
 pub fn create_sequencer(
     sound_font_path: &String,
-    batch_duration_ms: u32) -> SequencerControl {
+    batch_duration_ms: u32,
+    initial_delay_ms: u32) -> SequencerControl {
     println!("create_sequencer({})", sound_font_path);
     let mut sequencer = SequencerControl {
         settings_ptr: std::ptr::null_mut(),
@@ -84,6 +88,7 @@ pub fn create_sequencer(
         periodic_seq_id: 0,
         final_seq_id: 0,
         batch_duration_ms: batch_duration_ms,
+        initial_delay_ms: initial_delay_ms,
         now: 0,
     };
     create_synth(&mut sequencer, sound_font_path);
