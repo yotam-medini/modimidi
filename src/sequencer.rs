@@ -13,7 +13,7 @@ pub struct SequencerControl {
     pub final_seq_id: i16,
     pub batch_duration_ms: u32,
     pub initial_delay_ms: u32,
-    pub now: u32,
+    pub add_ms: u32,
 }
 
 impl fmt::Display for SequencerControl {
@@ -21,13 +21,11 @@ impl fmt::Display for SequencerControl {
         write!(f, concat!(
            "SequencerControl(settings={:?}, syn={:?}, a={:?}, seq={:?}, seq_id={}, ",
            "final={}, my={}, ",
-           "batch_duration_ms={}, initial_delay_ms={}, ",
-           "now={}"),
+           "batch_duration_ms={}, initial_delay_ms={}, "),
            self.settings_ptr,
            self.synth_ptr, self.audio_driver_ptr, self.sequencer_ptr,
            self.synth_seq_id, self.periodic_seq_id, self.final_seq_id,
-           self.batch_duration_ms, self.initial_delay_ms,
-           self.now)
+           self.batch_duration_ms, self.initial_delay_ms)
     }
 }
 
@@ -89,19 +87,17 @@ pub fn create_sequencer(
         final_seq_id: 0,
         batch_duration_ms: batch_duration_ms,
         initial_delay_ms: initial_delay_ms,
-        now: 0,
+        add_ms: 0, // to be set later
     };
     create_synth(&mut sequencer, sound_font_path);
     println!(
         concat!(
             "sequencer: synth_ptr={:?}, audio_driver_ptr={:?}, ",
             "sequencer_ptr={:?}, ",
-            "synth_seq_id={}, periodic_seq_id={}, ",
-            "now={}"),
+            "synth_seq_id={}, periodic_seq_id={}, "),
         sequencer.synth_ptr, sequencer.audio_driver_ptr,
         sequencer.sequencer_ptr,
-        sequencer.synth_seq_id, sequencer.periodic_seq_id,
-        sequencer.now);
+        sequencer.synth_seq_id, sequencer.periodic_seq_id);
     load_sound_font(sequencer.synth_ptr);
     sequencer
 }
