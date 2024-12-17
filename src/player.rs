@@ -313,6 +313,7 @@ struct CallbackData<'a> {
     seq_ctl: &'a mut sequencer::SequencerControl,
     abs_events: &'a Vec<AbsEvent>,
     next_abs_event: usize,
+    sending_events: AtomicBool,
     final_callback_handled: AtomicBool,
     mtx_cvar: Arc<(Mutex<bool>, Condvar)>
 }
@@ -323,7 +324,7 @@ impl<'a> CallbackData<'a> {
   }
 }
 
-fn handle_next_batch_events(cb_data: &mut CallbackData) -> bool {
+fn send_next_batch_events(cb_data: &mut CallbackData) -> bool {
     let now;
     unsafe { now = cfluid::fluid_sequencer_get_tick(cb_data.seq_ctl.sequencer_ptr); }
     println!("{}:{} now={} next_abs_event={}", file!(), line!(), now, cb_data.next_abs_event);
@@ -335,6 +336,8 @@ fn handle_next_batch_events(cb_data: &mut CallbackData) -> bool {
     let mut final_event = false;
     while (cb_data.next_abs_event < cb_data.abs_events.len()) && !done {
         let date_ms = cb_data.abs_events[cb_data.next_abs_event].time_ms + cb_data.seq_ctl.add_ms;
+        println!("{}:{} next_abs_event={}, date_ms={}",
+            file!(), line!(), cb_data.next_abs_event, date_ms);
         done = date_ms >= end_ms;
         match &cb_data.abs_events[cb_data.next_abs_event].uae {
             UnionAbsEvent::NoteEvent(note_event) => {
@@ -375,6 +378,16 @@ fn handle_next_batch_events(cb_data: &mut CallbackData) -> bool {
     final_event
 }
 
+fn handle_next_batch_events(cb_data: &mut CallbackData) -> bool {
+   let mut ret = false;
+   let already_sending = cb_data.sending_events.swap(true, Ordering::SeqCst);
+   println!("{}:{} already_sending={}", file!(), line!(), already_sending);
+   if !already_sending {
+       ret = send_next_batch_events(cb_data);
+       cb_data.sending_events.store(false, Ordering::SeqCst);
+   }
+   ret
+}
 
 extern "C" fn periodic_callback(
     time: u32,
@@ -461,6 +474,7 @@ pub fn play(seq_ctl: &mut sequencer::SequencerControl, parsed_midi: &midi::Midi)
         seq_ctl: seq_ctl,
         abs_events: &abs_events,
         next_abs_event: 0,
+        sending_events: AtomicBool::new(false),
         final_callback_handled: AtomicBool::new(false),
         mtx_cvar: Arc::clone(&mtx_cvar),
     };
