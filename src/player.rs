@@ -107,12 +107,11 @@ struct NoteEvent {
     key: i16,
     velocity: i16,
     duration_ms: u32,
-    date_ms: u32,
 }
 impl fmt::Display for NoteEvent {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "NoteEvent(c={:2}, key={:2}, vel={:3}, dur_ms={:4}, date_ms={:6})",
-            self.channel, self.key, self.velocity, self.duration_ms, self.date_ms)
+        write!(f, "NoteEvent(c={:2}, key={:2}, vel={:3}, dur_ms={:4})",
+            self.channel, self.key, self.velocity, self.duration_ms)
     }
 }
 
@@ -125,16 +124,27 @@ impl fmt::Display for ProgramChange {
         write!(f, "ProgramChange(channel={}, program={})", self.channel, self.program)
     }
 }
+struct FinalEvent {
+}
+impl fmt::Display for FinalEvent {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result { write!(f, "FinalEvent") }
+}
 
-enum AbsEvent {
+enum UnionAbsEvent {
     NoteEvent(NoteEvent),
     ProgramChange(ProgramChange),
+    FinalEvent(FinalEvent),
+}
+struct AbsEvent {
+    time_ms: u32,
+    uae: UnionAbsEvent,
 }
 impl fmt::Display for AbsEvent {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            AbsEvent::NoteEvent(e) => write!(f, "{}", e),
-            AbsEvent::ProgramChange(e) => write!(f, "{}", e),
+        match &self.uae {
+            UnionAbsEvent::NoteEvent(e) => write!(f, "time_ms={} {}", self.time_ms, e),
+            UnionAbsEvent::ProgramChange(e) => write!(f, "time_ms={} {}", self.time_ms, e),
+            UnionAbsEvent::FinalEvent(_e) => write!(f, "time_ms={}", self.time_ms),
         }
     }
 }
@@ -167,6 +177,12 @@ impl DynamicTiming {
     }
 }
 
+fn max_by(var: &mut u32, val: u32) {
+    if *var < val {
+        *var = val;
+    }
+}
+
 fn get_abs_events(parsed_midi: &midi::Midi, index_events: &Vec<IndexEvent>) -> Vec<AbsEvent> {
     // Assuming sequencer time scale = 1000
     // See https://mido.readthedocs.io/en/stable/files/midi.html
@@ -176,10 +192,13 @@ fn get_abs_events(parsed_midi: &midi::Midi, index_events: &Vec<IndexEvent>) -> V
         ticks_ref: 0,
         ms_ref: 0,    
     };
+    let mut final_ms = 0;
     let mut abs_events = Vec::<AbsEvent>::new();
     for (i, index_event) in index_events.iter().enumerate() {
         let track_event = &parsed_midi.tracks[index_event.track].track_events[index_event.tei];
         println!("[{:3}] time={} track_event={}", i, index_event.time, track_event); 
+        let date_ms = dynamic_timing.abs_ticks_to_ms(index_event.time);
+        max_by(&mut final_ms, date_ms);
         match track_event.event {
             midi::Event::MetaEvent(ref me) => {
                 match me {
@@ -202,9 +221,12 @@ fn get_abs_events(parsed_midi: &midi::Midi, index_events: &Vec<IndexEvent>) -> V
                                 key: i16::from(e.key),
                                 velocity: i16::from(e.velocity),
                                 duration_ms: dynamic_timing.ticks_to_ms(duration_ticks),
-                                date_ms: dynamic_timing.abs_ticks_to_ms(index_event.time),
                             };
-                            abs_events.push(AbsEvent::NoteEvent(note_event));
+                            max_by(&mut final_ms, date_ms + note_event.duration_ms);
+                            abs_events.push(AbsEvent{
+                                time_ms : date_ms,
+                                uae: UnionAbsEvent::NoteEvent(note_event)
+                            });
                         }
                     },
                     midi::MidiEvent::ProgramChange(e) => {
@@ -212,7 +234,10 @@ fn get_abs_events(parsed_midi: &midi::Midi, index_events: &Vec<IndexEvent>) -> V
                             channel: i32::from(e.channel),
                             program: i32::from(e.program),
                         };
-                        abs_events.push(AbsEvent::ProgramChange(pc));
+                        abs_events.push(AbsEvent{
+                            time_ms : date_ms,
+                            uae: UnionAbsEvent::ProgramChange(pc)
+                        });
                     },
                     _ => { println!("{}:{} play: ignored", file!(), line!());},
                 }
@@ -220,6 +245,10 @@ fn get_abs_events(parsed_midi: &midi::Midi, index_events: &Vec<IndexEvent>) -> V
            _ => { },
         }
     }
+    abs_events.push(AbsEvent {
+        time_ms: final_ms,
+        uae:  UnionAbsEvent::FinalEvent(FinalEvent{}),
+    });
     println!("abs_events:");
     for (i, ae) in abs_events.iter().enumerate() {
         println!("[{:4}] {}", i, ae);
@@ -305,17 +334,18 @@ impl<'a> CallbackData<'a> {
 fn handle_next_batch_events_V2(cb_data: &mut CallbackData) -> bool {
     let now;
     unsafe { now = cfluid::fluid_sequencer_get_tick(cb_data.seq_ctl.sequencer_ptr); }
-    println!("{}:{} now={}", file!(), line!(), now);
+    println!("{}:{} now={} next_index_event={}", file!(), line!(), now, cb_data.next_index_event);
     if cb_data.next_index_event == 0 {
         cb_data.seq_ctl.add_ms = now + cb_data.seq_ctl.initial_delay_ms;
     }
     let end_ms = now + cb_data.seq_ctl.batch_duration_ms;
     let mut done = false;
-    while (cb_data.next_index_event < cb_data.index_events.len()) && !done {
-        match &cb_data.abs_events[cb_data.next_index_event] {
-            AbsEvent::NoteEvent(note_event) => {
-                let date_ms = note_event.date_ms + cb_data.seq_ctl.add_ms;
-                done = date_ms >= end_ms;
+    let mut final_event = false;
+    while (cb_data.next_index_event < cb_data.abs_events.len()) && !done {
+        let date_ms = cb_data.abs_events[cb_data.next_index_event].time_ms + cb_data.seq_ctl.add_ms;
+        done = date_ms >= end_ms;
+        match &cb_data.abs_events[cb_data.next_index_event].uae {
+            UnionAbsEvent::NoteEvent(note_event) => {
                 play_note(
                     cb_data.seq_ctl, 
                     note_event.channel,
@@ -324,7 +354,7 @@ fn handle_next_batch_events_V2(cb_data: &mut CallbackData) -> bool {
                     note_event.duration_ms,
                     date_ms);
             },
-            AbsEvent::ProgramChange(program_change) => {
+            UnionAbsEvent::ProgramChange(program_change) => {
                 println!("ProgramChange({})", program_change);
                 let ret;
                 unsafe {
@@ -339,10 +369,18 @@ fn handle_next_batch_events_V2(cb_data: &mut CallbackData) -> bool {
                     eprintln!("fluid_synth_program_select failed ret={}", ret);
                 }
             },
+            UnionAbsEvent::FinalEvent(final_ms) => { // must be the last event
+                unsafe {
+                    cfluid::fluid_sequencer_unregister_client(
+                        cb_data.seq_ctl.sequencer_ptr, cb_data.seq_ctl.periodic_seq_id);
+                }
+                send_final_event(cb_data.seq_ctl, date_ms);
+                final_event = true;
+            }
         }
         cb_data.next_index_event += 1;
     }
-    cb_data.next_index_event == cb_data.abs_events.len()
+    final_event
 }
 
 
@@ -576,7 +614,7 @@ pub fn play(seq_ctl: &mut sequencer::SequencerControl, parsed_midi: &midi::Midi)
         seq_ctl.periodic_seq_id = cfluid::fluid_sequencer_register_client(
             seq_ctl.sequencer_ptr, 
             key_periodic.as_ptr(),
-            periodic_callback, 
+            periodic_callback_V2, 
             callback_data_ptr);
         seq_ctl.final_seq_id = cfluid::fluid_sequencer_register_client(
             seq_ctl.sequencer_ptr, 
