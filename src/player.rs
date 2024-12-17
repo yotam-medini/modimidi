@@ -1,4 +1,3 @@
-use std::{thread, time};
 use std::fmt;
 use std::os::raw::c_void;
 use std::ffi::CString;
@@ -144,7 +143,7 @@ impl fmt::Display for AbsEvent {
         match &self.uae {
             UnionAbsEvent::NoteEvent(e) => write!(f, "time_ms={} {}", self.time_ms, e),
             UnionAbsEvent::ProgramChange(e) => write!(f, "time_ms={} {}", self.time_ms, e),
-            UnionAbsEvent::FinalEvent(_e) => write!(f, "time_ms={}", self.time_ms),
+            UnionAbsEvent::FinalEvent(e) => write!(f, "time_ms={} {}", self.time_ms, e),
         }
     }
 }
@@ -315,36 +314,32 @@ impl Timing {
 struct CallbackData<'a> {
     seq_ctl: &'a mut sequencer::SequencerControl,
     parsed_midi: &'a midi::Midi,
-      abs_events: &'a Vec<AbsEvent>,
-      // wil be obsolete
-      index_events: &'a Vec<IndexEvent>,
-      timing: &'a mut Timing,
-    next_index_event: usize,
-    t0_ms: u32,
+    abs_events: &'a Vec<AbsEvent>,
+    next_abs_event: usize,
     final_callback_handled: AtomicBool,
     mtx_cvar: Arc<(Mutex<bool>, Condvar)>
 }
 
 impl<'a> CallbackData<'a> {
   fn all_events_sent(&self) -> bool {
-    self.next_index_event == self.index_events.len()
+    self.next_abs_event == self.abs_events.len()
   }
 }
 
 fn handle_next_batch_events(cb_data: &mut CallbackData) -> bool {
     let now;
     unsafe { now = cfluid::fluid_sequencer_get_tick(cb_data.seq_ctl.sequencer_ptr); }
-    println!("{}:{} now={} next_index_event={}", file!(), line!(), now, cb_data.next_index_event);
-    if cb_data.next_index_event == 0 {
+    println!("{}:{} now={} next_abs_event={}", file!(), line!(), now, cb_data.next_abs_event);
+    if cb_data.next_abs_event == 0 {
         cb_data.seq_ctl.add_ms = now + cb_data.seq_ctl.initial_delay_ms;
     }
     let end_ms = now + cb_data.seq_ctl.batch_duration_ms;
     let mut done = false;
     let mut final_event = false;
-    while (cb_data.next_index_event < cb_data.abs_events.len()) && !done {
-        let date_ms = cb_data.abs_events[cb_data.next_index_event].time_ms + cb_data.seq_ctl.add_ms;
+    while (cb_data.next_abs_event < cb_data.abs_events.len()) && !done {
+        let date_ms = cb_data.abs_events[cb_data.next_abs_event].time_ms + cb_data.seq_ctl.add_ms;
         done = date_ms >= end_ms;
-        match &cb_data.abs_events[cb_data.next_index_event].uae {
+        match &cb_data.abs_events[cb_data.next_abs_event].uae {
             UnionAbsEvent::NoteEvent(note_event) => {
                 play_note(
                     cb_data.seq_ctl, 
@@ -378,7 +373,7 @@ fn handle_next_batch_events(cb_data: &mut CallbackData) -> bool {
                 final_event = true;
             }
         }
-        cb_data.next_index_event += 1;
+        cb_data.next_abs_event += 1;
     }
     final_event
 }
@@ -392,9 +387,9 @@ extern "C" fn periodic_callback(
     println!("{}:{} periodic_callback thread id={:?}", file!(), line!(), std::thread::current().id());
     unsafe {
         let cb_data = &mut *(data as *mut CallbackData);
-        println!("periodic_callback: {}:{} time={}, #(index_events)={}, next_index_event={}",
+        println!("periodic_callback: {}:{} time={}, #(abs_events)={}, next_abs_event={}",
             file!(), line!(),
-            time, cb_data.index_events.len(), cb_data.next_index_event);
+            time, cb_data.abs_events.len(), cb_data.next_abs_event);
         // libfluidsynth in its fluid_sequencer_unregister_client(...) !!
         // call the callback (if any), to free underlying memory (e.g. seqbind structure)
         // so
@@ -403,8 +398,7 @@ extern "C" fn periodic_callback(
             if !final_event_sent {
                 let now = cfluid::fluid_sequencer_get_tick(cb_data.seq_ctl.sequencer_ptr);
                 println!("{}:{} now={}", file!(), line!(), now);
-                let now_ms = cb_data.timing.ticks_to_ms(now);
-                schedule_next_callback(cb_data.seq_ctl, now_ms + cb_data.seq_ctl.batch_duration_ms/2);
+                schedule_next_callback(cb_data.seq_ctl, now + cb_data.seq_ctl.batch_duration_ms/2);
             }
         }
     }
@@ -419,9 +413,9 @@ extern "C" fn final_callback(
     println!("{}:{} final_callback thread id={:?}", file!(), line!(), std::thread::current().id());
     unsafe {
         let cb_data = &mut *(data as *mut CallbackData);
-        println!("final_callback: {}:{} time={}, #(index_events)={}, next_index_event={}",
+        println!("final_callback: {}:{} time={}, #(abs_events)={}, next_abs_event={}",
             file!(), line!(),
-            time, cb_data.index_events.len(), cb_data.next_index_event);
+            time, cb_data.abs_events.len(), cb_data.next_abs_event);
         let handled = cb_data.final_callback_handled.swap(true, Ordering::SeqCst);
         println!("final_callback: handled={}", handled);
         if !handled {
@@ -470,10 +464,7 @@ pub fn play(seq_ctl: &mut sequencer::SequencerControl, parsed_midi: &midi::Midi)
         seq_ctl: seq_ctl,
         parsed_midi: parsed_midi,
         abs_events: &abs_events,
-        index_events: &index_events,
-        timing: &mut timing, // will be obsolete
-        next_index_event: 0,
-        t0_ms: t0_ms,
+        next_abs_event: 0,
         final_callback_handled: AtomicBool::new(false),
         mtx_cvar: Arc::clone(&mtx_cvar),
     };
