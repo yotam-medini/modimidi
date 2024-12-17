@@ -2,6 +2,7 @@ use std::{thread, time};
 use std::fmt;
 use std::os::raw::c_void;
 use std::ffi::CString;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex, Condvar};
 use crate::cfluid;
 use crate::midi;
@@ -291,6 +292,7 @@ struct CallbackData<'a> {
       timing: &'a mut Timing,
     next_index_event: usize,
     t0_ms: u32,
+    final_callback_handled: AtomicBool,
     mtx_cvar: Arc<(Mutex<bool>, Condvar)>
 }
 
@@ -499,14 +501,18 @@ extern "C" fn final_callback(
         println!("final_callback: {}:{} time={}, #(index_events)={}, next_index_event={}",
             file!(), line!(),
             time, cb_data.index_events.len(), cb_data.next_index_event);
-        println!("{}:{} thread={:?} all events played",
-            file!(), line!(), std::thread::current().id());
-        let mtx_cvar = Arc::clone(&cb_data.mtx_cvar); // Clone the Arc
-        let (lock, cvar) = &*mtx_cvar;
-        let mut lock_guard = lock.lock().unwrap();
-        *lock_guard = true; // Example usage
-        cvar.notify_all(); // Notify threads
-        println!("{}:{} mtx_cvar={:?}", file!(), line!(), cb_data.mtx_cvar);
+        let handled = cb_data.final_callback_handled.swap(true, Ordering::SeqCst);
+        println!("final_callback: handled={}", handled);
+        if !handled {
+            println!("{}:{} thread={:?} all events played",
+                file!(), line!(), std::thread::current().id());
+            let mtx_cvar = Arc::clone(&cb_data.mtx_cvar); // Clone the Arc
+            let (lock, cvar) = &*mtx_cvar;
+            let mut lock_guard = lock.lock().unwrap();
+            *lock_guard = true; // Example usage
+            cvar.notify_all(); // Notify threads
+            println!("{}:{} mtx_cvar={:?}", file!(), line!(), cb_data.mtx_cvar);
+        }
     }
 }
 
@@ -560,6 +566,7 @@ pub fn play(seq_ctl: &mut sequencer::SequencerControl, parsed_midi: &midi::Midi)
         timing: &mut timing, // will be obsolete
         next_index_event: 0,
         t0_ms: t0_ms,
+        final_callback_handled: AtomicBool::new(false),
         mtx_cvar: Arc::clone(&mtx_cvar),
     };
     let callback_data_ptr = &callback_data as *const CallbackData as *mut c_void;
@@ -582,10 +589,13 @@ pub fn play(seq_ctl: &mut sequencer::SequencerControl, parsed_midi: &midi::Midi)
     let (lock, cvar) = &*mtx_cvar;
     let mut locked = lock.lock().unwrap();
     println!("{}:{} Waiting on locked thread={:?}", file!(), line!(), std::thread::current().id());
+    let mut locked_loop: u64 = 0;
     while !*locked {
+        locked_loop += 1;
         locked = cvar.wait(locked).unwrap();
     }
     println!("{}:{} Got notification! thread={:?}", file!(), line!(), std::thread::current().id());
+    println!("locked_loop={}", locked_loop);
     if false {
         unsafe {
             cfluid::fluid_sequencer_unregister_client(seq_ctl.sequencer_ptr, seq_ctl.periodic_seq_id);
