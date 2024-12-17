@@ -475,32 +475,6 @@ fn handle_next_batch_events(cb_data: &mut CallbackData) -> bool {
     final_event
 }
 
-extern "C" fn periodic_callback(
-    time: u32,
-    _event: *mut cfluid::fluid_event_t,
-    _seq: *mut cfluid::fluid_sequencer_t, 
-    data: *mut c_void) {
-    println!("{}:{} periodic_callback thread id={:?}", file!(), line!(), std::thread::current().id());
-    unsafe {
-        let cb_data = &mut *(data as *mut CallbackData);
-        println!("periodic_callback: {}:{} time={}, #(index_events)={}, next_index_event={}",
-            file!(), line!(),
-            time, cb_data.index_events.len(), cb_data.next_index_event);
-        // libfluidsynth in its fluid_sequencer_unregister_client(...) !!
-        // call the callback (if any), to free underlying memory (e.g. seqbind structure)
-        // so
-        if !cb_data.all_events_sent() {
-            let final_event_sent = handle_next_batch_events(cb_data);
-            if !final_event_sent {
-                let now = cfluid::fluid_sequencer_get_tick(cb_data.seq_ctl.sequencer_ptr);
-                println!("{}:{} now={}", file!(), line!(), now);
-                let now_ms = cb_data.timing.ticks_to_ms(now);
-                schedule_next_callback(cb_data.seq_ctl, now_ms + cb_data.seq_ctl.batch_duration_ms/2);
-            }
-        }
-    }
-}
-
 extern "C" fn periodic_callback_V2(
     time: u32,
     _event: *mut cfluid::fluid_event_t,
@@ -555,19 +529,6 @@ extern "C" fn final_callback(
 }
 
 fn schedule_next_callback(seq_ctl : &mut sequencer::SequencerControl, date_ms: u32) {
-    println!("{}:{} date_ms={}", file!(), line!(), date_ms);
-    unsafe { 
-      let sequencer_ptr = seq_ctl.sequencer_ptr;
-      let evt = cfluid::new_fluid_event();
-      cfluid::fluid_event_set_source(evt, -1);
-      cfluid::fluid_event_set_dest(evt, seq_ctl.periodic_seq_id);
-      let fluid_res = cfluid::fluid_sequencer_send_at(sequencer_ptr, evt, date_ms, 1);
-      println!("{}:{} date_ms={}, fluid_res={}", file!(), line!(), date_ms, fluid_res);
-      cfluid::delete_fluid_event(evt);
-    }
-}
-
-fn schedule_next_callback_V2(seq_ctl : &mut sequencer::SequencerControl, date_ms: u32) {
     println!("{}:{} date_ms={}", file!(), line!(), date_ms);
     unsafe { 
       let sequencer_ptr = seq_ctl.sequencer_ptr;
