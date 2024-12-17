@@ -364,7 +364,7 @@ fn handle_next_batch_events(cb_data: &mut CallbackData) -> bool {
                     eprintln!("fluid_synth_program_select failed ret={}", ret);
                 }
             },
-            UnionAbsEvent::FinalEvent(final_ms) => { // must be the last event
+            UnionAbsEvent::FinalEvent(_e) => { // must be the last event
                 unsafe {
                     cfluid::fluid_sequencer_unregister_client(
                         cb_data.seq_ctl.sequencer_ptr, cb_data.seq_ctl.periodic_seq_id);
@@ -450,7 +450,7 @@ pub fn play(seq_ctl: &mut sequencer::SequencerControl, parsed_midi: &midi::Midi)
     let abs_events = get_abs_events(parsed_midi, &index_events);
 
     // 1-tick = (microseconds_per_quarter / parsed_midi.ticks_per_quarter)/1000 milliseconds
-    let mut timing = Timing {
+    let timing = Timing {
       microseconds_per_quarter: 500000u64,
       k_ticks_per_quarter: 1000 * u64::from(parsed_midi.ticks_per_quarter_note), // SMPTE not yet
     };
