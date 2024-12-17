@@ -93,8 +93,6 @@ fn get_index_events(parsed_midi: &midi::Midi) -> Vec<IndexEvent> {
             curr_time = next_time;
         }
     }
-    // println!("Before sort");
-    // print_index_events(&index_events, parsed_midi);
     index_events.sort_by(|e0, e1| symmetric_cmp(e0, e1));
     println!("After sort");
     print_index_events(&index_events, parsed_midi);
@@ -313,7 +311,6 @@ impl Timing {
 
 struct CallbackData<'a> {
     seq_ctl: &'a mut sequencer::SequencerControl,
-    parsed_midi: &'a midi::Midi,
     abs_events: &'a Vec<AbsEvent>,
     next_abs_event: usize,
     final_callback_handled: AtomicBool,
@@ -462,7 +459,6 @@ pub fn play(seq_ctl: &mut sequencer::SequencerControl, parsed_midi: &midi::Midi)
     println!("t0={}, t0_ms={}", t0, t0_ms);
     let callback_data = CallbackData {
         seq_ctl: seq_ctl,
-        parsed_midi: parsed_midi,
         abs_events: &abs_events,
         next_abs_event: 0,
         final_callback_handled: AtomicBool::new(false),
