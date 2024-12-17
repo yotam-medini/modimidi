@@ -6,6 +6,7 @@ mod midi;
 mod player;
 mod seqdemo;
 mod sequencer;
+mod util;
 
 fn parse_number(s: &str) -> Result<u32, String> {
     let base = if s.starts_with("0x") { 16 } else { 10 };

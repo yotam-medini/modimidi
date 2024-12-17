@@ -6,6 +6,7 @@ use std::sync::{Arc, Mutex, Condvar};
 use crate::cfluid;
 use crate::midi;
 use crate::sequencer;
+use crate::util;
 
 fn play_note(
     seq_ctl: &mut sequencer::SequencerControl,
@@ -242,6 +243,7 @@ fn get_abs_events(parsed_midi: &midi::Midi, index_events: &Vec<IndexEvent>) -> V
            _ => { },
         }
     }
+    println!("final_ms={} == {}", final_ms, util::milliseconds_to_string(final_ms));
     abs_events.push(AbsEvent {
         time_ms: final_ms,
         uae:  UnionAbsEvent::FinalEvent(FinalEvent{}),
