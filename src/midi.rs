@@ -123,6 +123,25 @@ impl fmt::Display for TimeSignature {
     }
 }
 
+pub struct KeySignature { // 0xff 0x59
+    sf: i16, // -7..+7 number of flats or sharps
+    mi: bool, // is Minor 
+}
+impl KeySignature {
+    fn scale_name(&self) -> String {
+        let quintes = "CGDAEBF";
+        let qi = ((self.sf + 7 + (if self.mi {3} else {0})) % 7) as usize;
+        let tonica = quintes.chars().nth(qi).unwrap();
+        let scale_name = format!("{} m{}or", tonica, if self.mi {"in"} else {"aj"});
+        scale_name
+    }
+}
+impl fmt::Display for KeySignature {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "KeySignature(sf={}, mi={}, [{}]", self.sf, self.mi, self.scale_name())
+    }
+}
+
 pub struct SequencerEvent { // 0xff 0x7f
     data: Vec<u8>,
 }
@@ -139,6 +158,7 @@ pub enum MetaEvent {
     EndOfTrack(EndOfTrack),
     SetTempo(SetTempo),
     TimeSignature(TimeSignature),
+    KeySignature(KeySignature),
     SequencerEvent(SequencerEvent),
     Undef,
 }
@@ -151,6 +171,7 @@ impl fmt::Display for MetaEvent {
             MetaEvent::EndOfTrack(_eot) => write!(f, "EndOfTrack"),
             MetaEvent::SetTempo(st) => write!(f, "{}", st),
             MetaEvent::TimeSignature(ts) => write!(f, "{}", ts),
+            MetaEvent::KeySignature(ks) => write!(f, "{}", ks),
             MetaEvent::SequencerEvent(se) => write!(f, "{}", se),
             MetaEvent::Undef => write!(f, "Undef"),
         }
@@ -411,6 +432,18 @@ fn get_meta_event(data: &Vec<u8>, offset: &mut usize) -> MetaEvent {
             };
             meta_event = MetaEvent::TimeSignature(time_signature);
             *offset = offs + 7;
+        },
+        0x59 => {
+            if data[offs + 2] != 0x02 {
+                eprintln!("Unexpected byte {:02x} followeing 0x59 KeySignature meta event",
+                    data[offs + 2]);
+            }
+            let key_signature = KeySignature {
+                sf: data[offs + 3] as i16,
+                mi: data[offs + 4] != 0,
+            };
+            meta_event = MetaEvent::KeySignature(key_signature);
+            *offset = offs + 5;
         },
         0x7f => {
             *offset = offs + 2;
