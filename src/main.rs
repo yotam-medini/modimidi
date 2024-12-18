@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 // use std::process::ExitCode;
-use clap::{Arg, arg, command, value_parser};
+use clap::{Arg, ArgAction, arg, command, value_parser};
 mod cfluid;
 mod midi;
 mod player;
@@ -90,7 +90,6 @@ fn args_get_matches () -> clap::ArgMatches {
             .default_value("/usr/share/sounds/sf2/FluidR3_GM.sf2")
 	)
 	.arg(
-
             Arg::new("delay")
                 .long("delay")
                 .value_parser(clap::value_parser!(u32))
@@ -98,12 +97,17 @@ fn args_get_matches () -> clap::ArgMatches {
                 .help("Initial extra playing delay in milliseconds"),
 	)
 	.arg(
-
             Arg::new("batchduration")
                 .long("batchduration")
                 .value_parser(clap::value_parser!(u32))
                 .default_value("10000") // Default value if not specified
                 .help("sequencer batch duration in milliseconds"),
+	)
+	.arg(
+            Arg::new("progress")
+                .long("progress")
+                .action(ArgAction::SetTrue)
+                .help("show progress"),
 	)
         .arg(arg!([midifile] "The midi file to play")
             .required(true)
@@ -135,13 +139,15 @@ fn main() {
     let begin: u32 = *matches.get_one::<u32>("begin").unwrap_or(&0);
     let end: u32 = *matches.get_one::<u32>("begin").unwrap_or(&0xffffffff);
     println!("begin={}, end={}", begin, end);
+    let progress : bool = matches.get_flag("progress");
+    println!("{}:{} progress={}", file!(), line!(), progress);
     let midifile = matches.get_one::<PathBuf>("midifile").unwrap();
     println!("midifile={:?}", midifile);
     let parsed_midi = midi::parse_midi_file(&midifile);
     println!("parsed_midi={}", parsed_midi);
     let exit_code = if parsed_midi.ok() { 0 } else { 1 };
     if parsed_midi.ok() {
-        player::play(&mut sequencer, &parsed_midi);
+        player::play(&mut sequencer, &parsed_midi, progress);
     }
     sequencer::destroy_sequencer(&mut sequencer);
     println!("exit_code={}", exit_code);

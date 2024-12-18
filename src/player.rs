@@ -1,4 +1,5 @@
 use std::fmt;
+use std::io::{self, Write};
 use std::os::raw::c_void;
 use std::ffi::CString;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -443,20 +444,46 @@ extern "C" fn final_callback(
     }
 }
 
-fn schedule_next_callback(seq_ctl : &mut sequencer::SequencerControl, date_ms: u32) {
-    println!("{}:{} date_ms={}", file!(), line!(), date_ms);
+extern "C" fn progress_callback(
+    time: u32,
+    _event: *mut cfluid::fluid_event_t,
+    _seq: *mut cfluid::fluid_sequencer_t, 
+    data: *mut c_void) {
+    unsafe {
+        let cb_data = &mut *(data as *mut CallbackData);
+        if !cb_data.final_callback_handled.load(Ordering::SeqCst) {
+            let mut stdout = io::stdout();
+            write!(stdout, "\rProgress: time={}%", time);
+            stdout.flush();
+            schedule_next_progress_callback(cb_data.seq_ctl, time + 100); // every second/10
+        }
+    }
+}
+
+fn schedule_seqid_callback(seq_ctl : &mut sequencer::SequencerControl, date_ms: u32, seq_id: i16) {
+    // println!("{}:{} date_ms={}", file!(), line!(), date_ms);
     unsafe { 
       let sequencer_ptr = seq_ctl.sequencer_ptr;
       let evt = cfluid::new_fluid_event();
       cfluid::fluid_event_set_source(evt, -1);
-      cfluid::fluid_event_set_dest(evt, seq_ctl.periodic_seq_id);
+      cfluid::fluid_event_set_dest(evt, seq_id);
       let fluid_res = cfluid::fluid_sequencer_send_at(sequencer_ptr, evt, date_ms, 1);
-      println!("{}:{} date_ms={}, fluid_res={}", file!(), line!(), date_ms, fluid_res);
+      // println!("{}:{} date_ms={}, fluid_res={}", file!(), line!(), date_ms, fluid_res);
       cfluid::delete_fluid_event(evt);
     }
 }
 
-pub fn play(seq_ctl: &mut sequencer::SequencerControl, parsed_midi: &midi::Midi) {
+fn schedule_next_callback(seq_ctl : &mut sequencer::SequencerControl, date_ms: u32) {
+    println!("{}:{} date_ms={}", file!(), line!(), date_ms);
+    schedule_seqid_callback(seq_ctl, date_ms, seq_ctl.periodic_seq_id);
+}
+
+fn schedule_next_progress_callback(seq_ctl : &mut sequencer::SequencerControl, date_ms: u32) {
+    // println!("{}:{} date_ms={}", file!(), line!(), date_ms);
+    schedule_seqid_callback(seq_ctl, date_ms, seq_ctl.progress_seq_id);
+}
+
+pub fn play(seq_ctl: &mut sequencer::SequencerControl, parsed_midi: &midi::Midi, progress: bool) {
     println!("play... thread id={:?}", std::thread::current().id());
     let index_events = get_index_events(parsed_midi);
     let abs_events = get_abs_events(parsed_midi, &index_events);
@@ -483,6 +510,7 @@ pub fn play(seq_ctl: &mut sequencer::SequencerControl, parsed_midi: &midi::Midi)
     let callback_data_ptr = &callback_data as *const CallbackData as *mut c_void;
     let key_periodic = CString::new("periodic").expect("CString::new failed");
     let key_final = CString::new("final").expect("CString::new failed");
+    let key_progress = CString::new("progress").expect("CString::new failed");
     unsafe {
         seq_ctl.periodic_seq_id = cfluid::fluid_sequencer_register_client(
             seq_ctl.sequencer_ptr, 
@@ -494,8 +522,18 @@ pub fn play(seq_ctl: &mut sequencer::SequencerControl, parsed_midi: &midi::Midi)
             key_final.as_ptr(),
             final_callback, 
             callback_data_ptr);
+        if progress {
+            seq_ctl.progress_seq_id = cfluid::fluid_sequencer_register_client(
+                seq_ctl.sequencer_ptr, 
+                key_progress.as_ptr(),
+                progress_callback,
+                callback_data_ptr);
+        }
     }
     schedule_next_callback(seq_ctl, t0_ms);
+    if progress {
+        schedule_next_progress_callback(seq_ctl, t0_ms);
+    }
 
     let (lock, cvar) = &*mtx_cvar;
     let mut locked = lock.lock().unwrap();

@@ -11,6 +11,7 @@ pub struct SequencerControl {
     pub sfont_id: i32,
     pub periodic_seq_id: i16,
     pub final_seq_id: i16,
+    pub progress_seq_id: i16,
     pub batch_duration_ms: u32,
     pub initial_delay_ms: u32,
     pub add_ms: u32,
@@ -85,6 +86,7 @@ pub fn create_sequencer(
         sfont_id: -1,
         periodic_seq_id: 0,
         final_seq_id: 0,
+        progress_seq_id: 0,
         batch_duration_ms: batch_duration_ms,
         initial_delay_ms: initial_delay_ms,
         add_ms: 0, // to be set later
