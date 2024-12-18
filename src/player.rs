@@ -200,6 +200,7 @@ fn get_abs_events(
     parsed_midi: &midi::Midi,
     index_events: &Vec<IndexEvent>,
     user_modification: &UserModification) -> Vec<AbsEvent> {
+    println!("{}:{} get_abs_events, um={}", file!(), line!(), user_modification);
     // Assuming sequencer time scale = 1000
     // See https://mido.readthedocs.io/en/stable/files/midi.html
     let mut dynamic_timing = DynamicTiming {
@@ -210,7 +211,10 @@ fn get_abs_events(
     };
     let mut final_ms = 0;
     let mut abs_events = Vec::<AbsEvent>::new();
-    for (i, index_event) in index_events.iter().enumerate() {
+    let mut i: usize = 0;
+    let mut done = false;
+    while (i < index_events.len()) && !done {
+        let index_event = &index_events[i];
         let track_event = &parsed_midi.tracks[index_event.track].track_events[index_event.tei];
         println!("[{:3}] time={} track_event={}", i, index_event.time, track_event); 
         let date_ms = dynamic_timing.abs_ticks_to_ms(index_event.time);
@@ -222,30 +226,35 @@ fn get_abs_events(
                         dynamic_timing.set_microseconds_per_quarter(
                             index_event.time, u64::from(st.tttttt));
                     },
-                    _ => { println!("{}:{} play: ignored", file!(), line!());},
+                    _ => { println!("{}:{} play: ignored: {}", file!(), line!(), me);},
                 }
             },
             midi::Event::MidiEvent(ref me) => {
+                let date_ms_modified = 
+                    std::cmp::max(date_ms, user_modification.begin_ms) - user_modification.begin_ms;
                 match me {
                     midi::MidiEvent::NoteOn(ref e) => {
-                        println!("{}", e); 
-                        if e.velocity != 0 {
-                            let duration_ticks = get_note_duration(
-                                parsed_midi, index_events, i, e);
-                            let duration_ms = dynamic_timing.ticks_to_ms(duration_ticks);
-                            let note_event = NoteEvent {
-                                channel: i32::from(e.channel),
-                                key: i16::from(e.key),
-                                velocity: i16::from(e.velocity),
-                                duration_ms: duration_ms,
-                                duration_ms_original: duration_ms,
-                            };
-                            max_by(&mut final_ms, date_ms + note_event.duration_ms);
-                            abs_events.push(AbsEvent{
-                                time_ms: date_ms,
-                                time_ms_original: date_ms,
-                                uae: UnionAbsEvent::NoteEvent(note_event)
-                            });
+                        done = date_ms > user_modification.end_ms;
+                        if (user_modification.begin_ms < date_ms) && !done {
+                            println!("{}", e); 
+                            if e.velocity != 0 {
+                                let duration_ticks = get_note_duration(
+                                    parsed_midi, index_events, i, e);
+                                let duration_ms = dynamic_timing.ticks_to_ms(duration_ticks);
+                                let note_event = NoteEvent {
+                                    channel: i32::from(e.channel),
+                                    key: i16::from(e.key),
+                                    velocity: i16::from(e.velocity),
+                                    duration_ms: duration_ms,
+                                    duration_ms_original: duration_ms,
+                                };
+                                max_by(&mut final_ms, date_ms + note_event.duration_ms);
+                                abs_events.push(AbsEvent{
+                                    time_ms: date_ms_modified,
+                                    time_ms_original: date_ms,
+                                    uae: UnionAbsEvent::NoteEvent(note_event)
+                                });
+                            }
                         }
                     },
                     midi::MidiEvent::ProgramChange(e) => {
@@ -254,7 +263,7 @@ fn get_abs_events(
                             program: i32::from(e.program),
                         };
                         abs_events.push(AbsEvent{
-                            time_ms: date_ms,
+                            time_ms: date_ms_modified,
                             time_ms_original: date_ms,
                             uae: UnionAbsEvent::ProgramChange(pc)
                         });
@@ -264,6 +273,7 @@ fn get_abs_events(
            },
            _ => { },
         }
+        i = i + 1;
     }
     println!("final_ms={} == {}", final_ms, util::milliseconds_to_string(final_ms));
     abs_events.push(AbsEvent {
