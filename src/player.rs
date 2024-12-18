@@ -238,25 +238,26 @@ fn get_abs_events(
     let mut done = false;
     while (i < index_events.len()) && !done {
         let index_event = &index_events[i];
-        let track_event = &parsed_midi.tracks[index_event.track].track_events[index_event.tei];
-        println!("[{:3}] time={} track_event={}", i, index_event.time, track_event); 
         let date_ms = dynamic_timing.abs_ticks_to_ms(index_event.time);
-        match track_event.event {
-            midi::Event::MetaEvent(ref me) => {
-                match me {
-                    midi::MetaEvent::SetTempo(st) => {
-                        dynamic_timing.set_microseconds_per_quarter(
-                            index_event.time, u64::from(st.tttttt));
-                    },
-                    _ => { println!("{}:{} play: ignored: {}", file!(), line!(), me);},
-                }
-            },
-            midi::Event::MidiEvent(ref me) => {
-                let date_ms_modified_pre_mult = 
-                    std::cmp::max(date_ms, user_mod.begin_ms) - user_mod.begin_ms;
-                let date_ms_modified = factor_u32(user_mod.tempo_factor, date_ms_modified_pre_mult);
-                done = date_ms > user_mod.end_ms;
-                if !done {
+        done = date_ms > user_mod.end_ms;
+        if !done {
+            let track_event = &parsed_midi.tracks[index_event.track].track_events[index_event.tei];
+            println!("[{:3}] time={} track_event={}", i, index_event.time, track_event); 
+            match track_event.event {
+                midi::Event::MetaEvent(ref me) => {
+                    match me {
+                        midi::MetaEvent::SetTempo(st) => {
+                            dynamic_timing.set_microseconds_per_quarter(
+                                index_event.time, u64::from(st.tttttt));
+                        },
+                        _ => { println!("{}:{} play: ignored: {}", file!(), line!(), me);},
+                    }
+                },
+                midi::Event::MidiEvent(ref me) => {
+                    let date_ms_modified_pre_mult = 
+                        std::cmp::max(date_ms, user_mod.begin_ms) - user_mod.begin_ms;
+                    let date_ms_modified = factor_u32(user_mod.tempo_factor, 
+                        date_ms_modified_pre_mult);
                     max_by(&mut final_ms, date_ms_modified_pre_mult);
                     match me {
                         midi::MidiEvent::NoteOn(ref e) => {
@@ -287,11 +288,11 @@ fn get_abs_events(
                         },
                         _ => { println!("{}:{} play: ignored", file!(), line!());},
                     }
-               }
-           },
-           _ => { },
+                },
+                _ => { },
+            }
+            i = i + 1;
         }
-        i = i + 1;
     }
     println!("final_ms={} == {}", final_ms, util::milliseconds_to_string(final_ms));
     abs_events.push(AbsEvent {
@@ -303,7 +304,6 @@ fn get_abs_events(
     for (i, ae) in abs_events.iter().enumerate() {
         println!("[{:4}] {}", i, ae);
     }
-    
     abs_events
 }
 
