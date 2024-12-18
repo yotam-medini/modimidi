@@ -196,11 +196,34 @@ fn max_by(var: &mut u32, val: u32) {
     }
 }
 
+fn factor_u32(f: f64, u: u32) -> u32 {
+    let ret: u32;
+    let mult: f64 = f * (u as f64);
+    let round = mult.round();
+    if round > u32::MAX as f64 {
+       eprint!("Overflow factor_u32(f={}, u={})", f, u);
+       ret = u;
+    } else {
+       ret = round as u32;
+    }
+    ret
+}
+
+fn note_on_to_note_event(note_on: &midi::NoteOn, duration_ms: u32, factor: f64) -> NoteEvent {
+    NoteEvent {
+        channel: i32::from(note_on.channel),
+        key: i16::from(note_on.key),
+        velocity: i16::from(note_on.velocity),
+        duration_ms: factor_u32(factor, duration_ms),
+        duration_ms_original: duration_ms,
+    }
+}
+
 fn get_abs_events(
     parsed_midi: &midi::Midi,
     index_events: &Vec<IndexEvent>,
-    user_modification: &UserModification) -> Vec<AbsEvent> {
-    println!("{}:{} get_abs_events, um={}", file!(), line!(), user_modification);
+    user_mod: &UserModification) -> Vec<AbsEvent> {
+    println!("{}:{} get_abs_events, um={}", file!(), line!(), user_mod);
     // Assuming sequencer time scale = 1000
     // See https://mido.readthedocs.io/en/stable/files/midi.html
     let mut dynamic_timing = DynamicTiming {
@@ -218,7 +241,6 @@ fn get_abs_events(
         let track_event = &parsed_midi.tracks[index_event.track].track_events[index_event.tei];
         println!("[{:3}] time={} track_event={}", i, index_event.time, track_event); 
         let date_ms = dynamic_timing.abs_ticks_to_ms(index_event.time);
-        max_by(&mut final_ms, date_ms);
         match track_event.event {
             midi::Event::MetaEvent(ref me) => {
                 match me {
@@ -230,24 +252,20 @@ fn get_abs_events(
                 }
             },
             midi::Event::MidiEvent(ref me) => {
-                let date_ms_modified = 
-                    std::cmp::max(date_ms, user_modification.begin_ms) - user_modification.begin_ms;
-                match me {
-                    midi::MidiEvent::NoteOn(ref e) => {
-                        done = date_ms > user_modification.end_ms;
-                        if (user_modification.begin_ms < date_ms) && !done {
-                            println!("{}", e); 
-                            if e.velocity != 0 {
+                let date_ms_modified_pre_mult = 
+                    std::cmp::max(date_ms, user_mod.begin_ms) - user_mod.begin_ms;
+                let date_ms_modified = factor_u32(user_mod.tempo_factor, date_ms_modified_pre_mult);
+                done = date_ms > user_mod.end_ms;
+                if !done {
+                    max_by(&mut final_ms, date_ms_modified_pre_mult);
+                    match me {
+                        midi::MidiEvent::NoteOn(ref e) => {
+                            if (user_mod.begin_ms < date_ms) && (e.velocity != 0) {
                                 let duration_ticks = get_note_duration(
                                     parsed_midi, index_events, i, e);
                                 let duration_ms = dynamic_timing.ticks_to_ms(duration_ticks);
-                                let note_event = NoteEvent {
-                                    channel: i32::from(e.channel),
-                                    key: i16::from(e.key),
-                                    velocity: i16::from(e.velocity),
-                                    duration_ms: duration_ms,
-                                    duration_ms_original: duration_ms,
-                                };
+                                let note_event = note_on_to_note_event(
+                                    e, duration_ms, user_mod.tempo_factor);
                                 max_by(&mut final_ms, date_ms + note_event.duration_ms);
                                 abs_events.push(AbsEvent{
                                     time_ms: date_ms_modified,
@@ -255,21 +273,21 @@ fn get_abs_events(
                                     uae: UnionAbsEvent::NoteEvent(note_event)
                                 });
                             }
-                        }
-                    },
-                    midi::MidiEvent::ProgramChange(e) => {
-                        let pc = ProgramChange {
-                            channel: i32::from(e.channel),
-                            program: i32::from(e.program),
-                        };
-                        abs_events.push(AbsEvent{
-                            time_ms: date_ms_modified,
-                            time_ms_original: date_ms,
-                            uae: UnionAbsEvent::ProgramChange(pc)
-                        });
-                    },
-                    _ => { println!("{}:{} play: ignored", file!(), line!());},
-                }
+                        },
+                        midi::MidiEvent::ProgramChange(e) => {
+                            let pc = ProgramChange {
+                                channel: i32::from(e.channel),
+                                program: i32::from(e.program),
+                            };
+                            abs_events.push(AbsEvent{
+                                time_ms: date_ms_modified,
+                                time_ms_original: date_ms,
+                                uae: UnionAbsEvent::ProgramChange(pc)
+                            });
+                        },
+                        _ => { println!("{}:{} play: ignored", file!(), line!());},
+                    }
+               }
            },
            _ => { },
         }
@@ -277,7 +295,7 @@ fn get_abs_events(
     }
     println!("final_ms={} == {}", final_ms, util::milliseconds_to_string(final_ms));
     abs_events.push(AbsEvent {
-        time_ms: std::cmp::max(final_ms, user_modification.begin_ms) - user_modification.begin_ms,
+        time_ms: std::cmp::max(final_ms, user_mod.begin_ms) - user_mod.begin_ms,
         time_ms_original: final_ms,
         uae:  UnionAbsEvent::FinalEvent(FinalEvent{}),
     });
@@ -348,7 +366,7 @@ struct CallbackData<'a> {
     seq_ctl: &'a mut sequencer::SequencerControl,
     abs_events: &'a Vec<AbsEvent>,
     next_abs_event: usize,
-    user_modification: UserModification,
+    user_mod: UserModification,
     sending_events: AtomicBool,
     final_callback_handled: AtomicBool,
     mtx_cvar: Arc<(Mutex<bool>, Condvar)>
@@ -532,12 +550,12 @@ pub fn play(
     ) {
     println!("play... thread id={:?}", std::thread::current().id());
     let index_events = get_index_events(parsed_midi);
-    let user_modification = UserModification {
+    let user_mod = UserModification {
         begin_ms: begin,
         end_ms: end,
         tempo_factor: tempo_factor,
     };
-    let abs_events = get_abs_events(parsed_midi, &index_events, &user_modification);
+    let abs_events = get_abs_events(parsed_midi, &index_events, &user_mod);
 
     // 1-tick = (microseconds_per_quarter / parsed_midi.ticks_per_quarter)/1000 milliseconds
     let timing = Timing {
@@ -554,7 +572,7 @@ pub fn play(
         seq_ctl: seq_ctl,
         abs_events: &abs_events,
         next_abs_event: 0,
-        user_modification: user_modification,
+        user_mod: user_mod,
         sending_events: AtomicBool::new(false),
         final_callback_handled: AtomicBool::new(false),
         mtx_cvar: Arc::clone(&mtx_cvar),
