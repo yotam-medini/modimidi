@@ -153,7 +153,7 @@ struct AbsEvent {
 }
 impl fmt::Display for AbsEvent {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "time_ms={} original={}", self.time_ms, self.time_ms_original);
+        write!(f, "time_ms={} original={}, ", self.time_ms, self.time_ms_original);
         match &self.uae {
             UnionAbsEvent::NoteEvent(e) => write!(f, "{}", e),
             UnionAbsEvent::ProgramChange(e) => write!(f, "{}", e),
@@ -277,7 +277,7 @@ fn get_abs_events(
     }
     println!("final_ms={} == {}", final_ms, util::milliseconds_to_string(final_ms));
     abs_events.push(AbsEvent {
-        time_ms: final_ms,
+        time_ms: std::cmp::max(final_ms, user_modification.begin_ms) - user_modification.begin_ms,
         time_ms_original: final_ms,
         uae:  UnionAbsEvent::FinalEvent(FinalEvent{}),
     });
