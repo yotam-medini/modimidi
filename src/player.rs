@@ -453,9 +453,15 @@ extern "C" fn progress_callback(
         let cb_data = &mut *(data as *mut CallbackData);
         if !cb_data.final_callback_handled.load(Ordering::SeqCst) {
             let mut stdout = io::stdout();
-            write!(stdout, "\rProgress: time={}%", time);
-            stdout.flush();
-            schedule_next_progress_callback(cb_data.seq_ctl, time + 100); // every second/10
+            if let Some(final_event) = cb_data.abs_events.last() {
+                if time >= cb_data.seq_ctl.add_ms {
+                    let mmss_done = util::milliseconds_to_string(time - cb_data.seq_ctl.add_ms);
+                    let mmss_final = util::milliseconds_to_string(final_event.time_ms);
+                    write!(stdout, "\rProgress: {} / {}", mmss_done, mmss_final);
+                    let _ = stdout.flush();
+                }
+                schedule_next_progress_callback(cb_data.seq_ctl, time + 100); // every second/10
+            }
         }
     }
 }

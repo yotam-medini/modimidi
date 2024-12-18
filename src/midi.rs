@@ -123,6 +123,15 @@ impl fmt::Display for TimeSignature {
     }
 }
 
+pub struct SequencerEvent { // 0xff 0x7f
+    data: Vec<u8>,
+}
+impl fmt::Display for SequencerEvent {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "SequencerEvent({:?})", self.data)
+    }
+}
+
 pub enum MetaEvent {
     Text(Text),
     SequenceTrackName(SequenceTrackName),
@@ -130,6 +139,7 @@ pub enum MetaEvent {
     EndOfTrack(EndOfTrack),
     SetTempo(SetTempo),
     TimeSignature(TimeSignature),
+    SequencerEvent(SequencerEvent),
     Undef,
 }
 impl fmt::Display for MetaEvent {
@@ -141,6 +151,7 @@ impl fmt::Display for MetaEvent {
             MetaEvent::EndOfTrack(_eot) => write!(f, "EndOfTrack"),
             MetaEvent::SetTempo(st) => write!(f, "{}", st),
             MetaEvent::TimeSignature(ts) => write!(f, "{}", ts),
+            MetaEvent::SequencerEvent(se) => write!(f, "{}", se),
             MetaEvent::Undef => write!(f, "Undef"),
         }
     }
@@ -400,6 +411,16 @@ fn get_meta_event(data: &Vec<u8>, offset: &mut usize) -> MetaEvent {
             };
             meta_event = MetaEvent::TimeSignature(time_signature);
             *offset = offs + 7;
+        },
+        0x7f => {
+            *offset = offs + 2;
+            let length = get_variable_length_quantity(data, offset);
+            let ulength: usize = length as usize;
+            let sequencer_event = SequencerEvent {
+                data: data[*offset..*offset + ulength].to_vec(),
+            };
+            meta_event = MetaEvent::SequencerEvent(sequencer_event);
+            *offset = *offset + ulength;
         },
         _ => { 
             eprintln!("Not yet supported MetaEvent {:#02x}", data[offs + 1]);
