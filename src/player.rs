@@ -219,6 +219,50 @@ fn note_on_to_note_event(note_on: &midi::NoteOn, duration_ms: u32, factor: f64) 
     }
 }
 
+struct AbsEventsData<'a> {
+    abs_events: Vec<AbsEvent>,
+    final_ms: u32,
+    parsed_midi: &'a midi::Midi,
+    index_events: &'a Vec<IndexEvent>,
+    user_mod: &'a UserModification,
+    dynamic_timing: DynamicTiming,
+}
+
+fn abs_events_push(
+    aed: &mut AbsEventsData, 
+    index_event_index: usize,
+    me: &midi::MidiEvent,
+    date_ms: u32) {
+    let factor = aed.user_mod.tempo_factor;
+    let date_ms_modified = factor_u32(factor, date_ms);
+    match me {
+        midi::MidiEvent::NoteOn(ref e) => {
+            if (aed.user_mod.begin_ms < date_ms) && (e.velocity != 0) {
+                let duration_ticks = get_note_duration(
+                    aed.parsed_midi, aed.index_events, index_event_index, e);
+                let duration_ms = aed.dynamic_timing.ticks_to_ms(duration_ticks);
+                let note_event = note_on_to_note_event(e, duration_ms, factor);
+                max_by(&mut aed.final_ms, date_ms + note_event.duration_ms);
+                aed.abs_events.push(AbsEvent{
+                    time_ms: date_ms_modified,
+                    time_ms_original: date_ms,
+                    uae: UnionAbsEvent::NoteEvent(note_event)
+                });
+            }
+        },
+        midi::MidiEvent::ProgramChange(e) => {
+            max_by(&mut aed.final_ms, date_ms_modified);
+            let pc = ProgramChange { channel: i32::from(e.channel), program: i32::from(e.program), };
+            aed.abs_events.push(AbsEvent{
+                time_ms: date_ms_modified,
+                time_ms_original: date_ms,
+                uae: UnionAbsEvent::ProgramChange(pc)
+            });
+        },
+        _ => { println!("{}:{} ignored: {}", file!(), line!(), me);},
+    }
+}
+
 fn get_abs_events(
     parsed_midi: &midi::Midi,
     index_events: &Vec<IndexEvent>,
