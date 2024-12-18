@@ -78,6 +78,11 @@ fn args_get_matches () -> clap::ArgMatches {
             .required(false)
             .value_parser(parse_milliseconds)
         )
+        .arg(arg!(-T --tempo <F> "Speed Multiplier factor]")
+            .required(false)
+            .default_value("1.0")
+            .value_parser(clap::value_parser!(f64)),
+        )
         .arg(
             arg!(--debugflags <FLAGS> "Debug bitwise flags")
             .required(false)
@@ -137,8 +142,9 @@ fn main() {
     println!("{}:{} initial_delay_ms={}", file!(), line!(), initial_delay_ms);
     let mut sequencer = sequencer::create_sequencer(soundfounts, batch_duration_ms, initial_delay_ms);
     let begin: u32 = *matches.get_one::<u32>("begin").unwrap_or(&0);
-    let end: u32 = *matches.get_one::<u32>("begin").unwrap_or(&0xffffffff);
-    println!("begin={}, end={}", begin, end);
+    let end: u32 = *matches.get_one::<u32>("end").unwrap_or(&0xffffffff);
+    let tempo_factor: f64 = *matches.get_one::<f64>("tempo").unwrap();
+    println!("{}:{} begin={}, end={}, tempo_factor={}", file!(), line!(), begin, end, tempo_factor);
     let progress : bool = matches.get_flag("progress");
     println!("{}:{} progress={}", file!(), line!(), progress);
     let midifile = matches.get_one::<PathBuf>("midifile").unwrap();
@@ -147,7 +153,7 @@ fn main() {
     println!("parsed_midi={}", parsed_midi);
     let exit_code = if parsed_midi.ok() { 0 } else { 1 };
     if parsed_midi.ok() {
-        player::play(&mut sequencer, &parsed_midi, progress);
+        player::play(&mut sequencer, &parsed_midi, begin, end, tempo_factor, progress);
     }
     sequencer::destroy_sequencer(&mut sequencer);
     println!("exit_code={}", exit_code);

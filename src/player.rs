@@ -44,6 +44,17 @@ fn send_final_event(seq_ctl: &mut sequencer::SequencerControl, date: u32) {
     }
 }
 
+struct UserModification {
+    begin_ms: u32,
+    end_ms: u32,
+    tempo_factor: f64,
+}
+impl fmt::Display for UserModification {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "UserModification([{}, {}] T={})", self.begin_ms, self.end_ms, self.tempo_factor)
+    }
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 struct IndexEvent {
     time: u32, // sum of delta_time
@@ -106,11 +117,12 @@ struct NoteEvent {
     key: i16,
     velocity: i16,
     duration_ms: u32,
+    duration_ms_original: u32,
 }
 impl fmt::Display for NoteEvent {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "NoteEvent(c={:2}, key={:2}, vel={:3}, dur_ms={:4})",
-            self.channel, self.key, self.velocity, self.duration_ms)
+        write!(f, "NoteEvent(c={:2}, key={:2}, vel={:3}, dur_ms={:4}, original={:4})",
+            self.channel, self.key, self.velocity, self.duration_ms, self.duration_ms_original)
     }
 }
 
@@ -136,14 +148,16 @@ enum UnionAbsEvent {
 }
 struct AbsEvent {
     time_ms: u32,
+    time_ms_original: u32,
     uae: UnionAbsEvent,
 }
 impl fmt::Display for AbsEvent {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "time_ms={} original={}", self.time_ms, self.time_ms_original);
         match &self.uae {
-            UnionAbsEvent::NoteEvent(e) => write!(f, "time_ms={} {}", self.time_ms, e),
-            UnionAbsEvent::ProgramChange(e) => write!(f, "time_ms={} {}", self.time_ms, e),
-            UnionAbsEvent::FinalEvent(e) => write!(f, "time_ms={} {}", self.time_ms, e),
+            UnionAbsEvent::NoteEvent(e) => write!(f, "{}", e),
+            UnionAbsEvent::ProgramChange(e) => write!(f, "{}", e),
+            UnionAbsEvent::FinalEvent(e) => write!(f, "{}", e),
         }
     }
 }
@@ -182,7 +196,10 @@ fn max_by(var: &mut u32, val: u32) {
     }
 }
 
-fn get_abs_events(parsed_midi: &midi::Midi, index_events: &Vec<IndexEvent>) -> Vec<AbsEvent> {
+fn get_abs_events(
+    parsed_midi: &midi::Midi,
+    index_events: &Vec<IndexEvent>,
+    user_modification: &UserModification) -> Vec<AbsEvent> {
     // Assuming sequencer time scale = 1000
     // See https://mido.readthedocs.io/en/stable/files/midi.html
     let mut dynamic_timing = DynamicTiming {
@@ -215,15 +232,18 @@ fn get_abs_events(parsed_midi: &midi::Midi, index_events: &Vec<IndexEvent>) -> V
                         if e.velocity != 0 {
                             let duration_ticks = get_note_duration(
                                 parsed_midi, index_events, i, e);
+                            let duration_ms = dynamic_timing.ticks_to_ms(duration_ticks);
                             let note_event = NoteEvent {
                                 channel: i32::from(e.channel),
                                 key: i16::from(e.key),
                                 velocity: i16::from(e.velocity),
-                                duration_ms: dynamic_timing.ticks_to_ms(duration_ticks),
+                                duration_ms: duration_ms,
+                                duration_ms_original: duration_ms,
                             };
                             max_by(&mut final_ms, date_ms + note_event.duration_ms);
                             abs_events.push(AbsEvent{
-                                time_ms : date_ms,
+                                time_ms: date_ms,
+                                time_ms_original: date_ms,
                                 uae: UnionAbsEvent::NoteEvent(note_event)
                             });
                         }
@@ -234,7 +254,8 @@ fn get_abs_events(parsed_midi: &midi::Midi, index_events: &Vec<IndexEvent>) -> V
                             program: i32::from(e.program),
                         };
                         abs_events.push(AbsEvent{
-                            time_ms : date_ms,
+                            time_ms: date_ms,
+                            time_ms_original: date_ms,
                             uae: UnionAbsEvent::ProgramChange(pc)
                         });
                     },
@@ -247,6 +268,7 @@ fn get_abs_events(parsed_midi: &midi::Midi, index_events: &Vec<IndexEvent>) -> V
     println!("final_ms={} == {}", final_ms, util::milliseconds_to_string(final_ms));
     abs_events.push(AbsEvent {
         time_ms: final_ms,
+        time_ms_original: final_ms,
         uae:  UnionAbsEvent::FinalEvent(FinalEvent{}),
     });
     println!("abs_events:");
@@ -316,6 +338,7 @@ struct CallbackData<'a> {
     seq_ctl: &'a mut sequencer::SequencerControl,
     abs_events: &'a Vec<AbsEvent>,
     next_abs_event: usize,
+    user_modification: UserModification,
     sending_events: AtomicBool,
     final_callback_handled: AtomicBool,
     mtx_cvar: Arc<(Mutex<bool>, Condvar)>
@@ -489,10 +512,22 @@ fn schedule_next_progress_callback(seq_ctl : &mut sequencer::SequencerControl, d
     schedule_seqid_callback(seq_ctl, date_ms, seq_ctl.progress_seq_id);
 }
 
-pub fn play(seq_ctl: &mut sequencer::SequencerControl, parsed_midi: &midi::Midi, progress: bool) {
+pub fn play(
+    seq_ctl: &mut sequencer::SequencerControl,
+    parsed_midi: &midi::Midi,
+    begin: u32,
+    end: u32,
+    tempo_factor: f64,
+    progress: bool,
+    ) {
     println!("play... thread id={:?}", std::thread::current().id());
     let index_events = get_index_events(parsed_midi);
-    let abs_events = get_abs_events(parsed_midi, &index_events);
+    let user_modification = UserModification {
+        begin_ms: begin,
+        end_ms: end,
+        tempo_factor: tempo_factor,
+    };
+    let abs_events = get_abs_events(parsed_midi, &index_events, &user_modification);
 
     // 1-tick = (microseconds_per_quarter / parsed_midi.ticks_per_quarter)/1000 milliseconds
     let timing = Timing {
@@ -509,6 +544,7 @@ pub fn play(seq_ctl: &mut sequencer::SequencerControl, parsed_midi: &midi::Midi,
         seq_ctl: seq_ctl,
         abs_events: &abs_events,
         next_abs_event: 0,
+        user_modification: user_modification,
         sending_events: AtomicBool::new(false),
         final_callback_handled: AtomicBool::new(false),
         mtx_cvar: Arc::clone(&mtx_cvar),
