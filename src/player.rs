@@ -237,7 +237,7 @@ fn abs_events_push(
     let date_ms_modified = factor_u32(factor, date_ms);
     match me {
         midi::MidiEvent::NoteOn(ref e) => {
-            if (aed.user_mod.begin_ms < date_ms) && (e.velocity != 0) {
+            if (aed.user_mod.begin_ms <= date_ms) && (e.velocity != 0) {
                 let duration_ticks = get_note_duration(
                     aed.parsed_midi, aed.index_events, index_event_index, e);
                 let duration_ms = aed.dynamic_timing.ticks_to_ms(duration_ticks);
@@ -264,6 +264,65 @@ fn abs_events_push(
 }
 
 fn get_abs_events(
+    parsed_midi: &midi::Midi,
+    index_events: &Vec<IndexEvent>,
+    user_mod: &UserModification) -> Vec<AbsEvent> {
+    println!("{}:{} get_abs_events, um={}", file!(), line!(), user_mod);
+    let mut control = AbsEventsData {
+        abs_events: Vec::<AbsEvent>::new(),
+        final_ms: 0,
+        parsed_midi: parsed_midi,
+        index_events: index_events,
+        user_mod: user_mod,
+        dynamic_timing: DynamicTiming {
+            microseconds_per_quarter: 500000u64,
+            k_ticks_per_quarter:
+                1000 * u64::from(parsed_midi.ticks_per_quarter_note), // SMPTE not yet
+            ticks_ref: 0,
+            ms_ref: 0,
+        },
+    };
+    let mut i: usize = 0;
+    let mut done = false;
+    while (i < index_events.len()) && !done {
+        let index_event = &index_events[i];
+        let date_ms = control.dynamic_timing.abs_ticks_to_ms(index_event.time);
+        done = date_ms > user_mod.end_ms;
+        if !done {
+            let track_event = &parsed_midi.tracks[index_event.track].track_events[index_event.tei];
+            println!("[{:3}] time={} track_event={}", i, index_event.time, track_event); 
+            match track_event.event {
+                midi::Event::MetaEvent(ref me) => {
+                    match me {
+                        midi::MetaEvent::SetTempo(st) => {
+                            control.dynamic_timing.set_microseconds_per_quarter(
+                                index_event.time, u64::from(st.tttttt));
+                        },
+                        _ => { println!("{}:{} play: ignored: {}", file!(), line!(), me);},
+                    }
+                },
+                midi::Event::MidiEvent(ref me) => {
+                    abs_events_push(&mut control, i, me, date_ms);
+                },
+                _ => { },
+            }
+            i += 1;
+        }
+    }
+    println!("final_ms={} == {}", control.final_ms, util::milliseconds_to_string(control.final_ms));
+    control.abs_events.push(AbsEvent {
+        time_ms: std::cmp::max(control.final_ms, user_mod.begin_ms) - user_mod.begin_ms,
+        time_ms_original: control.final_ms,
+        uae: UnionAbsEvent::FinalEvent(FinalEvent{}),
+    });
+    println!("abs_events:");
+    for (i, ae) in control.abs_events.iter().enumerate() {
+        println!("[{:4}] {}", i, ae);
+    }
+    control.abs_events
+}
+
+fn OLDget_abs_events(
     parsed_midi: &midi::Midi,
     index_events: &Vec<IndexEvent>,
     user_mod: &UserModification) -> Vec<AbsEvent> {
