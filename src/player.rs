@@ -311,7 +311,7 @@ fn get_abs_events(
     }
     println!("final_ms={} == {}", control.final_ms, util::milliseconds_to_string(control.final_ms));
     control.abs_events.push(AbsEvent {
-        time_ms: std::cmp::max(control.final_ms, user_mod.begin_ms) - user_mod.begin_ms,
+        time_ms: std::cmp::max(control.final_ms, user_mod.begin_ms),
         time_ms_original: control.final_ms,
         uae: UnionAbsEvent::FinalEvent(FinalEvent{}),
     });
@@ -404,7 +404,8 @@ fn send_next_batch_events(cb_data: &mut CallbackData) -> bool {
     let mut done = false;
     let mut final_event = false;
     while (cb_data.next_abs_event < cb_data.abs_events.len()) && !done {
-        let date_ms = cb_data.abs_events[cb_data.next_abs_event].time_ms + cb_data.seq_ctl.add_ms;
+        let date_ms = cb_data.abs_events[cb_data.next_abs_event].time_ms + cb_data.seq_ctl.add_ms
+            - cb_data.user_mod.begin_ms;
         println!("{}:{} next_abs_event={}, date_ms={}",
             file!(), line!(), cb_data.next_abs_event, date_ms);
         done = date_ms >= end_ms;
@@ -521,7 +522,8 @@ extern "C" fn progress_callback(
             let mut stdout = io::stdout();
             if let Some(final_event) = cb_data.abs_events.last() {
                 if time >= cb_data.seq_ctl.add_ms {
-                    let mmss_done = util::milliseconds_to_string(time - cb_data.seq_ctl.add_ms);
+                    let btime = time + cb_data.user_mod.begin_ms;
+                    let mmss_done = util::milliseconds_to_string(btime - cb_data.seq_ctl.add_ms);
                     let mmss_final = util::milliseconds_to_string(final_event.time_ms);
                     write!(stdout, "\rProgress: {} / {}", mmss_done, mmss_final);
                     let _ = stdout.flush();
