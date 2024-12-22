@@ -234,15 +234,20 @@ fn abs_events_push(
     me: &midi::MidiEvent,
     date_ms: u32) {
     let factor = aed.user_mod.tempo_factor;
-    let date_ms_modified = factor_u32(factor, date_ms);
+    let after_begin = aed.user_mod.begin_ms <= date_ms;
+    let date_ms_modified = if after_begin {
+        factor_u32(factor, date_ms - aed.user_mod.begin_ms)
+    } else {
+        aed.user_mod.begin_ms
+    };
     match me {
         midi::MidiEvent::NoteOn(ref e) => {
-            if (aed.user_mod.begin_ms <= date_ms) && (e.velocity != 0) {
+            if after_begin && (e.velocity != 0) {
                 let duration_ticks = get_note_duration(
                     aed.parsed_midi, aed.index_events, index_event_index, e);
                 let duration_ms = aed.dynamic_timing.ticks_to_ms(duration_ticks);
                 let note_event = note_on_to_note_event(e, duration_ms, factor);
-                max_by(&mut aed.final_ms, date_ms + note_event.duration_ms);
+                max_by(&mut aed.final_ms, date_ms_modified + note_event.duration_ms);
                 aed.abs_events.push(AbsEvent{
                     time_ms: date_ms_modified,
                     time_ms_original: date_ms,
@@ -382,6 +387,7 @@ struct CallbackData<'a> {
     abs_events: &'a Vec<AbsEvent>,
     next_abs_event: usize,
     user_mod: UserModification,
+    factor_begin: u32,
     sending_events: AtomicBool,
     final_callback_handled: AtomicBool,
     mtx_cvar: Arc<(Mutex<bool>, Condvar)>
@@ -400,16 +406,11 @@ fn send_next_batch_events(cb_data: &mut CallbackData) -> bool {
     if cb_data.next_abs_event == 0 {
         cb_data.seq_ctl.add_ms = now + cb_data.seq_ctl.initial_delay_ms;
     }
-    let end_ms = now + cb_data.seq_ctl.batch_duration_ms;
-    let mut done = false;
     let mut final_event = false;
-    while (cb_data.next_abs_event < cb_data.abs_events.len()) && !done {
-        let date_ms = cb_data.abs_events[cb_data.next_abs_event].time_ms + cb_data.seq_ctl.add_ms
-            - cb_data.user_mod.begin_ms;
-        println!("{}:{} next_abs_event={}, date_ms={}",
-            file!(), line!(), cb_data.next_abs_event, date_ms);
-        done = date_ms >= end_ms;
-        match &cb_data.abs_events[cb_data.next_abs_event].uae {
+    while cb_data.next_abs_event < cb_data.abs_events.len() {
+        println!("{}:{} next_abs_event={}", file!(), line!(), cb_data.next_abs_event);
+        let abs_event = &cb_data.abs_events[cb_data.next_abs_event];
+        match &abs_event.uae {
             UnionAbsEvent::NoteEvent(note_event) => {
                 play_note(
                     cb_data.seq_ctl, 
@@ -417,7 +418,7 @@ fn send_next_batch_events(cb_data: &mut CallbackData) -> bool {
                     note_event.key,
                     note_event.velocity,
                     note_event.duration_ms,
-                    date_ms);
+                    abs_event.time_ms);
             },
             UnionAbsEvent::ProgramChange(program_change) => {
                 println!("ProgramChange({})", program_change);
@@ -439,7 +440,7 @@ fn send_next_batch_events(cb_data: &mut CallbackData) -> bool {
                     cfluid::fluid_sequencer_unregister_client(
                         cb_data.seq_ctl.sequencer_ptr, cb_data.seq_ctl.periodic_seq_id);
                 }
-                send_final_event(cb_data.seq_ctl, date_ms);
+                send_final_event(cb_data.seq_ctl, abs_event.time_ms);
                 final_event = true;
             }
         }
@@ -542,7 +543,9 @@ fn schedule_seqid_callback(seq_ctl : &mut sequencer::SequencerControl, date_ms: 
       cfluid::fluid_event_set_source(evt, -1);
       cfluid::fluid_event_set_dest(evt, seq_id);
       let fluid_res = cfluid::fluid_sequencer_send_at(sequencer_ptr, evt, date_ms, 1);
-      // println!("{}:{} date_ms={}, fluid_res={}", file!(), line!(), date_ms, fluid_res);
+      if fluid_res != cfluid::FLUID_OK {
+          eprintln!("{}:{} date_ms={}, fluid_res={}", file!(), line!(), date_ms, fluid_res);
+      }
       cfluid::delete_fluid_event(evt);
     }
 }
@@ -585,11 +588,13 @@ pub fn play(
     unsafe { t0 = cfluid::fluid_sequencer_get_tick(seq_ctl.sequencer_ptr); }
     let t0_ms = timing.ticks_to_ms(t0);
     println!("t0={}, t0_ms={}", t0, t0_ms);
+    let fb = factor_u32(user_mod.tempo_factor, user_mod.begin_ms);
     let callback_data = CallbackData {
         seq_ctl: seq_ctl,
         abs_events: &abs_events,
         next_abs_event: 0,
         user_mod: user_mod,
+        factor_begin: fb,
         sending_events: AtomicBool::new(false),
         final_callback_handled: AtomicBool::new(false),
         mtx_cvar: Arc::clone(&mtx_cvar),
