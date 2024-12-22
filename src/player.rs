@@ -317,7 +317,11 @@ fn get_abs_events(
     println!("final_ms={} == {}", control.final_ms, util::milliseconds_to_string(control.final_ms));
     control.abs_events.push(AbsEvent {
         time_ms: std::cmp::max(control.final_ms, user_mod.begin_ms),
-        time_ms_original: control.final_ms,
+        time_ms_original: if control.abs_events.is_empty() {
+            0
+        } else {
+            control.abs_events[control.abs_events.len() - 1].time_ms_original
+        },
         uae: UnionAbsEvent::FinalEvent(FinalEvent{}),
     });
     println!("abs_events:");
@@ -386,8 +390,9 @@ struct CallbackData<'a> {
     seq_ctl: &'a mut sequencer::SequencerControl,
     abs_events: &'a Vec<AbsEvent>,
     next_abs_event: usize,
-    user_mod: UserModification,
+    user_mod: &'a UserModification,
     factor_begin: u32,
+    div_factor: f64,
     sending_events: AtomicBool,
     final_callback_handled: AtomicBool,
     mtx_cvar: Arc<(Mutex<bool>, Condvar)>
@@ -522,12 +527,17 @@ extern "C" fn progress_callback(
         if !cb_data.final_callback_handled.load(Ordering::SeqCst) {
             let mut stdout = io::stdout();
             if let Some(final_event) = cb_data.abs_events.last() {
+                let last_ms = final_event.time_ms_original;
                 if time >= cb_data.seq_ctl.add_ms {
-                    let btime = time + cb_data.user_mod.begin_ms;
-                    let mmss_done = util::milliseconds_to_string(btime - cb_data.seq_ctl.add_ms);
-                    let mmss_final = util::milliseconds_to_string(final_event.time_ms);
-                    write!(stdout, "\rProgress: {} / {}", mmss_done, mmss_final);
-                    let _ = stdout.flush();
+                    let dt = time - cb_data.seq_ctl.add_ms;
+                    let dt_div_f = cb_data.div_factor * (dt as f64);
+                    let btime = (dt_div_f as u32) + cb_data.user_mod.begin_ms;
+                    if btime <= last_ms {
+                        let mmss_done = util::milliseconds_to_string(btime - cb_data.seq_ctl.add_ms);
+                        let mmss_final = util::milliseconds_to_string(last_ms);
+                        write!(stdout, "\rProgress: {} / {}", mmss_done, mmss_final);
+                        let _ = stdout.flush();
+                    }
                 }
                 schedule_next_progress_callback(cb_data.seq_ctl, time + 100); // every second/10
             }
@@ -593,8 +603,9 @@ pub fn play(
         seq_ctl: seq_ctl,
         abs_events: &abs_events,
         next_abs_event: 0,
-        user_mod: user_mod,
+        user_mod: &user_mod,
         factor_begin: fb,
+        div_factor: 1.0 / user_mod.tempo_factor,
         sending_events: AtomicBool::new(false),
         final_callback_handled: AtomicBool::new(false),
         mtx_cvar: Arc::clone(&mtx_cvar),
