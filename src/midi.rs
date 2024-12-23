@@ -585,6 +585,10 @@ pub fn parse_midi_file(filename: &PathBuf) -> Midi {
         } else {
             midi.negative_smpte_format = data[12] & 0x7f;
             midi.ticks_per_frame = data[13];
+            // hack
+            midi.ticks_per_quarter_note =
+                (0x100u16 - (data[12] as u16)) // negative two's compliment
+                * (data[13] as u16);
         }
         println!("ticks_per_quarter_note={}", midi.ticks_per_quarter_note);
         println!("ticks_per_frame={}", midi.ticks_per_frame);
