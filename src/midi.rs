@@ -81,6 +81,15 @@ impl fmt::Display for Text {
     }
 }
 
+pub struct Copyright { // 0xff 0x02
+    name: String,
+}
+impl fmt::Display for Copyright {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "Copyright(name={})", self.name)
+    }
+}
+
 pub struct SequenceTrackName { // 0xff 0x03
     name: String,
 }
@@ -96,6 +105,24 @@ pub struct InstrumentName  { // 0xff 0x04
 impl fmt::Display for InstrumentName {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "InstrumentName(name={})", self.name)
+    }
+}
+
+pub struct Lyric  { // 0xff 0x05
+    name: String,
+}
+impl fmt::Display for Lyric {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "Lyric(name={})", self.name)
+    }
+}
+
+pub struct Marker  { // 0xff 0x06
+    name: String,
+}
+impl fmt::Display for Marker {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "Marker(name={})", self.name)
     }
 }
 
@@ -153,8 +180,11 @@ impl fmt::Display for SequencerEvent {
 
 pub enum MetaEvent {
     Text(Text),
+    Copyright(Copyright),
     SequenceTrackName(SequenceTrackName),
     InstrumentName(InstrumentName),
+    Lyric(Lyric),
+    Marker(Marker),
     EndOfTrack(EndOfTrack),
     SetTempo(SetTempo),
     TimeSignature(TimeSignature),
@@ -166,8 +196,11 @@ impl fmt::Display for MetaEvent {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             MetaEvent::Text(t) => write!(f, "{}", t),
+            MetaEvent::Copyright(t) => write!(f, "{}", t),
             MetaEvent::SequenceTrackName(name) => write!(f, "{}", name),
             MetaEvent::InstrumentName(iname) => write!(f, "{}", iname),
+            MetaEvent::Lyric(lyric) => write!(f, "{}", lyric),
+            MetaEvent::Marker(marker) => write!(f, "{}", marker),
             MetaEvent::EndOfTrack(_eot) => write!(f, "EndOfTrack"),
             MetaEvent::SetTempo(st) => write!(f, "{}", st),
             MetaEvent::TimeSignature(ts) => write!(f, "{}", ts),
@@ -387,14 +420,17 @@ fn get_meta_event(data: &Vec<u8>, offset: &mut usize) -> MetaEvent {
     assert!(data[offs] == 0xff);
     let mut meta_event = MetaEvent::Undef;
     match data[offs + 1] {
-        0x01 | 0x04 => {
+        0x01 | 0x02 | 0x04 | 0x05 | 0x06 => {
             *offset = offs + 2; 
             let length = get_variable_length_quantity(data, offset);
             println!("length={}", length);
             let text = get_string(data, offset, length);
             match data[offs + 1] {
                 0x01 => { meta_event = MetaEvent::Text(Text {name: text}) },
+                0x02 => { meta_event = MetaEvent::Copyright(Copyright {name: text}) },
                 0x04 => { meta_event = MetaEvent::InstrumentName(InstrumentName {name: text}) },
+                0x05 => { meta_event = MetaEvent::Lyric(Lyric {name: text}) },
+                0x06 => { meta_event = MetaEvent::Marker(Marker {name: text}) },
                 _ => {},
             }
         },
