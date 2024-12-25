@@ -126,6 +126,15 @@ impl fmt::Display for Marker {
     }
 }
 
+pub struct Port  { // 0xff 0x21
+    port: u8,
+}
+impl fmt::Display for Port {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "Port({})", self.port)
+    }
+}
+
 pub struct EndOfTrack { // 0xff 0x2f
 }
 
@@ -185,6 +194,7 @@ pub enum MetaEvent {
     InstrumentName(InstrumentName),
     Lyric(Lyric),
     Marker(Marker),
+    Port(Port),
     EndOfTrack(EndOfTrack),
     SetTempo(SetTempo),
     TimeSignature(TimeSignature),
@@ -201,6 +211,7 @@ impl fmt::Display for MetaEvent {
             MetaEvent::InstrumentName(iname) => write!(f, "{}", iname),
             MetaEvent::Lyric(lyric) => write!(f, "{}", lyric),
             MetaEvent::Marker(marker) => write!(f, "{}", marker),
+            MetaEvent::Port(port) => write!(f, "{}", port),
             MetaEvent::EndOfTrack(_eot) => write!(f, "EndOfTrack"),
             MetaEvent::SetTempo(st) => write!(f, "{}", st),
             MetaEvent::TimeSignature(ts) => write!(f, "{}", ts),
@@ -420,7 +431,7 @@ fn get_meta_event(data: &Vec<u8>, offset: &mut usize) -> MetaEvent {
     assert!(data[offs] == 0xff);
     let mut meta_event = MetaEvent::Undef;
     match data[offs + 1] {
-        0x01 | 0x02 | 0x04 | 0x05 | 0x06 => {
+        0x01 | 0x02 | 0x03 | 0x04 | 0x05 | 0x06 => {
             *offset = offs + 2; 
             let length = get_variable_length_quantity(data, offset);
             println!("length={}", length);
@@ -428,20 +439,22 @@ fn get_meta_event(data: &Vec<u8>, offset: &mut usize) -> MetaEvent {
             match data[offs + 1] {
                 0x01 => { meta_event = MetaEvent::Text(Text {name: text}) },
                 0x02 => { meta_event = MetaEvent::Copyright(Copyright {name: text}) },
+                0x03 => { meta_event = MetaEvent::SequenceTrackName(
+                    SequenceTrackName {name: text}) },
                 0x04 => { meta_event = MetaEvent::InstrumentName(InstrumentName {name: text}) },
                 0x05 => { meta_event = MetaEvent::Lyric(Lyric {name: text}) },
                 0x06 => { meta_event = MetaEvent::Marker(Marker {name: text}) },
                 _ => {},
             }
         },
-        0x03 => {
+        0x21 => {
             *offset = offs + 2; 
             let length = get_variable_length_quantity(data, offset);
-            let text = get_string(data, offset, length);
-            let seq_track_name = SequenceTrackName {
-               name: text,
-            };
-            meta_event = MetaEvent::SequenceTrackName(seq_track_name);
+            if length != 1 {
+                eprintln!("Unexpected length={}!=1 in Port", length);
+            }
+            meta_event = MetaEvent::Port(Port { port: data[*offset], });
+            *offset = *offset + (length as usize);
         },
         0x2f => {
             let n_bytes: usize = usize::from(data[offs + 2]);
