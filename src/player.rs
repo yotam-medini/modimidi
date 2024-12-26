@@ -415,6 +415,7 @@ fn send_next_batch_events(cb_data: &mut CallbackData) -> bool {
     while cb_data.next_abs_event < cb_data.abs_events.len() {
         println!("{}:{} next_abs_event={}", file!(), line!(), cb_data.next_abs_event);
         let abs_event = &cb_data.abs_events[cb_data.next_abs_event];
+	let at_ms = abs_event.time_ms + cb_data.seq_ctl.add_ms;
         match &abs_event.uae {
             UnionAbsEvent::NoteEvent(note_event) => {
                 play_note(
@@ -423,7 +424,7 @@ fn send_next_batch_events(cb_data: &mut CallbackData) -> bool {
                     note_event.key,
                     note_event.velocity,
                     note_event.duration_ms,
-                    abs_event.time_ms);
+                    at_ms);
             },
             UnionAbsEvent::ProgramChange(program_change) => {
                 println!("ProgramChange({})", program_change);
@@ -445,7 +446,7 @@ fn send_next_batch_events(cb_data: &mut CallbackData) -> bool {
                     cfluid::fluid_sequencer_unregister_client(
                         cb_data.seq_ctl.sequencer_ptr, cb_data.seq_ctl.periodic_seq_id);
                 }
-                send_final_event(cb_data.seq_ctl, abs_event.time_ms);
+                send_final_event(cb_data.seq_ctl, at_ms);
                 final_event = true;
             }
         }
