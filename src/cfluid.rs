@@ -89,4 +89,14 @@ extern "C" {
         -> *mut fluid_sequencer_t;
     pub fn new_fluid_synth(settings: *mut fluid_settings_t)
         -> *mut fluid_synth_t;
+    pub fn fluid_synth_get_pitch_bend(
+        synth: *const fluid_synth_t,
+        chan: i32,
+        ppitch_bend: *mut &i32) -> i32;
+    pub fn fluid_synth_get_pitch_wheel_sens(
+        synth: *const fluid_synth_t,
+        chan: i32,
+        pval: *mut &i32) -> i32;
+    pub fn fluid_synth_pitch_bend(synth: *mut fluid_synth_t, chan: i32, val: i32) -> i32;
+    pub fn fluid_synth_pitch_wheel_sens(synth: *mut fluid_synth_t, chan: i32, val: i32) -> i32;
 }
