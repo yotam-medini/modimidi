@@ -3,6 +3,13 @@ use std::fmt;
 use std::path::PathBuf;
 use std::fs;
 
+struct ParseState<'a> {
+    data: &'a Vec<u8>,
+    offset: usize,
+    last_status: u8,
+    last_channel: u8,
+}
+
 pub struct NoteOff { // 0x8?
     pub channel: u8,
     pub key: u8,
@@ -289,71 +296,71 @@ impl fmt::Display for Midi {
     }
 }
 
-fn get_usize(data: &Vec<u8>, offset: &mut usize) -> usize {
-    let offs: usize = *offset;
+fn get_usize(state: &mut ParseState) -> usize {
+    let offs: usize = state.offset;
     let ret: usize = 
-        (usize::from(data[offs + 0]) << (3*8)) |
-        (usize::from(data[offs + 1]) << (2*8)) |
-        (usize::from(data[offs + 2]) << (1*8)) |
-        (usize::from(data[offs + 3]));
-    *offset = offs + 4;
+        (usize::from(state.data[offs + 0]) << (3*8)) |
+        (usize::from(state.data[offs + 1]) << (2*8)) |
+        (usize::from(state.data[offs + 2]) << (1*8)) |
+        (usize::from(state.data[offs + 3]));
+    state.offset = offs + 4;
     ret
 }
 
-fn get_chunk_type(data: &Vec<u8>, offset: &mut usize) -> String {
+fn get_chunk_type(state: &mut ParseState) -> String {
     let mut chunk_type = String::new();
-    let next_offset: usize = *offset + 4;
-    for i in *offset..next_offset {
-        let cdata: char = char::from_u32(u32::from(data[i])).unwrap();
+    let next_offset: usize = state.offset + 4;
+    for i in state.offset..next_offset {
+        let cdata: char = char::from_u32(u32::from(state.data[i])).unwrap();
         chunk_type.push(cdata);
     }
-    *offset = next_offset;
+    state.offset = next_offset;
     chunk_type
 }
 
-fn get_variable_length_quantity(data: &Vec<u8>, offset: &mut usize) -> u32 {
+fn get_variable_length_quantity(state: &mut ParseState) -> u32 {
     let mut quantity: u32 = 0;
-    let mut offs: usize = *offset;
+    let mut offs: usize = state.offset;
     let mut done = false;
     let offs_limit = offs + 4;
     while (offs < offs_limit) && !done {
-        let b: u8 = data[offs];
+        let b: u8 = state.data[offs];
         println!("offs={}, b={:02x}", offs, b);
         quantity = (quantity << 7) + (u32::from(b) & 0x7f);
         done = (b & 0x80) == 0;
         offs += 1;
     }
-    *offset = offs;
+    state.offset = offs;
     quantity
 }
 
-fn get_sized_quantity(data: &Vec<u8>, offset: &mut usize) -> u32 {
-    let offs: usize = *offset + 2;
-    let n_bytes = data[offs] as usize;
+fn get_sized_quantity(state: &mut ParseState) -> u32 {
+    let offs: usize = state.offset + 2;
+    let n_bytes = state.data[offs] as usize;
     let mut quantity: u32 = 0;
     for i in offs+1..offs+1+n_bytes {
-        quantity = (quantity << 8) + u32::from(data[i]);
+        quantity = (quantity << 8) + u32::from(state.data[i]);
     }
-    *offset = offs + 1 + n_bytes;
+    state.offset = offs + 1 + n_bytes;
     quantity
 }
 
-fn get_string(data: &Vec<u8>, offset: &mut usize, length: u32) -> String {
+fn get_string(state: &mut ParseState, length: u32) -> String {
     let mut text = String::new();
-    let next_offset: usize = *offset + (length as usize);
-    for i in *offset..next_offset {
-        let cdata: char = char::from_u32(u32::from(data[i])).unwrap();
+    let next_offset: usize = state.offset + (length as usize);
+    for i in state.offset..next_offset {
+        let cdata: char = char::from_u32(u32::from(state.data[i])).unwrap();
         text.push(cdata);
     }
-    *offset = next_offset;
+    state.offset = next_offset;
     println!("get_string: text={}", text);
     text
 }
 
-fn get_track_event(data: &Vec<u8>, offset: &mut usize) -> TrackEvent {
-    let delta_time = get_variable_length_quantity(data, offset);
-    println!("delta_time={}, offset={}", delta_time, offset);
-    let event_first_byte = data[*offset];
+fn get_track_event(state: &mut ParseState) -> TrackEvent {
+    let delta_time = get_variable_length_quantity(state);
+    println!("delta_time={}, offset={}", delta_time, state.offset);
+    let event_first_byte = state.data[state.offset];
     println!("event_first_byte={:#02x}", event_first_byte);
     let mut te = TrackEvent {
         delta_time: delta_time,
@@ -361,9 +368,10 @@ fn get_track_event(data: &Vec<u8>, offset: &mut usize) -> TrackEvent {
     };
     match event_first_byte {
         0xff => { // Meta Event
-            println!("meta... {:#02x} {:#02x}", data[*offset + 1], data[*offset + 2]);
-            let meta_event = get_meta_event(data, offset);
-            println!("offset={}", offset);
+            println!("meta... {:#02x} {:#02x}",
+                state.data[state.offset + 1], state.data[state.offset + 2]);
+            let meta_event = get_meta_event(state);
+            println!("offset={}", state.offset);
             te.event = Event::MetaEvent(meta_event);
         },
         0xf0 | 0xf7 => { // Sysex Event
@@ -371,72 +379,75 @@ fn get_track_event(data: &Vec<u8>, offset: &mut usize) -> TrackEvent {
         },
         _ => { // Midi Event
             println!("midi event... {:#02x} {:#02x} {:#02x}",
-                data[*offset + 0], data[*offset + 1], data[*offset + 2]);
-            let midi_event = get_midi_event(data, offset);
-            println!("offset={}", offset);
+                state.data[state.offset + 0], state.data[state.offset + 1],
+                state.data[state.offset + 2]);
+            let midi_event = get_midi_event(state);
+            println!("offset={}", state.offset);
             te.event = Event::MidiEvent(midi_event);
         }
     }
     te
 }
 
-fn get_midi_event(data: &Vec<u8>, offset: &mut usize) -> MidiEvent {
-    let offs = *offset;
+fn get_midi_event(state: &mut ParseState) -> MidiEvent {
+    let offs = state.offset;
     let mut midi_event = MidiEvent::Undef;
-    let upper4 = (data[offs] >> 4) & 0xff;
+    let upper4 = (state.data[offs] >> 4) & 0xff;
     match upper4 {
         0x8 => {
             let note_off = NoteOff {
-                channel: data[offs] & 0xf,
-                key: data[offs + 1],
-                velocity: data[offs + 2],
+                channel: state.data[offs] & 0xf,
+                key: state.data[offs + 1],
+                velocity: state.data[offs + 2],
             };
             println!("note_off={}", note_off);
             midi_event = MidiEvent::NoteOff(note_off);
-            *offset = offs + 3;
+            state.offset = offs + 3;
         },
         0x9 => {
             let note_on = NoteOn {
-                channel: data[offs] & 0xf,
-                key: data[offs + 1],
-                velocity: data[offs + 2],
+                channel: state.data[offs] & 0xf,
+                key: state.data[offs + 1],
+                velocity: state.data[offs + 2],
             };
             println!("note_on={}", note_on);
             midi_event = MidiEvent::NoteOn(note_on);
-            *offset = offs + 3;
+            state.offset = offs + 3;
         },
         0xb => {
             let cc = ControlChange{
-                channel: data[offs] & 0xf,
-                number: data[offs + 1],
-                value: data[offs + 2],
+                channel: state.data[offs] & 0xf,
+                number: state.data[offs + 1],
+                value: state.data[offs + 2],
             };
             midi_event = MidiEvent::ControlChange(cc);
-            *offset = offs + 3;
+            state.offset = offs + 3;
         },
         0xc => {
-            let pc = ProgramChange{channel: data[offs] & 0xf, program: data[offs + 1]};
+            let pc = ProgramChange{channel: state.data[offs] & 0xf, program: state.data[offs + 1]};
             midi_event = MidiEvent::ProgramChange(pc);
-            *offset = offs + 2;
+            state.offset = offs + 2;
         },
         _ => {
-            eprintln!("Unsupported upper4={:x}", upper4);
+            eprintln!("Unsupported upper4={:x} data[{}]={:x}",
+		upper4, offs, state.data[offs]);
         },
     }
     midi_event
 }
 
-fn get_meta_event(data: &Vec<u8>, offset: &mut usize) -> MetaEvent {
-    let offs = *offset;
-    assert!(data[offs] == 0xff);
+fn get_meta_event(state: &mut ParseState) -> MetaEvent {
+    let offs = state.offset;
+    // let data = &state.data;
+    assert!(state.data[offs] == 0xff);
     let mut meta_event = MetaEvent::Undef;
-    match data[offs + 1] {
+    match state.data[offs + 1] {
         0x01 | 0x02 | 0x03 | 0x04 | 0x05 | 0x06 => {
-            *offset = offs + 2; 
-            let length = get_variable_length_quantity(data, offset);
+            state.offset = offs + 2; 
+            let length = get_variable_length_quantity(state);
             println!("length={}", length);
-            let text = get_string(data, offset, length);
-            match data[offs + 1] {
+            let text = get_string(state, length);
+            match state.data[offs + 1] {
                 0x01 => { meta_event = MetaEvent::Text(Text {name: text}) },
                 0x02 => { meta_event = MetaEvent::Copyright(Copyright {name: text}) },
                 0x03 => { meta_event = MetaEvent::SequenceTrackName(
@@ -448,64 +459,64 @@ fn get_meta_event(data: &Vec<u8>, offset: &mut usize) -> MetaEvent {
             }
         },
         0x21 => {
-            *offset = offs + 2; 
-            let length = get_variable_length_quantity(data, offset);
+            state.offset = offs + 2; 
+            let length = get_variable_length_quantity(state);
             if length != 1 {
                 eprintln!("Unexpected length={}!=1 in Port", length);
             }
-            meta_event = MetaEvent::Port(Port { port: data[*offset], });
-            *offset = *offset + (length as usize);
+            meta_event = MetaEvent::Port(Port { port: state.data[state.offset], });
+            state.offset = state.offset + (length as usize);
         },
         0x2f => {
-            let n_bytes: usize = usize::from(data[offs + 2]);
+            let n_bytes: usize = usize::from(state.data[offs + 2]);
             if n_bytes != 0 {
                 println!("Unexpected n_bytes={} in EndOfTrack", n_bytes);
             }
             meta_event = MetaEvent::EndOfTrack(EndOfTrack {});
-            *offset = offs + 3 + n_bytes;
+            state.offset = offs + 3 + n_bytes;
         },
         0x51 => {
-            let set_tempo = SetTempo { tttttt: get_sized_quantity(data, offset), };
+            let set_tempo = SetTempo { tttttt: get_sized_quantity(state), };
             meta_event = MetaEvent::SetTempo(set_tempo);
         },
         0x58 => {
-            if data[offs + 2] != 0x04 {
+            if state.data[offs + 2] != 0x04 {
                 eprintln!("Unexpected byte {:02x} followeing 0x58 TimeSignature meta event",
-                    data[offs + 2]);
+                    state.data[offs + 2]);
             }
             let time_signature = TimeSignature {
-                nn: data[offs + 3],
-                dd: data[offs + 4],
-                cc: data[offs + 5],
-                bb: data[offs + 6]
+                nn: state.data[offs + 3],
+                dd: state.data[offs + 4],
+                cc: state.data[offs + 5],
+                bb: state.data[offs + 6]
             };
             meta_event = MetaEvent::TimeSignature(time_signature);
-            *offset = offs + 7;
+            state.offset = offs + 7;
         },
         0x59 => {
-            if data[offs + 2] != 0x02 {
+            if state.data[offs + 2] != 0x02 {
                 eprintln!("Unexpected byte {:02x} followeing 0x59 KeySignature meta event",
-                    data[offs + 2]);
+                    state.data[offs + 2]);
             }
             let key_signature = KeySignature {
-                sf: data[offs + 3] as i16,
-                mi: data[offs + 4] != 0,
+                sf: state.data[offs + 3] as i16,
+                mi: state.data[offs + 4] != 0,
             };
             meta_event = MetaEvent::KeySignature(key_signature);
-            *offset = offs + 5;
+            state.offset = offs + 5;
         },
         0x7f => {
-            *offset = offs + 2;
-            let length = get_variable_length_quantity(data, offset);
+            state.offset = offs + 2;
+            let length = get_variable_length_quantity(state);
             let ulength: usize = length as usize;
             let sequencer_event = SequencerEvent {
-                data: data[*offset..*offset + ulength].to_vec(),
+                data: state.data[state.offset..state.offset + ulength].to_vec(),
             };
             meta_event = MetaEvent::SequencerEvent(sequencer_event);
-            *offset = *offset + ulength;
+            state.offset = state.offset + ulength;
         },
         _ => { 
-            eprintln!("Not yet supported MetaEvent {:#02x}", data[offs + 1]);
+            eprintln!("Not yet supported MetaEvent {:#02x}", state.data[offs + 1]);
         },
     }
     meta_event
@@ -521,41 +532,41 @@ impl Midi {
             self.error = err;
         }
     }
-    fn read_one_track(&mut self, data: &Vec<u8>, offset: &mut usize) {
-        self.read_track(&data, offset);
+    fn read_one_track(&mut self, state: &mut ParseState) {
+        self.read_track(state);
     }
-    fn read_tracks(&mut self, data: &Vec<u8>, offset: &mut usize) {
+    fn read_tracks(&mut self, state: &mut ParseState) {
         for itrack in 0..self.ntrks {
-            println!("itrack={}, offset={}", itrack, offset);
+            println!("itrack={}, offset={}", itrack, state.offset);
             if self.ok() {
-                self.read_track(&data, offset);
+                self.read_track(state);
             }
         }
     }
-    fn read_track(&mut self, data: &Vec<u8>, offset: &mut usize) {
+    fn read_track(&mut self, state: &mut ParseState) {
         const MTRK: &str = "MTrk";
-        println!("read_track: offset={}", offset);
-        let chunk_type = get_chunk_type(data, offset);
-        println!("read_track: chunk_type={}, offset={}", chunk_type, offset);
+        println!("read_track: offset={}", state.offset);
+        let chunk_type = get_chunk_type(state);
+        println!("read_track: chunk_type={}, offset={}", chunk_type, state.offset);
         if chunk_type != MTRK {
             self.set_error(format!("chunk_type={} != {} @ offset={}",
-                chunk_type, MTRK, offset));
+                chunk_type, MTRK, state.offset));
         } else {
-            let length = get_usize(&data, offset);
-            let offset_eot = *offset + length;
-            println!("length={}, offset={}, eot={}", length, offset, offset_eot);
+            let length = get_usize(state);
+            let offset_eot = state.offset + length;
+            println!("length={}, offset={}, eot={}", length, state.offset, offset_eot);
             let mut track = Track {
                 track_events: Vec::<TrackEvent>::new(),
             };
             let mut got_eot = false;
-            while (!got_eot) & (*offset < offset_eot) {
-                let track_event = get_track_event(data, offset);
+            while (!got_eot) & (state.offset < offset_eot) {
+                let track_event = get_track_event(state);
                 got_eot = matches!(track_event.event, Event::MetaEvent(MetaEvent::EndOfTrack(_)));
                 track.track_events.push(track_event);
             }
             println!("got_eot={}", got_eot);
             self.tracks.push(track);
-            *offset = offset_eot;
+            state.offset = offset_eot;
         }
     }
 }
@@ -584,6 +595,12 @@ pub fn parse_midi_file(filename: &PathBuf) -> Midi {
     println!("{:?} size={}", filename, file_size);
     let data: Vec<u8> =
         if midi.ok() {fs::read(filename).unwrap() } else { Vec::<u8>::new() };
+    let mut parse_state = ParseState {
+        data: &data,
+        offset: 0,
+        last_status: 0,
+        last_channel: 0,
+    };
     if midi.ok() {
         println!("#(data)={}", data.len());
         for w in 0..cmp::min(0x40,(file_size/4) as usize) {
@@ -610,15 +627,15 @@ pub fn parse_midi_file(filename: &PathBuf) -> Midi {
         }
         let mut offset = 0;
         const MTHD: &str = "MThd";
-        let mthd = get_chunk_type(&data, &mut offset);
+        let mthd = get_chunk_type(&mut parse_state);
         println!("mthd={}", mthd);
         if mthd != MTHD {
             midi.set_error(format!("Header chunk: {} != {}", mthd, MTHD));
         }
     }
     if midi.ok() {
-        let mut offset: usize = 4;
-        length = get_usize(&data, &mut offset);
+	parse_state.offset = 4;
+        length = get_usize(&mut parse_state);
         midi.format = (u16::from(data[8]) << 8) | u16::from(data[9]);
         midi.ntrks = (u16::from(data[10]) << 8) | u16::from(data[11]);
         println!("length={}, format={}, ntrks={}",
@@ -644,10 +661,10 @@ pub fn parse_midi_file(filename: &PathBuf) -> Midi {
         println!("negative_smpte_format={}", midi.negative_smpte_format);
     }
     if midi.ok() {
-        let mut offset: usize = 4 + 4 + length;
+        parse_state.offset = 4 + 4 + length;
         match midi.format {
-            0 => midi.read_one_track(&data, &mut offset),
-            1|2 => midi.read_tracks(&data, &mut offset),
+            0 => midi.read_one_track(&mut parse_state),
+            1|2 => midi.read_tracks(&mut parse_state),
             _ => midi.set_error(format!("Unsupported midi format: {}",
                 midi.format))
         }
