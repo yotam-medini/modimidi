@@ -133,6 +133,15 @@ impl fmt::Display for Marker {
     }
 }
 
+pub struct Device  { // 0xff 0x09
+    name: String,
+}
+impl fmt::Display for Device {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "Device(name={})", self.name)
+    }
+}
+
 pub struct Port  { // 0xff 0x21
     port: u8,
 }
@@ -201,6 +210,7 @@ pub enum MetaEvent {
     InstrumentName(InstrumentName),
     Lyric(Lyric),
     Marker(Marker),
+    Device(Device),
     Port(Port),
     EndOfTrack(EndOfTrack),
     SetTempo(SetTempo),
@@ -218,6 +228,7 @@ impl fmt::Display for MetaEvent {
             MetaEvent::InstrumentName(iname) => write!(f, "{}", iname),
             MetaEvent::Lyric(lyric) => write!(f, "{}", lyric),
             MetaEvent::Marker(marker) => write!(f, "{}", marker),
+            MetaEvent::Device(device) => write!(f, "{}", device),
             MetaEvent::Port(port) => write!(f, "{}", port),
             MetaEvent::EndOfTrack(_eot) => write!(f, "EndOfTrack"),
             MetaEvent::SetTempo(st) => write!(f, "{}", st),
@@ -435,8 +446,8 @@ fn get_midi_event(state: &mut ParseState) -> MidiEvent {
             state.offset = offs + 1;
         },
         _ => {
-            eprintln!("Unsupported upper4={:x} data[{}]={:x}",
-		upper4, offs, state.data[offs]);
+            eprintln!("Unsupported upper4={:x} last_status={}, data[{}]={:x}",
+		upper4, state.last_status, offs, state.data[offs]);
         },
     }
     midi_event
@@ -448,7 +459,7 @@ fn get_meta_event(state: &mut ParseState) -> MetaEvent {
     assert!(state.data[offs] == 0xff);
     let mut meta_event = MetaEvent::Undef;
     match state.data[offs + 1] {
-        0x01 | 0x02 | 0x03 | 0x04 | 0x05 | 0x06 => {
+        0x01 | 0x02 | 0x03 | 0x04 | 0x05 | 0x06 | 0x09 => {
             state.offset = offs + 2; 
             let length = get_variable_length_quantity(state);
             println!("length={}", length);
@@ -461,6 +472,7 @@ fn get_meta_event(state: &mut ParseState) -> MetaEvent {
                 0x04 => { meta_event = MetaEvent::InstrumentName(InstrumentName {name: text}) },
                 0x05 => { meta_event = MetaEvent::Lyric(Lyric {name: text}) },
                 0x06 => { meta_event = MetaEvent::Marker(Marker {name: text}) },
+                0x09 => { meta_event = MetaEvent::Device(Device {name: text}) }, // non-standard
                 _ => {},
             }
         },
