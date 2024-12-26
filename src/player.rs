@@ -135,6 +135,15 @@ impl fmt::Display for ProgramChange {
         write!(f, "ProgramChange(channel={}, program={})", self.channel, self.program)
     }
 }
+struct PitchWheel {
+    channel: i32,
+    bend: i32,
+}
+impl fmt::Display for PitchWheel {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "PitchWheel(channel={}, bend={})", self.channel, self.bend)
+    }
+}
 struct FinalEvent {
 }
 impl fmt::Display for FinalEvent {
@@ -144,6 +153,7 @@ impl fmt::Display for FinalEvent {
 enum UnionAbsEvent {
     NoteEvent(NoteEvent),
     ProgramChange(ProgramChange),
+    PitchWheel(PitchWheel),
     FinalEvent(FinalEvent),
 }
 struct AbsEvent {
@@ -157,6 +167,7 @@ impl fmt::Display for AbsEvent {
         match &self.uae {
             UnionAbsEvent::NoteEvent(e) => write!(f, "{}", e),
             UnionAbsEvent::ProgramChange(e) => write!(f, "{}", e),
+            UnionAbsEvent::PitchWheel(e) => write!(f, "{}", e),
             UnionAbsEvent::FinalEvent(e) => write!(f, "{}", e),
         }
     }
@@ -262,6 +273,15 @@ fn abs_events_push(
                 time_ms: date_ms_modified,
                 time_ms_original: date_ms,
                 uae: UnionAbsEvent::ProgramChange(pc)
+            });
+        },
+        midi::MidiEvent::PitchWheel(e) => {
+            max_by(&mut aed.final_ms, date_ms_modified);
+            let pw = PitchWheel { channel: i32::from(e.channel), bend: i32::from(e.bend), };
+            aed.abs_events.push(AbsEvent{
+                time_ms: date_ms_modified,
+                time_ms_original: date_ms,
+                uae: UnionAbsEvent::PitchWheel(pw)
             });
         },
         _ => { println!("{}:{} ignored: {}", file!(), line!(), me);},
@@ -415,7 +435,7 @@ fn send_next_batch_events(cb_data: &mut CallbackData) -> bool {
     while cb_data.next_abs_event < cb_data.abs_events.len() {
         println!("{}:{} next_abs_event={}", file!(), line!(), cb_data.next_abs_event);
         let abs_event = &cb_data.abs_events[cb_data.next_abs_event];
-	let at_ms = abs_event.time_ms + cb_data.seq_ctl.add_ms;
+        let at_ms = abs_event.time_ms + cb_data.seq_ctl.add_ms;
         match &abs_event.uae {
             UnionAbsEvent::NoteEvent(note_event) => {
                 play_note(
@@ -441,6 +461,17 @@ fn send_next_batch_events(cb_data: &mut CallbackData) -> bool {
                     eprintln!("fluid_synth_program_select failed ret={}", ret);
                 }
             },
+            UnionAbsEvent::PitchWheel(pitch_wheel) => {
+		unsafe {
+                    let ret = cfluid::fluid_synth_pitch_bend(
+		        cb_data.seq_ctl.synth_ptr,
+                        pitch_wheel.channel,
+                        pitch_wheel.bend);
+                    if ret != cfluid::FLUID_OK {
+                        eprintln!("fluid_synth_pitch_bend failed ret={}", ret);
+                    }
+                }
+            }
             UnionAbsEvent::FinalEvent(_e) => { // must be the last event
                 unsafe {
                     cfluid::fluid_sequencer_unregister_client(
