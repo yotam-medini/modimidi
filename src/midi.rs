@@ -390,43 +390,49 @@ fn get_track_event(state: &mut ParseState) -> TrackEvent {
 }
 
 fn get_midi_event(state: &mut ParseState) -> MidiEvent {
-    let offs = state.offset;
+    let mut offs = state.offset;
     let mut midi_event = MidiEvent::Undef;
     let upper4 = (state.data[offs] >> 4) & 0xff;
-    match upper4 {
-        0x8 => {
+    if upper4 & 0x8 != 0 {
+        state.last_status = upper4 & 0x7;
+        state.last_channel = state.data[offs] & 0xf;
+        offs += 1;
+    }
+    match state.last_status {
+        0x0 => {
             let note_off = NoteOff {
-                channel: state.data[offs] & 0xf,
-                key: state.data[offs + 1],
-                velocity: state.data[offs + 2],
+                channel: state.last_channel,
+                key: state.data[offs],
+                velocity: state.data[offs + 1],
             };
             println!("note_off={}", note_off);
             midi_event = MidiEvent::NoteOff(note_off);
-            state.offset = offs + 3;
+            state.offset = offs + 2;
         },
-        0x9 => {
+        0x1 => {
             let note_on = NoteOn {
-                channel: state.data[offs] & 0xf,
-                key: state.data[offs + 1],
-                velocity: state.data[offs + 2],
+                channel: state.last_channel,
+                key: state.data[offs],
+                velocity: state.data[offs + 1],
             };
             println!("note_on={}", note_on);
             midi_event = MidiEvent::NoteOn(note_on);
-            state.offset = offs + 3;
+            state.offset = offs + 2;
         },
-        0xb => {
+        // 0xa =>  Key Pressure
+        0x3 => {
             let cc = ControlChange{
-                channel: state.data[offs] & 0xf,
-                number: state.data[offs + 1],
-                value: state.data[offs + 2],
+                channel: state.last_channel,
+                number: state.data[offs],
+                value: state.data[offs + 1],
             };
             midi_event = MidiEvent::ControlChange(cc);
-            state.offset = offs + 3;
-        },
-        0xc => {
-            let pc = ProgramChange{channel: state.data[offs] & 0xf, program: state.data[offs + 1]};
-            midi_event = MidiEvent::ProgramChange(pc);
             state.offset = offs + 2;
+        },
+        0x4 => {
+            let pc = ProgramChange{channel: state.last_channel, program: state.data[offs]};
+            midi_event = MidiEvent::ProgramChange(pc);
+            state.offset = offs + 1;
         },
         _ => {
             eprintln!("Unsupported upper4={:x} data[{}]={:x}",
