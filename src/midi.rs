@@ -52,8 +52,17 @@ pub struct ProgramChange { // 0xc
 }
 impl fmt::Display for ProgramChange {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "ProgramChange(channel={}, program={})",
-            self.channel, self.program)
+        write!(f, "ProgramChange(channel={}, program={})", self.channel, self.program)
+    }
+}
+
+pub struct PitchWheel { // 0xe
+    pub channel: u8,
+    pub bend: u16,
+}
+impl fmt::Display for PitchWheel {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "PitchWheel(channel={}, bend={})", self.channel, self.bend)
     }
 }
 
@@ -62,15 +71,17 @@ pub enum MidiEvent {
     NoteOn(NoteOn),
     ControlChange(ControlChange),
     ProgramChange(ProgramChange),
+    PitchWheel(PitchWheel),
     Undef,
 }
 impl fmt::Display for MidiEvent {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            MidiEvent::ProgramChange(pc) => write!(f, "{}", pc),
-            MidiEvent::ControlChange(cc) => write!(f, "{}", cc),
             MidiEvent::NoteOff(note_off) => write!(f, "{}", note_off),
             MidiEvent::NoteOn(note_on) => write!(f, "{}", note_on),
+            MidiEvent::ControlChange(cc) => write!(f, "{}", cc),
+            MidiEvent::ProgramChange(pc) => write!(f, "{}", pc),
+            MidiEvent::PitchWheel(pw) => write!(f, "{}", pw),
             MidiEvent::Undef => write!(f, "Undef"),
         }
     }
@@ -444,6 +455,14 @@ fn get_midi_event(state: &mut ParseState) -> MidiEvent {
             let pc = ProgramChange{channel: state.last_channel, program: state.data[offs]};
             midi_event = MidiEvent::ProgramChange(pc);
             state.offset = offs + 1;
+        },
+        0x6 => {
+            let lllllll: u16 = (state.data[offs] & 0x7f) as u16;
+            let mmmmmmm: u16 = (state.data[offs + 1] & 0x7f) as u16;
+            let bend: u16 = (mmmmmmm << 7) | lllllll;
+            let pw = PitchWheel{channel: state.last_channel, bend: bend, };
+            midi_event = MidiEvent::PitchWheel(pw);
+            state.offset = offs + 2;
         },
         _ => {
             eprintln!("Unsupported upper4={:x} last_status={}, data[{}]={:x}",
