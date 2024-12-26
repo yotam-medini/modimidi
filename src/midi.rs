@@ -273,7 +273,7 @@ pub struct TrackEvent {
 }
 impl fmt::Display for TrackEvent {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "TrackEvent(delta_time={}, event={}", self.delta_time, self.event)
+        write!(f, "TrackEvent(delta_time={}, event={})", self.delta_time, self.event)
     }
 }
 
