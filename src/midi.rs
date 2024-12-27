@@ -552,8 +552,12 @@ fn get_meta_event(state: &mut ParseState) -> MetaEvent {
             meta_event = MetaEvent::SequencerEvent(sequencer_event);
             state.offset = state.offset + ulength;
         },
-        _ => { 
-            eprintln!("Not yet supported MetaEvent {:#02x}", state.data[offs + 1]);
+        _ => {
+            state.offset = offs + 2; 
+            let length = get_variable_length_quantity(state);
+            eprintln!("Not yet supported MetaEvent {:#02x} length={}",
+                state.data[offs + 1], length);
+            state.offset += length as usize;
         },
     }
     meta_event
