@@ -153,6 +153,15 @@ impl fmt::Display for Device {
     }
 }
 
+pub struct ChannelPrefix  { // 0xff 0x20
+    channel: u8,
+}
+impl fmt::Display for ChannelPrefix {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "ChannelPrefix(channel={})", self.channel)
+    }
+}
+
 pub struct Port  { // 0xff 0x21
     port: u8,
 }
@@ -171,6 +180,20 @@ pub struct SetTempo { // 0xff 0x51
 impl fmt::Display for SetTempo {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "SetTempo(tttttt={})", self.tttttt)
+    }
+}
+
+pub struct SmpteOffset { // 0xff 0x54
+    pub hr: u8,
+    pub mn: u8,
+    pub se: u8,
+    pub fr: u8,
+    pub ff: u8,
+}
+impl fmt::Display for SmpteOffset {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "SmpteOffset(hr={}, mn={}, se={}, fr={}, ff={})",
+            self.hr, self.mn, self.se, self.fr, self.ff)
     }
 }
 
@@ -222,9 +245,11 @@ pub enum MetaEvent {
     Lyric(Lyric),
     Marker(Marker),
     Device(Device),
+    ChannelPrefix(ChannelPrefix),
     Port(Port),
     EndOfTrack(EndOfTrack),
     SetTempo(SetTempo),
+    SmpteOffset(SmpteOffset),
     TimeSignature(TimeSignature),
     KeySignature(KeySignature),
     SequencerEvent(SequencerEvent),
@@ -240,9 +265,11 @@ impl fmt::Display for MetaEvent {
             MetaEvent::Lyric(lyric) => write!(f, "{}", lyric),
             MetaEvent::Marker(marker) => write!(f, "{}", marker),
             MetaEvent::Device(device) => write!(f, "{}", device),
+            MetaEvent::ChannelPrefix(cp) => write!(f, "{}", cp),
             MetaEvent::Port(port) => write!(f, "{}", port),
             MetaEvent::EndOfTrack(_eot) => write!(f, "EndOfTrack"),
             MetaEvent::SetTempo(st) => write!(f, "{}", st),
+            MetaEvent::SmpteOffset(so) => write!(f, "{}", so),
             MetaEvent::TimeSignature(ts) => write!(f, "{}", ts),
             MetaEvent::KeySignature(ks) => write!(f, "{}", ks),
             MetaEvent::SequencerEvent(se) => write!(f, "{}", se),
@@ -495,6 +522,17 @@ fn get_meta_event(state: &mut ParseState) -> MetaEvent {
                 _ => {},
             }
         },
+        0x20 => {
+            state.offset = offs + 2; 
+            let length = get_variable_length_quantity(state);
+            if length != 1 {
+                eprintln!("Unexpected length={}!=1 in ChannelPrefix", length);
+            }
+            meta_event = MetaEvent::ChannelPrefix(ChannelPrefix { 
+                channel: state.data[state.offset], 
+            });
+            state.offset = state.offset + (length as usize);
+        },
         0x21 => {
             state.offset = offs + 2; 
             let length = get_variable_length_quantity(state);
@@ -507,7 +545,7 @@ fn get_meta_event(state: &mut ParseState) -> MetaEvent {
         0x2f => {
             let n_bytes: usize = usize::from(state.data[offs + 2]);
             if n_bytes != 0 {
-                println!("Unexpected n_bytes={} in EndOfTrack", n_bytes);
+                eprintln!("Unexpected n_bytes={} in EndOfTrack", n_bytes);
             }
             meta_event = MetaEvent::EndOfTrack(EndOfTrack {});
             state.offset = offs + 3 + n_bytes;
@@ -515,6 +553,21 @@ fn get_meta_event(state: &mut ParseState) -> MetaEvent {
         0x51 => {
             let set_tempo = SetTempo { tttttt: get_sized_quantity(state), };
             meta_event = MetaEvent::SetTempo(set_tempo);
+        },
+        0x54 => {
+            let n_bytes: usize = usize::from(state.data[offs + 2]);
+            if n_bytes != 5 {
+                eprintln!("Unexpected n_bytes={}!=5 in SMPTE Offset", n_bytes);
+            }
+            let smpte_offset = SmpteOffset {
+                hr: state.data[offs + 3 + 0],
+                mn: state.data[offs + 3 + 1],
+                se: state.data[offs + 3 + 2],
+                fr: state.data[offs + 3 + 3],
+                ff: state.data[offs + 3 + 4],
+            };
+            meta_event = MetaEvent::SmpteOffset(smpte_offset);
+            state.offset = offs + 3 + n_bytes;
         },
         0x58 => {
             if state.data[offs + 2] != 0x04 {
@@ -555,8 +608,7 @@ fn get_meta_event(state: &mut ParseState) -> MetaEvent {
         _ => {
             state.offset = offs + 2; 
             let length = get_variable_length_quantity(state);
-            eprintln!("Not yet supported MetaEvent {:#02x} length={}",
-                state.data[offs + 1], length);
+            eprintln!("Unsupported MetaEvent {:#02x} length={}", state.data[offs + 1], length);
             state.offset += length as usize;
         },
     }
