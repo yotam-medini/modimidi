@@ -90,6 +90,15 @@ impl fmt::Display for MidiEvent {
 pub struct SysexEvent {
 }
 
+pub struct SequenceNumber { // 0xff 0x01
+    number: u16,
+}
+impl fmt::Display for SequenceNumber {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "SequenceNumber(number={})", self.number)
+    }
+}
+
 pub struct Text { // 0xff 0x01
     name: String,
 }
@@ -239,6 +248,7 @@ impl fmt::Display for SequencerEvent {
 
 pub enum MetaEvent {
     Text(Text),
+    SequenceNumber(SequenceNumber),
     Copyright(Copyright),
     SequenceTrackName(SequenceTrackName),
     InstrumentName(InstrumentName),
@@ -259,6 +269,7 @@ impl fmt::Display for MetaEvent {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             MetaEvent::Text(t) => write!(f, "{}", t),
+            MetaEvent::SequenceNumber(sn) => write!(f, "{}", sn),
             MetaEvent::Copyright(t) => write!(f, "{}", t),
             MetaEvent::SequenceTrackName(name) => write!(f, "{}", name),
             MetaEvent::InstrumentName(iname) => write!(f, "{}", iname),
@@ -505,6 +516,17 @@ fn get_meta_event(state: &mut ParseState) -> MetaEvent {
     assert!(state.data[offs] == 0xff);
     let mut meta_event = MetaEvent::Undef;
     match state.data[offs + 1] {
+        0x00 => {
+            let length = state.data[offs + 2] as usize;
+            if length != 2 {
+                eprintln!("Unexpected length={}!=2 in SequenceNumber", length);
+            }
+            meta_event = MetaEvent::SequenceNumber(SequenceNumber { number:
+                ((state.data[offs + 3] as u16) << 8) |
+               (state.data[offs + 3] as u16)
+            });
+           state.offset = offs + 3 + length;
+        },
         0x01 | 0x02 | 0x03 | 0x04 | 0x05 | 0x06 | 0x09 => {
             state.offset = offs + 2; 
             let length = get_variable_length_quantity(state);
