@@ -31,21 +31,23 @@ impl fmt::Display for SequencerControl {
 }
 
 fn create_synth(seq_ctl: &mut SequencerControl, sound_font_path: &String) {
-    println!("create_synth");
     unsafe {
         seq_ctl.settings_ptr = cfluid::new_fluid_settings();
-	let mut ret;
-	let mut key;
-	key =
-	    CString::new("synth.reverb.active").expect("CString::new failed");
-	ret  = cfluid::fluid_settings_setint(seq_ctl.settings_ptr, key.as_ptr(), 0);
-	println!("setting reverb: ret={}", ret);
-	key =
-	    CString::new("synth.chorus.active").expect("CString::new failed");
-	ret  = cfluid::fluid_settings_setint(seq_ctl.settings_ptr, key.as_ptr(), 0);
-	println!("setting chorus: ret={}", ret);
-	let _synth = cfluid::new_fluid_synth(seq_ctl.settings_ptr);
-	seq_ctl.synth_ptr = cfluid::new_fluid_synth(seq_ctl.settings_ptr);
+        let mut ret;
+        let mut key;
+        key =
+            CString::new("synth.reverb.active").expect("CString::new failed");
+        ret = cfluid::fluid_settings_setint(seq_ctl.settings_ptr, key.as_ptr(), 0);
+        if ret != cfluid::FLUID_OK {
+            eprintln!("setting reverb: ret={}", ret);
+        }
+        key = CString::new("synth.chorus.active").expect("CString::new failed");
+        ret  = cfluid::fluid_settings_setint(seq_ctl.settings_ptr, key.as_ptr(), 0);
+        if ret != cfluid::FLUID_OK {
+            eprintln!("setting chorus: ret={}", ret);
+        }
+        let _synth = cfluid::new_fluid_synth(seq_ctl.settings_ptr);
+        seq_ctl.synth_ptr = cfluid::new_fluid_synth(seq_ctl.settings_ptr);
         let sf_path = sound_font_path.to_owned(); 
         let c_str_sf_path = CString::new(sf_path).unwrap();
         seq_ctl.sfont_id = cfluid::fluid_synth_sfload(
@@ -67,8 +69,7 @@ fn load_sound_font(synth_ptr: *mut cfluid::fluid_synth_t) {
     let path = CString::new("/usr/share/sounds/sf2/FluidR3_GM.sf2").expect(
         "CString::new failed");
     unsafe {
-        let fond_id = cfluid::fluid_synth_sfload(synth_ptr, path.as_ptr(), 1);
-        println!("load_sound_font: fond_id={}", fond_id);
+        let _ = cfluid::fluid_synth_sfload(synth_ptr, path.as_ptr(), 1);
     }
 }
 
@@ -76,7 +77,6 @@ pub fn create_sequencer(
     sound_font_path: &String,
     batch_duration_ms: u32,
     initial_delay_ms: u32) -> SequencerControl {
-    println!("create_sequencer({})", sound_font_path);
     let mut sequencer = SequencerControl {
         settings_ptr: std::ptr::null_mut(),
         synth_ptr: std::ptr::null_mut(),
@@ -92,14 +92,6 @@ pub fn create_sequencer(
         add_ms: 0, // to be set later
     };
     create_synth(&mut sequencer, sound_font_path);
-    println!(
-        concat!(
-            "sequencer: synth_ptr={:?}, audio_driver_ptr={:?}, ",
-            "sequencer_ptr={:?}, ",
-            "synth_seq_id={}, periodic_seq_id={}, "),
-        sequencer.synth_ptr, sequencer.audio_driver_ptr,
-        sequencer.sequencer_ptr,
-        sequencer.synth_seq_id, sequencer.periodic_seq_id);
     load_sound_font(sequencer.synth_ptr);
     sequencer
 }

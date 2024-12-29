@@ -124,38 +124,28 @@ fn args_get_matches () -> clap::ArgMatches {
 
 fn main() {
     let matches = args_get_matches();
-    let debug_flags = matches.get_one::<u32>("debugflags").unwrap();
-    println!("debug_flags={}", debug_flags);
+    let debug_flags: u32 = *(matches.get_one::<u32>("debugflags").unwrap());
     if let Some(seqdemo) = matches.get_one::<bool>("seqdemo") {
-        println!("seqdemo={}", seqdemo);
         if *seqdemo {
             seqdemo::sequencer();
             return;
         }
     }
-    // let soundfounts: &str = matches.get_one::<String>("soundfounts").unwrap();
     let soundfounts = matches.get_one::<String>("soundfounts").unwrap();
-    println!("soundfounts={soundfounts}");
     let batch_duration_ms: u32 = *matches.get_one::<u32>("batchduration").unwrap();
-    println!("{}:{} batch_duration_ms={}", file!(), line!(), batch_duration_ms);
     let initial_delay_ms: u32 = *matches.get_one::<u32>("delay").unwrap();
-    println!("{}:{} initial_delay_ms={}", file!(), line!(), initial_delay_ms);
-    let mut sequencer = sequencer::create_sequencer(soundfounts, batch_duration_ms, initial_delay_ms);
+    let mut sequencer = sequencer::create_sequencer(
+	soundfounts, batch_duration_ms, initial_delay_ms);
     let begin: u32 = *matches.get_one::<u32>("begin").unwrap_or(&0);
     let end: u32 = *matches.get_one::<u32>("end").unwrap_or(&0xffffffff);
     let tempo_factor: f64 = *matches.get_one::<f64>("tempo").unwrap();
-    println!("{}:{} begin={}, end={}, tempo_factor={}", file!(), line!(), begin, end, tempo_factor);
     let progress : bool = matches.get_flag("progress");
-    println!("{}:{} progress={}", file!(), line!(), progress);
     let midifile = matches.get_one::<PathBuf>("midifile").unwrap();
-    println!("midifile={:?}", midifile);
-    let parsed_midi = midi::parse_midi_file(&midifile);
-    println!("parsed_midi={}", parsed_midi);
+    let parsed_midi = midi::parse_midi_file(&midifile, debug_flags);
     let exit_code = if parsed_midi.ok() { 0 } else { 1 };
     if parsed_midi.ok() {
         player::play(&mut sequencer, &parsed_midi, begin, end, tempo_factor, progress);
     }
     sequencer::destroy_sequencer(&mut sequencer);
-    println!("exit_code={}", exit_code);
     std::process::exit(exit_code);
 }

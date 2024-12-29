@@ -630,7 +630,8 @@ fn get_meta_event(state: &mut ParseState) -> MetaEvent {
         _ => {
             state.offset = offs + 2; 
             let length = get_variable_length_quantity(state);
-            eprintln!("Unsupported MetaEvent {:#02x} length={}", state.data[offs + 1], length);
+            eprintln!("Unsupported MetaEvent {:#02x} length={} at offset={}",
+                state.data[offs + 1], length, offs);
             state.offset += length as usize;
         },
     }
@@ -686,8 +687,7 @@ impl Midi {
     }
 }
 
-pub fn parse_midi_file(filename: &PathBuf) -> Midi {
-    println!("parse_midi_file({:?})", filename);
+pub fn parse_midi_file(filename: &PathBuf, debug_flags: u32) -> Midi {
     let mut midi = Midi {
         error: String::new(),
         format: 0xffff,
