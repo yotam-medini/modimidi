@@ -570,7 +570,7 @@ extern "C" fn progress_callback(
                     let dt = time - cb_data.seq_ctl.add_ms;
                     let dt_div_f = cb_data.div_factor * (dt as f64);
                     let btime = (dt_div_f as u32) + cb_data.user_mod.begin_ms;
-                    if btime <= last_ms {
+                    if cb_data.seq_ctl.add_ms <= btime && btime <= last_ms {
                         let mmss_done = util::milliseconds_to_string(btime - cb_data.seq_ctl.add_ms);
                         let mmss_final = util::milliseconds_to_string(last_ms);
                         write!(stdout, "\rProgress: {} / {}", mmss_done, mmss_final);
