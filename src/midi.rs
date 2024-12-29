@@ -385,7 +385,6 @@ fn get_variable_length_quantity(state: &mut ParseState) -> u32 {
     let offs_limit = offs + 4;
     while (offs < offs_limit) && !done {
         let b: u8 = state.data[offs];
-        println!("offs={}, b={:02x}", offs, b);
         quantity = (quantity << 7) + (u32::from(b) & 0x7f);
         done = (b & 0x80) == 0;
         offs += 1;
@@ -413,36 +412,26 @@ fn get_string(state: &mut ParseState, length: u32) -> String {
         text.push(cdata);
     }
     state.offset = next_offset;
-    println!("get_string: text={}", text);
     text
 }
 
 fn get_track_event(state: &mut ParseState) -> TrackEvent {
     let delta_time = get_variable_length_quantity(state);
-    println!("delta_time={}, offset={}", delta_time, state.offset);
     let event_first_byte = state.data[state.offset];
-    println!("event_first_byte={:#02x}", event_first_byte);
     let mut te = TrackEvent {
         delta_time: delta_time,
         event: Event::Undef,
     };
     match event_first_byte {
         0xff => { // Meta Event
-            println!("meta... {:#02x} {:#02x}",
-                state.data[state.offset + 1], state.data[state.offset + 2]);
             let meta_event = get_meta_event(state);
-            println!("offset={}", state.offset);
             te.event = Event::MetaEvent(meta_event);
         },
         0xf0 | 0xf7 => { // Sysex Event
-            println!("Sysex Event")
+            println!("Sysex Event ignored")
         },
         _ => { // Midi Event
-            println!("midi event... {:#02x} {:#02x} {:#02x}",
-                state.data[state.offset + 0], state.data[state.offset + 1],
-                state.data[state.offset + 2]);
             let midi_event = get_midi_event(state);
-            println!("offset={}", state.offset);
             te.event = Event::MidiEvent(midi_event);
         }
     }
@@ -465,7 +454,6 @@ fn get_midi_event(state: &mut ParseState) -> MidiEvent {
                 key: state.data[offs],
                 velocity: state.data[offs + 1],
             };
-            println!("note_off={}", note_off);
             midi_event = MidiEvent::NoteOff(note_off);
             state.offset = offs + 2;
         },
@@ -475,7 +463,6 @@ fn get_midi_event(state: &mut ParseState) -> MidiEvent {
                 key: state.data[offs],
                 velocity: state.data[offs + 1],
             };
-            println!("note_on={}", note_on);
             midi_event = MidiEvent::NoteOn(note_on);
             state.offset = offs + 2;
         },
@@ -530,7 +517,6 @@ fn get_meta_event(state: &mut ParseState) -> MetaEvent {
         0x01 | 0x02 | 0x03 | 0x04 | 0x05 | 0x06 | 0x09 => {
             state.offset = offs + 2; 
             let length = get_variable_length_quantity(state);
-            println!("length={}", length);
             let text = get_string(state, length);
             match state.data[offs + 1] {
                 0x01 => { meta_event = MetaEvent::Text(Text {name: text}) },
@@ -653,7 +639,6 @@ impl Midi {
     }
     fn read_tracks(&mut self, state: &mut ParseState) {
         for itrack in 0..self.ntrks {
-            println!("itrack={}, offset={}", itrack, state.offset);
             if self.ok() {
                 self.read_track(state);
             }
@@ -661,16 +646,13 @@ impl Midi {
     }
     fn read_track(&mut self, state: &mut ParseState) {
         const MTRK: &str = "MTrk";
-        println!("read_track: offset={}", state.offset);
         let chunk_type = get_chunk_type(state);
-        println!("read_track: chunk_type={}, offset={}", chunk_type, state.offset);
         if chunk_type != MTRK {
             self.set_error(format!("chunk_type={} != {} @ offset={}",
                 chunk_type, MTRK, state.offset));
         } else {
             let length = get_usize(state);
             let offset_eot = state.offset + length;
-            println!("length={}, offset={}, eot={}", length, state.offset, offset_eot);
             let mut track = Track {
                 track_events: Vec::<TrackEvent>::new(),
             };
@@ -680,10 +662,35 @@ impl Midi {
                 got_eot = matches!(track_event.event, Event::MetaEvent(MetaEvent::EndOfTrack(_)));
                 track.track_events.push(track_event);
             }
-            println!("got_eot={}", got_eot);
             self.tracks.push(track);
             state.offset = offset_eot;
         }
+    }
+}
+
+fn dump_start(data: &Vec<u8>) {
+    println!("#(data)={}", data.len());
+    for w in 0..cmp::min(0x40, (data.len()/4) as usize) {
+        let mut s4 = String::new();
+        for i in 0..4 {
+            let mut c: char = ' ';
+            let u8 = data[4*w + i];
+            if (0x20 <= u8) && (u8 <= 0x7f) {
+                c = char::from_u32(u32::from(u8)).unwrap();
+            }
+            s4.push(c);
+        }
+        println!(
+            "data[{:03}]: {:#010b} {:#010b} {:#010b} {:#010b}  {:02x} {:02x} {:02x} {:02x} {}",
+            4*w,
+            data[4*w + 0], data[4*w + 1], data[4*w + 2], data[4*w + 3],
+            data[4*w + 0], data[4*w + 1], data[4*w + 2], data[4*w + 3],
+            s4);
+    }
+    // last bytes
+    let begin_of_last_quad: usize = 4*(data.len()/4);
+    for i in begin_of_last_quad..data.len() {
+        println!("data[{}]={:02x}", i, data[usize::from(i)]);
     }
 }
 
@@ -701,13 +708,15 @@ pub fn parse_midi_file(filename: &PathBuf, debug_flags: u32) -> Midi {
     let meta = fs::metadata(filename);
     let mut file_size: u64 = 0;
     match meta {
-        Ok(mt) => { println!("mt={:?}", mt); file_size = mt.len(); },
+        Ok(mt) => { 
+            file_size = mt.len(); 
+            if debug_flags & 0x2 != 0 { println!("{:?} file_size={}", filename, file_size); };
+        },
         Err(e) => {
-            println!("Error {:?}", e); 
+            eprintln!("Error {:?}", e); 
             midi.set_error(format!("Error {:?}", e));
         }
     }
-    println!("{:?} size={}", filename, file_size);
     let data: Vec<u8> =
         if midi.ok() {fs::read(filename).unwrap() } else { Vec::<u8>::new() };
     let mut parse_state = ParseState {
@@ -717,33 +726,10 @@ pub fn parse_midi_file(filename: &PathBuf, debug_flags: u32) -> Midi {
         last_channel: 0,
     };
     if midi.ok() {
-        println!("#(data)={}", data.len());
-        for w in 0..cmp::min(0x40,(file_size/4) as usize) {
-            let mut s4 = String::new();
-            for i in 0..4 {
-                let mut c: char = ' ';
-                let u8 = data[4*w + i];
-                if (0x20 <= u8) && (u8 <= 0x7f) {
-                    c = char::from_u32(u32::from(u8)).unwrap();
-                }
-                s4.push(c);
-            }
-            println!(
-                "data[{:03}]: {:#010b} {:#010b} {:#010b} {:#010b}  {:02x} {:02x} {:02x} {:02x} {}",
-                4*w,
-                data[4*w + 0], data[4*w + 1], data[4*w + 2], data[4*w + 3],
-                data[4*w + 0], data[4*w + 1], data[4*w + 2], data[4*w + 3],
-                s4);
-        }
-        // last bytes
-        let begin_of_last_quad: usize = 4*(data.len()/4);
-        for i in begin_of_last_quad..data.len() {
-            println!("data[{}]={:02x}", i, data[usize::from(i)]);
-        }
+        if debug_flags & 0x1 != 0 { dump_start(&data); }
         let mut offset = 0;
         const MTHD: &str = "MThd";
         let mthd = get_chunk_type(&mut parse_state);
-        println!("mthd={}", mthd);
         if mthd != MTHD {
             midi.set_error(format!("Header chunk: {} != {}", mthd, MTHD));
         }
@@ -753,13 +739,16 @@ pub fn parse_midi_file(filename: &PathBuf, debug_flags: u32) -> Midi {
         length = get_usize(&mut parse_state);
         midi.format = (u16::from(data[8]) << 8) | u16::from(data[9]);
         midi.ntrks = (u16::from(data[10]) << 8) | u16::from(data[11]);
-        println!("length={}, format={}, ntrks={}",
-            length, midi.format, midi.ntrks);
+        if debug_flags & 0x2 != 0 {
+            println!("length={}, format={}, ntrks={}", length, midi.format, midi.ntrks);
+        }
         if length != 6 {
-            println!("Unexpected length: {} != 6", length);
+            eprintln!("Unexpected length: {} != 6", length);
         }
         let division : u16 = (u16::from(data[12]) << 8) | u16::from(data[13]);
-        println!("division={:#018b}", division); // division=0b0000000110000000
+        if debug_flags & 0x2 != 0 {
+            println!("division={:#018b}", division); // division=0b0000000110000000
+        }
         let bit15: u16 = division >> 15;
         if bit15 == 0 {
             midi.ticks_per_quarter_note = division;
@@ -771,9 +760,11 @@ pub fn parse_midi_file(filename: &PathBuf, debug_flags: u32) -> Midi {
                 (0x100u16 - (data[12] as u16)) // negative two's compliment
                 * (data[13] as u16);
         }
-        println!("ticks_per_quarter_note={}", midi.ticks_per_quarter_note);
-        println!("ticks_per_frame={}", midi.ticks_per_frame);
-        println!("negative_smpte_format={}", midi.negative_smpte_format);
+        if debug_flags & 0x2 != 0 {
+            println!("ticks_per_quarter_note={}", midi.ticks_per_quarter_note);
+            println!("ticks_per_frame={}", midi.ticks_per_frame);
+            println!("negative_smpte_format={}", midi.negative_smpte_format);
+        }
     }
     if midi.ok() {
         parse_state.offset = 4 + 4 + length;

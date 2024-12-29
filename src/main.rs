@@ -144,7 +144,7 @@ fn main() {
     let parsed_midi = midi::parse_midi_file(&midifile, debug_flags);
     let exit_code = if parsed_midi.ok() { 0 } else { 1 };
     if parsed_midi.ok() {
-        player::play(&mut sequencer, &parsed_midi, begin, end, tempo_factor, progress);
+        player::play(&mut sequencer, &parsed_midi, begin, end, tempo_factor, progress, debug_flags);
     }
     sequencer::destroy_sequencer(&mut sequencer);
     std::process::exit(exit_code);

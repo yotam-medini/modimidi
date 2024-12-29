@@ -21,8 +21,6 @@ fn play_note(
         cfluid::fluid_event_set_source(evt, -1);
         cfluid::fluid_event_set_dest(evt, seq_ctl.synth_seq_id);
         cfluid::fluid_event_note(evt, chan, key, vel, dur);
-        println!("fluid_event_note fluid_sequencer_send_at: key={}, date={:5}, dur={:4}, date+dur={:5}", 
-            key, date, dur, date+dur);
         let fluid_res = cfluid::fluid_sequencer_send_at(
             seq_ctl.sequencer_ptr, evt, date, 1); // 1 absolute, 0 relative
         if fluid_res != cfluid::FLUID_OK {
@@ -39,7 +37,6 @@ fn send_final_event(seq_ctl: &mut sequencer::SequencerControl, date: u32) {
         cfluid::fluid_event_set_dest(evt, seq_ctl.final_seq_id);
         let fluid_res = cfluid::fluid_sequencer_send_at(
             seq_ctl.sequencer_ptr, evt, date, 1); // 1 absolute, 0 relative
-        println!("send_final_event: date={}, fluid_res={}", date, fluid_res);
         cfluid::delete_fluid_event(evt);
     }
 }
@@ -96,7 +93,7 @@ fn print_index_events(index_events: &Vec<IndexEvent>, parsed_midi: &midi::Midi) 
     }
 }
 
-fn get_index_events(parsed_midi: &midi::Midi) -> Vec<IndexEvent> {
+fn get_index_events(parsed_midi: &midi::Midi, debug_flags: u32) -> Vec<IndexEvent> {
     let mut index_events = Vec::<IndexEvent>::new();
     for (ti, track) in parsed_midi.tracks.iter().enumerate() {
         let mut curr_time = 0;
@@ -107,8 +104,10 @@ fn get_index_events(parsed_midi: &midi::Midi) -> Vec<IndexEvent> {
         }
     }
     index_events.sort_by(|e0, e1| symmetric_cmp(e0, e1));
-    println!("After sort");
-    print_index_events(&index_events, parsed_midi);
+    if debug_flags & 0x20 != 0 {
+        println!("After sort");
+        print_index_events(&index_events, parsed_midi);
+    }
     index_events
 }
 
@@ -188,15 +187,12 @@ impl DynamicTiming {
     fn ticks_to_ms(&self, ticks: u32) -> u32 {
         let numer = u64::from(ticks) * self.microseconds_per_quarter;
         let ret = round_div(numer, self.k_ticks_per_quarter);
-        println!("Timing: μsecper♩={}, ticks={}, ms={}", self.k_ticks_per_quarter, ticks, ret);
         ret
     }
     fn abs_ticks_to_ms(&self, abs_ticks: u32) -> u32 {
         let numer = u64::from(abs_ticks - self.ticks_ref) * self.microseconds_per_quarter;
         let add = round_div(numer, self.k_ticks_per_quarter);
         let ret = self.ms_ref + add;
-        println!("Timing: μsecper♩={}, abs_ticks={}, ms={}",
-            self.k_ticks_per_quarter, abs_ticks, ret);
         ret
     }
 }
@@ -243,7 +239,8 @@ fn abs_events_push(
     aed: &mut AbsEventsGenerationControl, 
     index_event_index: usize,
     me: &midi::MidiEvent,
-    date_ms: u32) {
+    date_ms: u32,
+    debug_flags: u32) {
     let factor = aed.user_mod.tempo_factor;
     let after_begin = aed.user_mod.begin_ms <= date_ms;
     let date_ms_modified = if after_begin {
@@ -266,6 +263,9 @@ fn abs_events_push(
                 });
             }
         },
+        midi::MidiEvent::NoteOff(ref e) => {
+            // pre-handled by calculating duration after NoteOn
+        },
         midi::MidiEvent::ProgramChange(e) => {
             max_by(&mut aed.final_ms, date_ms_modified);
             let pc = ProgramChange { channel: i32::from(e.channel), program: i32::from(e.program), };
@@ -284,15 +284,19 @@ fn abs_events_push(
                 uae: UnionAbsEvent::PitchWheel(pw)
             });
         },
-        _ => { println!("{}:{} ignored: {}", file!(), line!(), me);},
+        _ => {
+            if debug_flags & 0x100 != 0 {
+                println!("{}:{} ignored: {}", file!(), line!(), me);
+            }
+        },
     }
 }
 
 fn get_abs_events(
     parsed_midi: &midi::Midi,
     index_events: &Vec<IndexEvent>,
-    user_mod: &UserModification) -> Vec<AbsEvent> {
-    println!("{}:{} get_abs_events, um={}", file!(), line!(), user_mod);
+    user_mod: &UserModification,
+    debug_flags: u32) -> Vec<AbsEvent> {
     let mut control = AbsEventsGenerationControl {
         abs_events: Vec::<AbsEvent>::new(),
         final_ms: 0,
@@ -315,7 +319,9 @@ fn get_abs_events(
         done = date_ms > user_mod.end_ms;
         if !done {
             let track_event = &parsed_midi.tracks[index_event.track].track_events[index_event.tei];
-            println!("[{:3}] time={} track_event={}", i, index_event.time, track_event); 
+            if debug_flags & 0x80 != 0 {
+                println!("[{:3}] time={} track_event={}", i, index_event.time, track_event); 
+            }
             match track_event.event {
                 midi::Event::MetaEvent(ref me) => {
                     match me {
@@ -323,18 +329,25 @@ fn get_abs_events(
                             control.dynamic_timing.set_microseconds_per_quarter(
                                 index_event.time, u64::from(st.tttttt));
                         },
-                        _ => { println!("{}:{} play: ignored: {}", file!(), line!(), me);},
+                        _ => {
+                           if debug_flags & 0x40 != 0 {
+                               println!("{}:{} play: ignored: {}", file!(), line!(), me);
+                           }
+                        },
                     }
                 },
                 midi::Event::MidiEvent(ref me) => {
-                    abs_events_push(&mut control, i, me, date_ms);
+                    abs_events_push(&mut control, i, me, date_ms, debug_flags);
                 },
                 _ => { },
             }
             i += 1;
         }
     }
-    println!("final_ms={} == {}", control.final_ms, util::milliseconds_to_string(control.final_ms));
+    if debug_flags & 0x200 != 0 {
+        println!("final_ms={} == {}",
+            control.final_ms, util::milliseconds_to_string(control.final_ms));
+    }
     control.abs_events.push(AbsEvent {
         time_ms: std::cmp::max(control.final_ms, user_mod.begin_ms),
         time_ms_original: if control.abs_events.is_empty() {
@@ -344,9 +357,11 @@ fn get_abs_events(
         },
         uae: UnionAbsEvent::FinalEvent(FinalEvent{}),
     });
-    println!("abs_events:");
-    for (i, ae) in control.abs_events.iter().enumerate() {
-        println!("[{:4}] {}", i, ae);
+    if debug_flags & 0x200 != 0 {
+        println!("abs_events:");
+        for (i, ae) in control.abs_events.iter().enumerate() {
+            println!("[{:4}] {}", i, ae);
+        }
     }
     control.abs_events
 }
@@ -401,7 +416,7 @@ impl Timing {
   fn ticks_to_ms(&self, ticks: u32) -> u32 {
     let numer = u64::from(ticks) * self.microseconds_per_quarter;
     let ret = round_div(numer, self.k_ticks_per_quarter);
-    println!("Timing: μsecper♩={}, ticks={}, ms={}", self.k_ticks_per_quarter, ticks, ret);
+    // println!("Timing: μsecper♩={}, ticks={}, ms={}", self.k_ticks_per_quarter, ticks, ret);
     ret
   }
 }
@@ -427,13 +442,11 @@ impl<'a> CallbackData<'a> {
 fn send_next_batch_events(cb_data: &mut CallbackData) -> bool {
     let now;
     unsafe { now = cfluid::fluid_sequencer_get_tick(cb_data.seq_ctl.sequencer_ptr); }
-    println!("{}:{} now={} next_abs_event={}", file!(), line!(), now, cb_data.next_abs_event);
     if cb_data.next_abs_event == 0 {
         cb_data.seq_ctl.add_ms = now + cb_data.seq_ctl.initial_delay_ms;
     }
     let mut final_event = false;
     while cb_data.next_abs_event < cb_data.abs_events.len() {
-        println!("{}:{} next_abs_event={}", file!(), line!(), cb_data.next_abs_event);
         let abs_event = &cb_data.abs_events[cb_data.next_abs_event];
         let at_ms = abs_event.time_ms + cb_data.seq_ctl.add_ms;
         match &abs_event.uae {
@@ -447,7 +460,6 @@ fn send_next_batch_events(cb_data: &mut CallbackData) -> bool {
                     at_ms);
             },
             UnionAbsEvent::ProgramChange(program_change) => {
-                println!("ProgramChange({})", program_change);
                 let ret;
                 unsafe {
                     ret = cfluid::fluid_synth_program_select(
@@ -489,7 +501,6 @@ fn send_next_batch_events(cb_data: &mut CallbackData) -> bool {
 fn handle_next_batch_events(cb_data: &mut CallbackData) -> bool {
    let mut ret = false;
    let already_sending = cb_data.sending_events.swap(true, Ordering::SeqCst);
-   println!("{}:{} already_sending={}", file!(), line!(), already_sending);
    if !already_sending {
        ret = send_next_batch_events(cb_data);
        cb_data.sending_events.store(false, Ordering::SeqCst);
@@ -502,12 +513,8 @@ extern "C" fn periodic_callback(
     _event: *mut cfluid::fluid_event_t,
     _seq: *mut cfluid::fluid_sequencer_t, 
     data: *mut c_void) {
-    println!("{}:{} periodic_callback thread id={:?}", file!(), line!(), std::thread::current().id());
     unsafe {
         let cb_data = &mut *(data as *mut CallbackData);
-        println!("periodic_callback: {}:{} time={}, #(abs_events)={}, next_abs_event={}",
-            file!(), line!(),
-            time, cb_data.abs_events.len(), cb_data.next_abs_event);
         // libfluidsynth in its fluid_sequencer_unregister_client(...) !!
         // call the callback (if any), to free underlying memory (e.g. seqbind structure)
         // so
@@ -515,7 +522,6 @@ extern "C" fn periodic_callback(
             let final_event_sent = handle_next_batch_events(cb_data);
             if !final_event_sent {
                 let now = cfluid::fluid_sequencer_get_tick(cb_data.seq_ctl.sequencer_ptr);
-                println!("{}:{} now={}", file!(), line!(), now);
                 schedule_next_callback(cb_data.seq_ctl, now + cb_data.seq_ctl.batch_duration_ms/2);
             }
         }
@@ -593,7 +599,6 @@ fn schedule_seqid_callback(seq_ctl : &mut sequencer::SequencerControl, date_ms: 
 }
 
 fn schedule_next_callback(seq_ctl : &mut sequencer::SequencerControl, date_ms: u32) {
-    println!("{}:{} date_ms={}", file!(), line!(), date_ms);
     schedule_seqid_callback(seq_ctl, date_ms, seq_ctl.periodic_seq_id);
 }
 
@@ -609,15 +614,16 @@ pub fn play(
     end: u32,
     tempo_factor: f64,
     progress: bool,
+    debug_flags: u32,
     ) {
-    println!("play... thread id={:?}", std::thread::current().id());
-    let index_events = get_index_events(parsed_midi);
+    if debug_flags & 0x10 != 0 { println!("play... thread id={:?}", std::thread::current().id()); }
+    let index_events = get_index_events(parsed_midi, debug_flags);
     let user_mod = UserModification {
         begin_ms: begin,
         end_ms: end,
         tempo_factor: tempo_factor,
     };
-    let abs_events = get_abs_events(parsed_midi, &index_events, &user_mod);
+    let abs_events = get_abs_events(parsed_midi, &index_events, &user_mod, debug_flags);
 
     // 1-tick = (microseconds_per_quarter / parsed_midi.ticks_per_quarter)/1000 milliseconds
     let timing = Timing {
@@ -629,7 +635,6 @@ pub fn play(
     let t0;
     unsafe { t0 = cfluid::fluid_sequencer_get_tick(seq_ctl.sequencer_ptr); }
     let t0_ms = timing.ticks_to_ms(t0);
-    println!("t0={}, t0_ms={}", t0, t0_ms);
     let fb = factor_u32(user_mod.tempo_factor, user_mod.begin_ms);
     let callback_data = CallbackData {
         seq_ctl: seq_ctl,
@@ -672,7 +677,10 @@ pub fn play(
 
     let (lock, cvar) = &*mtx_cvar;
     let mut locked = lock.lock().unwrap();
-    println!("{}:{} Waiting on locked thread={:?}", file!(), line!(), std::thread::current().id());
+    if debug_flags & 0x10 != 0 {
+        println!("{}:{} Waiting on locked thread={:?}",
+            file!(), line!(), std::thread::current().id());
+    }
     let mut locked_loop: u64 = 0;
     while !*locked {
         locked_loop += 1;
