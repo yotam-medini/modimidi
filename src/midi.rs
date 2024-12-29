@@ -638,7 +638,7 @@ impl Midi {
         self.read_track(state);
     }
     fn read_tracks(&mut self, state: &mut ParseState) {
-        for itrack in 0..self.ntrks {
+        for _itrack in 0..self.ntrks {
             if self.ok() {
                 self.read_track(state);
             }
@@ -706,10 +706,9 @@ pub fn parse_midi_file(filename: &PathBuf, debug_flags: u32) -> Midi {
     };
     let mut length: usize = 0;
     let meta = fs::metadata(filename);
-    let mut file_size: u64 = 0;
     match meta {
         Ok(mt) => { 
-            file_size = mt.len(); 
+            let file_size = mt.len(); 
             if debug_flags & 0x2 != 0 { println!("{:?} file_size={}", filename, file_size); };
         },
         Err(e) => {
@@ -727,7 +726,6 @@ pub fn parse_midi_file(filename: &PathBuf, debug_flags: u32) -> Midi {
     };
     if midi.ok() {
         if debug_flags & 0x1 != 0 { dump_start(&data); }
-        let mut offset = 0;
         const MTHD: &str = "MThd";
         let mthd = get_chunk_type(&mut parse_state);
         if mthd != MTHD {

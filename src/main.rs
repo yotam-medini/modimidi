@@ -114,6 +114,12 @@ fn args_get_matches () -> clap::ArgMatches {
                 .action(ArgAction::SetTrue)
                 .help("show progress"),
 	)
+	.arg(
+            Arg::new("play")
+                .long("noplay")
+                .action(ArgAction::SetFalse)
+                .help("Suppress playing progress"),
+	)
         .arg(arg!([midifile] "The midi file to play")
             .required(true)
             .value_parser(value_parser!(PathBuf))
@@ -134,16 +140,18 @@ fn main() {
     let soundfounts = matches.get_one::<String>("soundfounts").unwrap();
     let batch_duration_ms: u32 = *matches.get_one::<u32>("batchduration").unwrap();
     let initial_delay_ms: u32 = *matches.get_one::<u32>("delay").unwrap();
-    let mut sequencer = sequencer::create_sequencer(
-	soundfounts, batch_duration_ms, initial_delay_ms);
+    let play : bool = matches.get_flag("play");
+    let mut sequencer =
+	sequencer::create_sequencer(soundfounts, batch_duration_ms, initial_delay_ms);
     let begin: u32 = *matches.get_one::<u32>("begin").unwrap_or(&0);
     let end: u32 = *matches.get_one::<u32>("end").unwrap_or(&0xffffffff);
     let tempo_factor: f64 = *matches.get_one::<f64>("tempo").unwrap();
     let progress : bool = matches.get_flag("progress");
+    println!("{}:{} play={}", file!(), line!(), play); 
     let midifile = matches.get_one::<PathBuf>("midifile").unwrap();
     let parsed_midi = midi::parse_midi_file(&midifile, debug_flags);
     let exit_code = if parsed_midi.ok() { 0 } else { 1 };
-    if parsed_midi.ok() {
+    if play && parsed_midi.ok() {
         player::play(&mut sequencer, &parsed_midi, begin, end, tempo_factor, progress, debug_flags);
     }
     sequencer::destroy_sequencer(&mut sequencer);

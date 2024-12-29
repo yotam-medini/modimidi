@@ -37,6 +37,9 @@ fn send_final_event(seq_ctl: &mut sequencer::SequencerControl, date: u32) {
         cfluid::fluid_event_set_dest(evt, seq_ctl.final_seq_id);
         let fluid_res = cfluid::fluid_sequencer_send_at(
             seq_ctl.sequencer_ptr, evt, date, 1); // 1 absolute, 0 relative
+        if fluid_res != cfluid::FLUID_OK {
+            eprintln!("fluid_sequencer_send_at failed ret={}", fluid_res);
+        }
         cfluid::delete_fluid_event(evt);
     }
 }
@@ -263,7 +266,7 @@ fn abs_events_push(
                 });
             }
         },
-        midi::MidiEvent::NoteOff(ref e) => {
+        midi::MidiEvent::NoteOff(ref _e) => {
             // pre-handled by calculating duration after NoteOn
         },
         midi::MidiEvent::ProgramChange(e) => {
@@ -509,7 +512,7 @@ fn handle_next_batch_events(cb_data: &mut CallbackData) -> bool {
 }
 
 extern "C" fn periodic_callback(
-    time: u32,
+    _time: u32,
     _event: *mut cfluid::fluid_event_t,
     _seq: *mut cfluid::fluid_sequencer_t, 
     data: *mut c_void) {

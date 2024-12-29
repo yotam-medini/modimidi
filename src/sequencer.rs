@@ -1,7 +1,6 @@
 use std::fmt;
 use std::ffi::CString;
 use crate::cfluid;
-
 pub struct SequencerControl {
     settings_ptr: *mut cfluid::fluid_settings_t,
     pub synth_ptr: *mut cfluid::fluid_synth_t,
