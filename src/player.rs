@@ -108,7 +108,7 @@ fn get_index_events(parsed_midi: &midi::Midi, debug_flags: u32) -> Vec<IndexEven
     }
     index_events.sort_by(|e0, e1| symmetric_cmp(e0, e1));
     if debug_flags & 0x20 != 0 {
-        println!("After sort");
+        println!("index_events After sort");
         print_index_events(&index_events, parsed_midi);
     }
     index_events
@@ -295,6 +295,31 @@ fn abs_events_push(
     }
 }
 
+fn get_first_note_time(control: &AbsEventsGenerationControl) -> u32 {
+    let mut t: u32 = 0;
+    let mut note_seen = false;
+    let mut i: usize = 0;
+    let tracks = &control.parsed_midi.tracks;
+    while (i < control.index_events.len()) && !note_seen {
+        let index_event = &control.index_events[i];
+        let track_event = &tracks[index_event.track].track_events[index_event.tei];
+        match track_event.event {
+            midi::Event::MidiEvent(ref me) => {
+                match me {
+                    midi::MidiEvent::NoteOn(ref e) => {
+                        t = index_event.time;
+                        note_seen = true;
+                    }
+                    _ => {},
+                }
+            },
+            _ => {},
+        }
+        i += 1;
+    }
+    t
+}
+
 fn get_abs_events(
     parsed_midi: &midi::Midi,
     index_events: &Vec<IndexEvent>,
@@ -315,22 +340,26 @@ fn get_abs_events(
         },
     };
     let mut i: usize = 0;
+    let first_note_time = get_first_note_time(&control);
     let mut done = false;
+   if debug_flags & 0x80 != 0 { println!("#(index_events)={}", index_events.len()); }
     while (i < index_events.len()) && !done {
         let index_event = &index_events[i];
-        let date_ms = control.dynamic_timing.abs_ticks_to_ms(index_event.time);
+        let time_shifted = util::safe_subtract(index_event.time, first_note_time);
+        let date_ms = control.dynamic_timing.abs_ticks_to_ms(time_shifted);
         done = date_ms > user_mod.end_ms;
         if !done {
             let track_event = &parsed_midi.tracks[index_event.track].track_events[index_event.tei];
             if debug_flags & 0x80 != 0 {
-                println!("[{:3}] time={} track_event={}", i, index_event.time, track_event); 
+                println!("[{:3}] time={} shifted={}, track_event={}",
+                    i, index_event.time, time_shifted, track_event); 
             }
             match track_event.event {
                 midi::Event::MetaEvent(ref me) => {
                     match me {
                         midi::MetaEvent::SetTempo(st) => {
                             control.dynamic_timing.set_microseconds_per_quarter(
-                                index_event.time, u64::from(st.tttttt));
+                                time_shifted, u64::from(st.tttttt));
                         },
                         _ => {
                            if debug_flags & 0x40 != 0 {
