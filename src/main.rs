@@ -3,6 +3,7 @@ use std::path::PathBuf;
 use clap::{Arg, ArgAction, arg, command, value_parser};
 mod cfluid;
 mod midi;
+mod midiinfo;
 mod player;
 mod seqdemo;
 mod sequencer;
@@ -109,6 +110,12 @@ fn args_get_matches () -> clap::ArgMatches {
                 .help("sequencer batch duration in milliseconds"),
 	)
 	.arg(
+            Arg::new("info")
+                .long("info")
+                .action(ArgAction::SetTrue)
+                .help("print general information of the midi file"),
+	)
+	.arg(
             Arg::new("progress")
                 .long("progress")
                 .action(ArgAction::SetTrue)
@@ -150,6 +157,9 @@ fn main() {
     println!("{}:{} play={}", file!(), line!(), play); 
     let midifile = matches.get_one::<PathBuf>("midifile").unwrap();
     let parsed_midi = midi::parse_midi_file(&midifile, debug_flags);
+    if parsed_midi.ok() && matches.get_flag("info") {
+        midiinfo::print_midi_info(&parsed_midi);
+    }
     let exit_code = if parsed_midi.ok() { 0 } else { 1 };
     if play && parsed_midi.ok() {
         player::play(&mut sequencer, &parsed_midi, begin, end, tempo_factor, progress, debug_flags);
