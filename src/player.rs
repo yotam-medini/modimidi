@@ -306,7 +306,7 @@ fn get_first_note_time(control: &AbsEventsGenerationControl) -> u32 {
         match track_event.event {
             midi::Event::MidiEvent(ref me) => {
                 match me {
-                    midi::MidiEvent::NoteOn(ref e) => {
+                    midi::MidiEvent::NoteOn(ref _e) => {
                         t = index_event.time;
                         note_seen = true;
                     }

@@ -46,6 +46,7 @@ impl fmt::Display for ControlChange {
     }
 }
 
+#[derive(PartialEq, Eq)] 
 pub struct ProgramChange { // 0xc
     pub channel: u8,
     pub program: u8,
@@ -100,7 +101,7 @@ impl fmt::Display for SequenceNumber {
 }
 
 pub struct Text { // 0xff 0x01
-    name: String,
+    pub name: String,
 }
 impl fmt::Display for Text {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -109,7 +110,7 @@ impl fmt::Display for Text {
 }
 
 pub struct Copyright { // 0xff 0x02
-    name: String,
+    pub name: String,
 }
 impl fmt::Display for Copyright {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -118,7 +119,7 @@ impl fmt::Display for Copyright {
 }
 
 pub struct SequenceTrackName { // 0xff 0x03
-    name: String,
+    pub name: String,
 }
 impl fmt::Display for SequenceTrackName {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -127,7 +128,7 @@ impl fmt::Display for SequenceTrackName {
 }
 
 pub struct InstrumentName  { // 0xff 0x04
-    name: String,
+    pub name: String,
 }
 impl fmt::Display for InstrumentName {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
