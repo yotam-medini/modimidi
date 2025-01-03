@@ -3,8 +3,8 @@ use std::fmt;
 use std::path::PathBuf;
 use std::fs;
 
-struct ParseState<'a> {
-    data: &'a Vec<u8>,
+struct ParseState {
+    data: Vec<u8>,
     offset: usize,
     last_status: u8,
     last_channel: u8,
@@ -34,6 +34,7 @@ impl fmt::Display for NoteOn {
     }
 }
 
+#[derive(Default)]
 pub struct ControlChange { // 0xb
     channel: u8,
     number: u8,
@@ -67,25 +68,15 @@ impl fmt::Display for PitchWheel {
     }
 }
 
+#[derive(derive_more::Display)]
 pub enum MidiEvent {
     NoteOff(NoteOff),
     NoteOn(NoteOn),
     ControlChange(ControlChange),
     ProgramChange(ProgramChange),
     PitchWheel(PitchWheel),
+    #[display("Undef")]
     Undef,
-}
-impl fmt::Display for MidiEvent {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            MidiEvent::NoteOff(note_off) => write!(f, "{}", note_off),
-            MidiEvent::NoteOn(note_on) => write!(f, "{}", note_on),
-            MidiEvent::ControlChange(cc) => write!(f, "{}", cc),
-            MidiEvent::ProgramChange(pc) => write!(f, "{}", pc),
-            MidiEvent::PitchWheel(pw) => write!(f, "{}", pw),
-            MidiEvent::Undef => write!(f, "Undef"),
-        }
-    }
 }
 
 pub struct SysexEvent {
@@ -720,13 +711,13 @@ pub fn parse_midi_file(filename: &PathBuf, debug_flags: u32) -> Midi {
     let data: Vec<u8> =
         if midi.ok() {fs::read(filename).unwrap() } else { Vec::<u8>::new() };
     let mut parse_state = ParseState {
-        data: &data,
+        data: data,
         offset: 0,
         last_status: 0,
         last_channel: 0,
     };
     if midi.ok() {
-        if debug_flags & 0x1 != 0 { dump_start(&data); }
+        if debug_flags & 0x1 != 0 { dump_start(&parse_state.data); }
         const MTHD: &str = "MThd";
         let mthd = get_chunk_type(&mut parse_state);
         if mthd != MTHD {
@@ -736,15 +727,15 @@ pub fn parse_midi_file(filename: &PathBuf, debug_flags: u32) -> Midi {
     if midi.ok() {
 	parse_state.offset = 4;
         length = get_usize(&mut parse_state);
-        midi.format = (u16::from(data[8]) << 8) | u16::from(data[9]);
-        midi.ntrks = (u16::from(data[10]) << 8) | u16::from(data[11]);
+        midi.format = (u16::from(parse_state.data[8]) << 8) | u16::from(parse_state.data[9]);
+        midi.ntrks = (u16::from(parse_state.data[10]) << 8) | u16::from(parse_state.data[11]);
         if debug_flags & 0x2 != 0 {
             println!("length={}, format={}, ntrks={}", length, midi.format, midi.ntrks);
         }
         if length != 6 {
             eprintln!("Unexpected length: {} != 6", length);
         }
-        let division : u16 = (u16::from(data[12]) << 8) | u16::from(data[13]);
+        let division : u16 = (u16::from(parse_state.data[12]) << 8) | u16::from(parse_state.data[13]);
         if debug_flags & 0x2 != 0 {
             println!("division={:#018b}", division); // division=0b0000000110000000
         }
@@ -752,12 +743,12 @@ pub fn parse_midi_file(filename: &PathBuf, debug_flags: u32) -> Midi {
         if bit15 == 0 {
             midi.ticks_per_quarter_note = division;
         } else {
-            midi.negative_smpte_format = data[12] & 0x7f;
-            midi.ticks_per_frame = data[13];
+            midi.negative_smpte_format = parse_state.data[12] & 0x7f;
+            midi.ticks_per_frame = parse_state.data[13];
             // hack
             midi.ticks_per_quarter_note =
-                (0x100u16 - (data[12] as u16)) // negative two's compliment
-                * (data[13] as u16);
+                (0x100u16 - (parse_state.data[12] as u16)) // negative two's compliment
+                * (parse_state.data[13] as u16);
         }
         if debug_flags & 0x2 != 0 {
             println!("ticks_per_quarter_note={}", midi.ticks_per_quarter_note);
