@@ -12,6 +12,7 @@
 #include <cmath>
 #include <fmt/core.h>
 #include <fluidsynth.h>
+#include "rawterm.h"
 #include "synthseq.h"
 #include "util.h"
 
@@ -772,6 +773,7 @@ int play(
     const midi::Midi &parsed_midi,
     SynthSequencer &synth_sequencer,
     const PlayParams &play_params) {
+  RawTerminal raw_terminal;
   int rc = Player(parsed_midi, synth_sequencer, play_params).run();
   return rc;
 }
