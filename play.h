@@ -21,7 +21,7 @@ class PlayParams {
 };
 
 class SynthSequencer;
-extern int play(
+extern int Play(
   const midi::Midi &parsed_midi,
   SynthSequencer &synth_sequencer,
   const PlayParams &play_params);

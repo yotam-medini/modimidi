@@ -56,7 +56,7 @@ int main(int argc, char **argv) {
         pp.batch_duration_ms_ = options.BatchDurationMillisec();
         pp.progress_ = options.Progress();
         pp.debug_ = debug;
-        play(parsed_midi, synth_sequencer, pp);
+        Play(parsed_midi, synth_sequencer, pp);
       } else {
         std::cerr << fmt::format("Synth/Sequencer error: {}\n",
           synth_sequencer.error());
