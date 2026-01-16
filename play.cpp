@@ -618,7 +618,10 @@ void Player::callback(
     void *data) {
   CallBackData *cbd = static_cast<CallBackData*>(data);
   KeyAction action = cbd->player_->GetKeyAction();
-  std::cerr << fmt::format("{}:{} action={}\n", __FILE__, __LINE__, static_cast<int>(action));
+  int iaction = static_cast<int>(action);
+  if (iaction) {
+    std::cerr << fmt::format("{}:{} action={}\n", __FILE__, __LINE__, static_cast<int>(action));
+  }
   switch (action) {
    case Pause:
     cbd->player_->RemoveEvents();
@@ -719,12 +722,8 @@ void Player::final_callback(
 }
 
 void Player::RemoveEvents() {
-  for (size_t seqii = 0; seqii < SeqId_N; ++seqii) {
-    int seq_id = seq_ids_[seqii];
-    if (seq_id != -1) {
-      fluid_sequencer_remove_events(ss_.sequencer_, -1, seq_id, -1);
-    }
-  }
+  fluid_synth_system_reset(ss_.synth_);
+  fluid_sequencer_remove_events(ss_.sequencer_, -1, -1, -1);
 }
 
 void Player::progress_callback(
