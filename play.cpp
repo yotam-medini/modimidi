@@ -339,7 +339,7 @@ void Player::SetIndexEvents() {
 }
 
 void Player::SetAbsEvents() {
-  // abs_events_.clear();
+  abs_events_.clear();
   const std::vector<midi::Track> &tracks = pm_.GetTracks();
   DynamicTiming dyn_timing{
     500000,
