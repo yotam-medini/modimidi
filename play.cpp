@@ -246,11 +246,19 @@ class Player {
   static uint32_t FactorU32(double f, uint32_t u);
   static void MaxBy(uint32_t &v, uint32_t x) { if (v < x) { v = x; } }
 
-  static void callback(
+  static void DispatchCallback(
+      unsigned int time,
+      fluid_event_t *event,
+      fluid_sequencer_t *seq,
+      void *data) {
+    CallBackData *cbd = static_cast<CallBackData*>(data);
+    cbd->player_->callback(time, event, seq, cbd->ecb_);
+  }
+  void callback(
     unsigned int time,
     fluid_event_t *event,
-    fluid_sequencer_t *seq,
-    void *data);
+    fluid_sequencer_t *seq, 
+    CallBackData::CallBack ecb);
   KeyAction GetKeyAction();
   void periodic_callback(
     unsigned int time,
@@ -435,14 +443,14 @@ void Player::play() {
   if (pp_.debug_ & 0x2) { std::cout << "play: mutex locked\n"; }
   CallBackData cbd_periodic{CallBackData::CallBack::Periodic, this};
   seq_ids_[SeqIdPeriodic] = fluid_sequencer_register_client(
-    ss_.sequencer_, "periodic", callback, &cbd_periodic);
+    ss_.sequencer_, "periodic", DispatchCallback, &cbd_periodic);
   CallBackData cbd_final{CallBackData::CallBack::Final, this};
   seq_ids_[SeqIdFinal] = fluid_sequencer_register_client(
-    ss_.sequencer_, "final", callback, &cbd_final);
+    ss_.sequencer_, "final", DispatchCallback, &cbd_final);
   CallBackData cbd_progress{CallBackData::CallBack::Progress, this};
   if (pp_.progress_) {
     seq_ids_[SeqIdProgress] = fluid_sequencer_register_client(
-      ss_.sequencer_, "progress", callback, &cbd_progress);
+      ss_.sequencer_, "progress", DispatchCallback, &cbd_progress);
   }
   SchedulePeriodicAt(0);
   if (pp_.progress_) {
@@ -619,9 +627,8 @@ void Player::callback(
     unsigned int time,
     fluid_event_t *event,
     fluid_sequencer_t *seq,
-    void *data) {
-  CallBackData *cbd = static_cast<CallBackData*>(data);
-  KeyAction action = cbd->player_->GetKeyAction();
+    CallBackData::CallBack ecb) {
+  KeyAction action = GetKeyAction();
   int iaction = static_cast<int>(action);
   if (iaction) {
     std::cerr << fmt::format("{}:{} action={}\n", __FILE__, __LINE__, static_cast<int>(action));
@@ -629,8 +636,8 @@ void Player::callback(
   unsigned int pause_time;
   switch (action) {
    case Pause:
-    cbd->player_->RemoveEvents();
-    pause_time = time - cbd->player_->date_add_ms_;
+    RemoveEvents();
+    pause_time = time - date_add_ms_;
     std::cout << fmt::format("{}:{} pause_time={}\n", __FILE__, __LINE__, pause_time);
     break;
    case Resume:
@@ -638,19 +645,19 @@ void Player::callback(
    default:
     break;
   }
-  if ((action == None) && !cbd->player_->in_pause_) {
-    switch (cbd->ecb_) {
+  if ((action == None) && !in_pause_) {
+    switch (ecb) {
      case CallBackData::CallBack::Periodic:
-      cbd->player_->periodic_callback(time, event, seq);
+      periodic_callback(time, event, seq);
       break;
      case CallBackData::CallBack::Final:
-      cbd->player_->final_callback(time, event, seq);
+      final_callback(time, event, seq);
       break;
      case CallBackData::CallBack::Progress:
-      cbd->player_->progress_callback(time, event, seq);
+      progress_callback(time, event, seq);
       break;
      default:
-      std::cerr << "BUG: callback ecb=" << static_cast<int>(cbd->ecb_) << '\n';
+      std::cerr << "BUG: callback ecb=" << static_cast<int>(ecb) << '\n';
     }
   }
 }
