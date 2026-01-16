@@ -339,6 +339,7 @@ void Player::SetIndexEvents() {
 }
 
 void Player::SetAbsEvents() {
+  // abs_events_.clear();
   const std::vector<midi::Track> &tracks = pm_.GetTracks();
   DynamicTiming dyn_timing{
     500000,
@@ -382,6 +383,7 @@ void Player::SetAbsEvents() {
     }
     std::cout << fmt::format("abs_events[{}]", nae) << "{\n";
   }
+  std::cout << fmt::format("{}:{} #(abs_events)={}\n", __FILE__, __LINE__, abs_events_.size());
 }
 
 void Player::Retune() {
@@ -624,9 +626,17 @@ void Player::callback(
   if (iaction) {
     std::cerr << fmt::format("{}:{} action={}\n", __FILE__, __LINE__, static_cast<int>(action));
   }
+  unsigned int pause_time;
   switch (action) {
    case Pause:
     cbd->player_->RemoveEvents();
+    pause_time = time - cbd->player_->date_add_ms_;
+    std::cout << fmt::format("{}:{} pause_time={}\n", __FILE__, __LINE__, pause_time);
+    break;
+   case Resume:
+    break;
+   default:
+    break;
   }
   if ((action == None) && !cbd->player_->in_pause_) {
     switch (cbd->ecb_) {
