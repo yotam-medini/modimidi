@@ -11,6 +11,8 @@ RawTerminal::RawTerminal() {
     tcgetattr(STDIN_FILENO, &oldt_);
     termios newt = oldt_;
     newt.c_lflag &= ~(ICANON | ECHO);
+    newt.c_cc[VMIN] = 0; // return immediately
+    newt.c_cc[VTIME] = 0; // no timeout
     tcsetattr(STDIN_FILENO, TCSANOW, &newt);
 
     ActiveGuard().store(this, std::memory_order_release);

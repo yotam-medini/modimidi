@@ -10,6 +10,7 @@
 #include <tuple>
 #include <vector>
 #include <cmath>
+#include <unistd.h>
 #include <fmt/core.h>
 #include <fluidsynth.h>
 #include "rawterm.h"
@@ -219,12 +220,14 @@ class Player {
     seq_ids_[SeqIdSynth] = ss.synth_seq_id_;
   }
   const SynthSequencer &GetSynthSequencer() const { return ss_; }
+  SynthSequencer &GetSynthSequencer() { return ss_; }
   int GetSeqId(SeqId esi) const { return seq_ids_[esi]; }
   int run();
 
  private:
   using range_t = std::array<uint8_t, 2>;
   using key2affine_t = std::unordered_map<uint8_t, Affine>;
+  enum KeyAction { None, Pause, Resume, Backward, Forward };
   void SetIndexEvents();
   uint32_t GetFirstNoteTime();
   void SetAbsEvents();
@@ -248,6 +251,7 @@ class Player {
     fluid_event_t *event,
     fluid_sequencer_t *seq,
     void *data);
+  KeyAction GetKeyAction();
   void periodic_callback(
     unsigned int time,
     fluid_event_t *event,
@@ -267,6 +271,7 @@ class Player {
     ScheduleCallback(seq_ids_[SeqIdProgress], at);
   }
   void ScheduleCallback(int seq_id, uint32_t at);
+  void RemoveEvents();
 
   int rc_{0};
 
@@ -282,6 +287,7 @@ class Player {
   std::array<int, SeqId_N>  seq_ids_;
   size_t next_send_index_{0};
   uint32_t date_add_ms_{0};
+  bool in_pause_{false};
   std::atomic<bool> final_handled_{false};
   std::mutex sending_mtx_;
   std::mutex play_mtx_;
@@ -391,26 +397,6 @@ void Player::Retune() {
   double pitches[0x80];
   const size_t Akey = 69;
   std::iota(&keys[0], &keys[0] + 0x80, 0);
-#if 0
-  // compute frequencies. But fluidsynth expects cents...
-  const double semitone = pow(2., 1./12.);
-  for (size_t base_note = Akey; base_note < Akey + 12; ++base_note) {
-    if (base_note == Akey) {
-      pitches[Akey] = pp_.tuning_;
-    } else {
-      pitches[base_note] = semitone * pitches[base_note - 1];
-    }
-    // up octaves
-    for (size_t note = base_note + 12; note < 0x80; note += 12) {
-      pitches[note] = 2. * pitches[note - 12];
-    }
-    // down octaves
-    for (size_t up_note = base_note, note = up_note - 12;
-        up_note >= 12; up_note = note, note -= 12) {
-      pitches[note] = (1./2.) * pitches[up_note];
-    }
-  }
-#endif
   // Compute pitches cents. See: fluidsynth: src/synth/fluid_voice.c
   // fluid_real_t fluid_voice_calculate_pitch(fluid_voice_t *voice, int key)
   auto log2_ratio = log2(pp_.tuning_ / 440.);
@@ -631,19 +617,63 @@ void Player::callback(
     fluid_sequencer_t *seq,
     void *data) {
   CallBackData *cbd = static_cast<CallBackData*>(data);
-  switch (cbd->ecb_) {
-   case CallBackData::CallBack::Periodic:
-    cbd->player_->periodic_callback(time, event, seq);
-    break;
-   case CallBackData::CallBack::Final:
-    cbd->player_->final_callback(time, event, seq);
-    break;
-   case CallBackData::CallBack::Progress:
-    cbd->player_->progress_callback(time, event, seq);
-    break;
-   default:
-    std::cerr << "BUG: callback ecb=" << static_cast<int>(cbd->ecb_) << '\n';
-  }  
+  KeyAction action = cbd->player_->GetKeyAction();
+  std::cerr << fmt::format("{}:{} action={}\n", __FILE__, __LINE__, static_cast<int>(action));
+  switch (action) {
+   case Pause:
+    cbd->player_->RemoveEvents();
+  }
+  if ((action == None) && !cbd->player_->in_pause_) {
+    switch (cbd->ecb_) {
+     case CallBackData::CallBack::Periodic:
+      cbd->player_->periodic_callback(time, event, seq);
+      break;
+     case CallBackData::CallBack::Final:
+      cbd->player_->final_callback(time, event, seq);
+      break;
+     case CallBackData::CallBack::Progress:
+      cbd->player_->progress_callback(time, event, seq);
+      break;
+     default:
+      std::cerr << "BUG: callback ecb=" << static_cast<int>(cbd->ecb_) << '\n';
+    }
+  }
+}
+
+Player::KeyAction Player::GetKeyAction() {
+  KeyAction action = KeyAction::None;
+  char key_char;
+  if (read(STDIN_FILENO, &key_char, 1) == 1) {
+    std::cerr << fmt::format("{}:{} key_char={} ord={}\n", __FILE__, __LINE__, 
+      key_char, int(key_char));
+    switch (key_char) {
+     case ' ':
+      in_pause_ = !in_pause_;
+      action = in_pause_ ? Pause : Resume;
+      break;
+     case 'j':
+      action = Backward;
+      break;
+     case 'k':
+      action = Forward;
+      break;
+     case '\x1b': // Esc
+      {
+        char seq[2];
+        if ((read(STDIN_FILENO, &seq[0], 2) == 2) && (seq[0] == '[') &&
+            ((seq[1] == 'C') || (seq[1] == 'D'))) {
+          action = (seq[1] == 'C') ? Forward : Backward;
+        }
+      }
+      break;
+     default:
+      action = None;
+    }
+  }
+  if (action != None) {
+    tcflush(STDIN_FILENO, TCIFLUSH);
+  }
+  return action;
 }
 
 void Player::periodic_callback(
@@ -682,15 +712,18 @@ void Player::final_callback(
   if (pp_.debug_ & 0x2) { std::cout << "final_callback\n"; } 
   bool handled = final_handled_.exchange(true);
   if (!handled) {
-    for (size_t seqii = 0; seqii < SeqId_N; ++seqii) {
-      int seq_id = seq_ids_[seqii];
-      if (seq_id != -1) {
-        fluid_sequencer_remove_events(ss_.sequencer_, -1, seq_id, -1);
-        // fluid_sequencer_unregister_client(ss_.sequencer_, seq_id);
-      }
-    }
+    RemoveEvents();
     if (pp_.debug_ & 0x2) { std::cout << "final_callback notify\n"; } 
     cv_.notify_one();
+  }
+}
+
+void Player::RemoveEvents() {
+  for (size_t seqii = 0; seqii < SeqId_N; ++seqii) {
+    int seq_id = seq_ids_[seqii];
+    if (seq_id != -1) {
+      fluid_sequencer_remove_events(ss_.sequencer_, -1, seq_id, -1);
+    }
   }
 }
 
