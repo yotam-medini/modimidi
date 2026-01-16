@@ -215,7 +215,7 @@ class Player {
   enum SeqId : size_t { 
     SeqIdSynth, SeqIdPeriodic, SeqIdFinal, SeqIdProgress, SeqId_N };
   Player(const midi::Midi &pm, SynthSequencer &ss, const PlayParams &pp) :
-    pm_{pm}, ss_{ss}, pp_{pp} {
+    pm_{pm}, ss_{ss}, pp_{pp}, begin_ms_{pp.begin_ms_}, end_ms_{pp.end_ms_} {
     std::fill(seq_ids_.begin(), seq_ids_.end(), -1);
     seq_ids_[SeqIdSynth] = ss.synth_seq_id_;
   }
@@ -278,6 +278,8 @@ class Player {
   const midi::Midi &pm_; // parsed_midi
   SynthSequencer &ss_;
   const PlayParams &pp_;
+  uint32_t begin_ms_;
+  uint32_t end_ms_;
   key2affine_t tracks_velocity_map_;
   key2affine_t channels_velocity_map_;
 
@@ -351,7 +353,7 @@ void Player::SetAbsEvents() {
     const IndexEvent &ie = index_events_[i];
     uint32_t time_shifted = safe_subtract(ie.time_, first_note_time);
     uint32_t date_ms = dyn_timing.AbsTicksToMs(time_shifted);
-    done = date_ms > pp_.end_ms_;
+    done = date_ms > end_ms_;
     if (!done) {
       const midi::Event *e = tracks[ie.track_].events_[ie.tei_].get();
       if (pp_.debug_ & 0x80) {
@@ -511,9 +513,9 @@ void Player::HandleMidi(
     DynamicTiming &dyn_timing,
     size_t index_event_index,
     uint32_t date_ms) {
-  const bool after_begin = pp_.begin_ms_ <= date_ms;
+  const bool after_begin = begin_ms_ <= date_ms;
   uint32_t date_ms_modified = after_begin
-    ? FactorU32(pp_.tempo_div_factor_, date_ms - pp_.begin_ms_)
+    ? FactorU32(pp_.tempo_div_factor_, date_ms - begin_ms_)
     : 0;
   const midi::MidiVarByte vb = me->VarByte();
   switch (vb) {
@@ -735,7 +737,7 @@ void Player::progress_callback(
     uint32_t dt = time - date_add_ms_;
     float dt_div_f = dt / pp_.tempo_div_factor_; // save div in PlayParams ?
     uint32_t dt_div = static_cast<uint32_t>(dt_div_f);
-    uint32_t btime = dt_div + pp_.begin_ms_;
+    uint32_t btime = dt_div + begin_ms_;
     if ((date_add_ms_ <= btime) && (btime <= last_ms)) {
       uint32_t tdone = btime - date_add_ms_;
       auto mmss_done = milliseconds_to_string(tdone);
