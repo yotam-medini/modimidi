@@ -227,7 +227,7 @@ class Player {
  private:
   using range_t = std::array<uint8_t, 2>;
   using key2affine_t = std::unordered_map<uint8_t, Affine>;
-  enum KeyAction { None, Pause, Resume, Backward, Forward };
+  enum class KeyAction { None, Pause, Resume, Backward, Forward };
   void SetIndexEvents();
   uint32_t GetFirstNoteTime();
   void SetAbsEvents();
@@ -280,6 +280,7 @@ class Player {
   }
   void ScheduleCallback(int seq_id, uint32_t at);
   void RemoveEvents();
+  void Resume(uint32_t new_begin_ms);
 
   int rc_{0};
 
@@ -635,17 +636,18 @@ void Player::callback(
   }
   unsigned int pause_time;
   switch (action) {
-   case Pause:
+   case KeyAction::Pause:
     RemoveEvents();
     pause_time = time - date_add_ms_;
     std::cout << fmt::format("{}:{} pause_time={}\n", __FILE__, __LINE__, pause_time);
     break;
-   case Resume:
+   case KeyAction::Resume:
+    Resume(time);
     break;
    default:
     break;
   }
-  if ((action == None) && !in_pause_) {
+  if ((action == KeyAction::None) && !in_pause_) {
     switch (ecb) {
      case CallBackData::CallBack::Periodic:
       periodic_callback(time, event, seq);
@@ -671,28 +673,28 @@ Player::KeyAction Player::GetKeyAction() {
     switch (key_char) {
      case ' ':
       in_pause_ = !in_pause_;
-      action = in_pause_ ? Pause : Resume;
+      action = in_pause_ ? KeyAction::Pause : KeyAction::Resume;
       break;
      case 'j':
-      action = Backward;
+      action = KeyAction::Backward;
       break;
      case 'k':
-      action = Forward;
+      action = KeyAction::Forward;
       break;
      case '\x1b': // Esc
       {
         char seq[2];
         if ((read(STDIN_FILENO, &seq[0], 2) == 2) && (seq[0] == '[') &&
             ((seq[1] == 'C') || (seq[1] == 'D'))) {
-          action = (seq[1] == 'C') ? Forward : Backward;
+          action = (seq[1] == 'C') ? KeyAction::Forward : KeyAction::Backward;
         }
       }
       break;
      default:
-      action = None;
+      action = KeyAction::None;
     }
   }
-  if (action != None) {
+  if (action != KeyAction::None) {
     tcflush(STDIN_FILENO, TCIFLUSH);
   }
   return action;
@@ -759,6 +761,11 @@ void Player::progress_callback(
       uint32_t tdone = btime - date_add_ms_;
       auto mmss_done = milliseconds_to_string(tdone);
       auto mmss_final = milliseconds_to_string(last_ms);
+static int call = 0;
+if (++call == 20) {
+  std::cout << fmt::format("{}:{} time={}, date_add_ms_={}, dt={}, mmss_done={}\n",
+    __FILE__, __LINE__, time, date_add_ms_, dt, mmss_done);
+}
       std::cout << fmt::format("\rProgress: {} / {}", mmss_done, mmss_final);
       std::cout.flush();
     }
@@ -768,6 +775,13 @@ void Player::progress_callback(
   uint32_t time_next = time + (tmod100 > 50 ? 200 : 100) - tmod100;
   ScheduleProgressAt(time_next);
 }
+
+void Player::Resume(uint32_t new_begin_ms) {
+  begin_ms_ = new_begin_ms;
+  SetAbsEvents();
+  SchedulePeriodicAt(0);
+}
+
 
 uint32_t Player::FactorU32(double f, uint32_t u) {
   static const double dmaxu32 = std::numeric_limits<uint32_t>::max();
