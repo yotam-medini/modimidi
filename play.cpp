@@ -264,7 +264,6 @@ class Player {
     fluid_event_t *event,
     fluid_sequencer_t *seq, 
     CallBackData::CallBack ecb);
-  // KeyAction GetKeyAction();
   void periodic_callback(
     unsigned int time,
     fluid_event_t *event,
@@ -652,27 +651,6 @@ void Player::callback(
     fluid_event_t *event,
     fluid_sequencer_t *seq,
     CallBackData::CallBack ecb) {
-#if 0
-  KeyAction action = GetKeyAction();
-  int iaction = static_cast<int>(action);
-  if (iaction) {
-    std::cerr << fmt::format("{}:{} action={}\n", __FILE__, __LINE__, static_cast<int>(action));
-  }
-  unsigned int pause_time;
-  switch (action) {
-   case KeyAction::Pause:
-    RemoveEvents();
-    pause_time = time - date_add_ms_;
-    std::cout << fmt::format("{}:{} pause_time={}\n", __FILE__, __LINE__, pause_time);
-    ScheduleKeyboardAt(time + 2000);
-    break;
-   case KeyAction::Resume:
-    Resume(time);
-    break;
-   default:
-    break;
-  }
-#endif
   if (ecb == CallBackData::CallBack::Keyboard) {
     keyboard_callback(time, event, seq);
   } else if (!in_pause_) {
@@ -691,44 +669,6 @@ void Player::callback(
     }
   }
 }
-
-#if 0
-Player::KeyAction Player::GetKeyAction() {
-  KeyAction action = KeyAction::None;
-  char key_char;
-  if (read(STDIN_FILENO, &key_char, 1) == 1) {
-    std::cerr << fmt::format("{}:{} key_char={} ord={}\n", __FILE__, __LINE__, 
-      key_char, int(key_char));
-    switch (key_char) {
-     case ' ':
-      in_pause_ = !in_pause_;
-      action = in_pause_ ? KeyAction::Pause : KeyAction::Resume;
-      break;
-     case 'j':
-      action = KeyAction::Backward;
-      break;
-     case 'k':
-      action = KeyAction::Forward;
-      break;
-     case '\x1b': // Esc
-      {
-        char seq[2];
-        if ((read(STDIN_FILENO, &seq[0], 2) == 2) && (seq[0] == '[') &&
-            ((seq[1] == 'C') || (seq[1] == 'D'))) {
-          action = (seq[1] == 'C') ? KeyAction::Forward : KeyAction::Backward;
-        }
-      }
-      break;
-     default:
-      action = KeyAction::None;
-    }
-  }
-  if (action != KeyAction::None) {
-    tcflush(STDIN_FILENO, TCIFLUSH);
-  }
-  return action;
-}
-#endif
 
 void Player::periodic_callback(
     unsigned int time,
@@ -840,7 +780,6 @@ void Player::keyboard_callback(
     unsigned int time,
     fluid_event_t *event,
     fluid_sequencer_t *seq) {
-  std::cerr << fmt::format("\n{} time={}\n", __func__, time);
   KeyAction action = KeyAction::None;
   char key_char;
   if (read(STDIN_FILENO, &key_char, 1) == 1) {
@@ -878,7 +817,6 @@ void Player::keyboard_callback(
   uint32_t new_now = fluid_sequencer_get_tick(ss_.sequencer_);
   uint32_t tmod100 = new_now % 100;
   uint32_t time_next = new_now + (tmod100 > 50 ? 200 : 100) - tmod100;
-  std::cerr << fmt::format("new_now={}, time_next={}\n", new_now, time_next);
   ScheduleKeyboardAt(time_next);
 }
 
