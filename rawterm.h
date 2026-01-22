@@ -9,7 +9,9 @@ class RawTerminal {
   RawTerminal();
   ~RawTerminal();
   void Restore() noexcept;
+  bool IsForground() const { return is_forground_; }
  private:
+  bool is_forground_{false};
   termios oldt_;
   static void InstallSignalHandlers();
   static void SignalHandler(int sig);

@@ -4,9 +4,8 @@
 #include <initializer_list>
 
 RawTerminal::RawTerminal() {
-  const bool is_forground = isatty(STDIN_FILENO) &&
-    tcgetpgrp(STDIN_FILENO) == getpgrp();
-  if (is_forground) {
+  is_forground_ = isatty(STDIN_FILENO) && tcgetpgrp(STDIN_FILENO) == getpgrp();
+  if (is_forground_) {
     InstallSignalHandlers();
     tcgetattr(STDIN_FILENO, &oldt_);
     termios newt = oldt_;
