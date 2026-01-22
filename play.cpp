@@ -232,7 +232,7 @@ class Player {
  private:
   using range_t = std::array<uint8_t, 2>;
   using key2affine_t = std::unordered_map<uint8_t, Affine>;
-  enum class KeyAction { None, Pause, Resume, Backward, Forward };
+  enum class KeyAction { None, Pause, Resume, Backward, Forward, Quit, Help };
   void SetIndexEvents();
   uint32_t GetFirstNoteTime();
   void SetAbsEvents();
