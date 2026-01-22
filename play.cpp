@@ -406,8 +406,6 @@ void Player::SetAbsEvents() {
     }
     std::cout << fmt::format("abs_events[{}]", nae) << "{\n";
   }
-  std::cout << fmt::format("{}:{} #(abs_events)={} b={}, e={}\n",
-    __FILE__, __LINE__, abs_events_.size(), begin_ms_, end_ms_);
 }
 
 void Player::Retune() {
@@ -470,7 +468,6 @@ void Player::play() {
       ss_.sequencer_, "progress", DispatchCallback, &cbd_progress);
   }
   if (sense_keyboard_) {
-    std::cerr << fmt::format("{}:{} register SeqIdKbd\n", __FILE__, __LINE__);
     seq_ids_[SeqIdKbd] = fluid_sequencer_register_client(
       ss_.sequencer_, "keyboard", DispatchCallback, &cbd_keyboard);
   }
@@ -715,17 +712,10 @@ void Player::final_callback(
 }
 
 void Player::KeyboardAction(unsigned int time, KeyAction action) {
-  int iaction = static_cast<int>(action);
-  if (iaction) {
-    std::cerr << fmt::format("{}:{} action={}\n", __FILE__, __LINE__, static_cast<int>(action));
-  }
-  unsigned int pause_time;
   switch (action) {
    case KeyAction::Pause:
     RemoveEvents();
-    std::cout << fmt::format("{}:{} pause_time={}\n", __FILE__, __LINE__, pause_time);
     pause_time_ = begin_ms_ + (time - date_add_ms_);
-    // ScheduleKeyboardAt(time + 200);
     break;
    case KeyAction::Resume:
     Resume(time, pause_time_);
@@ -736,17 +726,12 @@ void Player::KeyboardAction(unsigned int time, KeyAction action) {
 }
 
 void Player::RemoveEvents() {
-  // fluid_synth_system_reset(ss_.synth_);
   fluid_synth_all_notes_off(ss_.synth_, -1);
   auto channel_count  = fluid_synth_count_midi_channels(ss_.synth_);
-  std::cerr << fmt::format("{}:{} {} channel_count={}\n",
-    __FILE__, __FILE__, __func__, channel_count);
   for (int i = 0; i < channel_count; i++) {
     fluid_synth_cc(ss_.synth_, i, 64, 0); // CC 64 is Sustain
   }
-
   fluid_sequencer_remove_events(ss_.sequencer_, -1, -1, -1);
-  std::cerr << fmt::format("{}:{} {}\n", __FILE__, __FILE__, __func__);
 }
 
 void Player::progress_callback(
@@ -763,11 +748,6 @@ void Player::progress_callback(
       uint32_t tdone = btime - date_add_ms_;
       auto mmss_done = milliseconds_to_string(tdone);
       auto mmss_final = milliseconds_to_string(last_ms);
-static int call = 0;
-if (++call == 20) {
-  std::cout << fmt::format("\n{}:{} time={}, date_add_ms_={}, dt={}, mmss_done={}\n",
-    __FILE__, __LINE__, time, date_add_ms_, dt, mmss_done);
-}
       std::cout << fmt::format("\rProgress: {} / {}", mmss_done, mmss_final);
       std::cout.flush();
     }
@@ -785,8 +765,6 @@ void Player::keyboard_callback(
   KeyAction action = KeyAction::None;
   char key_char;
   if (read(STDIN_FILENO, &key_char, 1) == 1) {
-    std::cerr << fmt::format("{}:{} key_char={} ord={}\n", __FILE__, __LINE__, 
-      key_char, int(key_char));
     switch (key_char) {
      case ' ':
       in_pause_ = !in_pause_;
