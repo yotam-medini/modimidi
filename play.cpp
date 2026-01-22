@@ -292,7 +292,7 @@ class Player {
   void ScheduleCallback(int seq_id, uint32_t at);
   void KeyboardAction(unsigned int time, KeyAction action);
   void RemoveEvents();
-  void Resume(uint32_t new_begin_ms);
+  void Resume(uint32_t now, uint32_t new_begin_ms);
 
   int rc_{0};
 
@@ -311,6 +311,7 @@ class Player {
   std::array<int, SeqId_N>  seq_ids_;
   size_t next_send_index_{0};
   uint32_t date_add_ms_{0};
+  unsigned pause_time_{0};
   bool in_pause_{false};
   std::atomic<bool> final_handled_{false};
   std::mutex sending_mtx_;
@@ -405,7 +406,8 @@ void Player::SetAbsEvents() {
     }
     std::cout << fmt::format("abs_events[{}]", nae) << "{\n";
   }
-  std::cout << fmt::format("{}:{} #(abs_events)={}\n", __FILE__, __LINE__, abs_events_.size());
+  std::cout << fmt::format("{}:{} #(abs_events)={} b={}, e={}\n",
+    __FILE__, __LINE__, abs_events_.size(), begin_ms_, end_ms_);
 }
 
 void Player::Retune() {
@@ -721,12 +723,12 @@ void Player::KeyboardAction(unsigned int time, KeyAction action) {
   switch (action) {
    case KeyAction::Pause:
     RemoveEvents();
-    pause_time = time - date_add_ms_;
     std::cout << fmt::format("{}:{} pause_time={}\n", __FILE__, __LINE__, pause_time);
+    pause_time_ = begin_ms_ + (time - date_add_ms_);
     // ScheduleKeyboardAt(time + 200);
     break;
    case KeyAction::Resume:
-    Resume(time);
+    Resume(time, pause_time_);
     break;
    default:
     break;
@@ -820,10 +822,15 @@ void Player::keyboard_callback(
   ScheduleKeyboardAt(time_next);
 }
 
-void Player::Resume(uint32_t new_begin_ms) {
+void Player::Resume(uint32_t now, uint32_t new_begin_ms) {
   begin_ms_ = new_begin_ms;
   SetAbsEvents();
-  SchedulePeriodicAt(0);
+  next_send_index_ = 0;
+  uint32_t new_now = fluid_sequencer_get_tick(ss_.sequencer_);
+  SchedulePeriodicAt(new_now);
+  if (pp_.progress_) {
+    ScheduleProgressAt(100);
+  }
 }
 
 
