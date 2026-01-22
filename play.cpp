@@ -238,7 +238,7 @@ class Player {
   void SetAbsEvents();
   bool RetuneNeeded() const { return (pp_.tuning_ != 440); }
   void Retune();
-  void play();
+  void Play();
   void SetVelocitiesMap();
   void HandleMeta(const midi::MetaEvent*, DynamicTiming&, uint32_t ts);
   void HandleMidi(
@@ -257,26 +257,26 @@ class Player {
       fluid_sequencer_t *seq,
       void *data) {
     CallBackData *cbd = static_cast<CallBackData*>(data);
-    cbd->player_->callback(time, event, seq, cbd->ecb_);
+    cbd->player_->Callback(time, event, seq, cbd->ecb_);
   }
-  void callback(
+  void Callback(
     unsigned int time,
     fluid_event_t *event,
     fluid_sequencer_t *seq, 
     CallBackData::CallBack ecb);
-  void periodic_callback(
+  void PeriodicCallback(
     unsigned int time,
     fluid_event_t *event,
     fluid_sequencer_t *seq);
-  void final_callback(
+  void FinalCallback(
     unsigned int time,
     fluid_event_t *event,
     fluid_sequencer_t *seq);
-  void progress_callback(
+  void ProgressCallback(
     unsigned int time,
     fluid_event_t *event,
     fluid_sequencer_t *seq);
-  void keyboard_callback(
+  void KeyboardCallback(
     unsigned int time,
     fluid_event_t *event,
     fluid_sequencer_t *seq);
@@ -327,7 +327,7 @@ int Player::run() {
   if (RetuneNeeded()) {
     Retune();
   }
-  play();
+  Play();
   return rc_;
 }
 
@@ -452,7 +452,7 @@ void Player::Retune() {
   }
 }
 
-void Player::play() {
+void Player::Play() {
   std::unique_lock lock(play_mtx_);
   if (pp_.debug_ & 0x2) { std::cout << "play: mutex locked\n"; }
   CallBackData cbd_periodic{CallBackData::CallBack::Periodic, this};
@@ -645,23 +645,23 @@ void Player::ScheduleCallback(int seq_id, uint32_t at) {
   delete_fluid_event(e);
 }
 
-void Player::callback(
+void Player::Callback(
     unsigned int time,
     fluid_event_t *event,
     fluid_sequencer_t *seq,
     CallBackData::CallBack ecb) {
   if (ecb == CallBackData::CallBack::Keyboard) {
-    keyboard_callback(time, event, seq);
+    KeyboardCallback(time, event, seq);
   } else if (!in_pause_) {
     switch (ecb) {     
      case CallBackData::CallBack::Periodic:
-      periodic_callback(time, event, seq);
+      PeriodicCallback(time, event, seq);
       break;
      case CallBackData::CallBack::Final:
-      final_callback(time, event, seq);
+      FinalCallback(time, event, seq);
       break;
      case CallBackData::CallBack::Progress:
-      progress_callback(time, event, seq);
+      ProgressCallback(time, event, seq);
       break;
      default:
       std::cerr << "BUG: callback ecb=" << static_cast<int>(ecb) << '\n';
@@ -669,7 +669,7 @@ void Player::callback(
   }
 }
 
-void Player::periodic_callback(
+void Player::PeriodicCallback(
     unsigned int time,
     fluid_event_t *event,
     fluid_sequencer_t *seq) {
@@ -698,15 +698,15 @@ void Player::periodic_callback(
   }
 }
 
-void Player::final_callback(
+void Player::FinalCallback(
     unsigned int time,
     fluid_event_t *event,
     fluid_sequencer_t *seq) {
-  if (pp_.debug_ & 0x2) { std::cout << "final_callback\n"; } 
+  if (pp_.debug_ & 0x2) { std::cout << "FinalCallback\n"; } 
   bool handled = final_handled_.exchange(true);
   if (!handled) {
     RemoveEvents();
-    if (pp_.debug_ & 0x2) { std::cout << "final_callback notify\n"; } 
+    if (pp_.debug_ & 0x2) { std::cout << "FinalCallback notify\n"; } 
     cv_.notify_one();
   }
 }
@@ -734,7 +734,7 @@ void Player::RemoveEvents() {
   fluid_sequencer_remove_events(ss_.sequencer_, -1, -1, -1);
 }
 
-void Player::progress_callback(
+void Player::ProgressCallback(
     unsigned int time,
     fluid_event_t *event,
     fluid_sequencer_t *seq) {
@@ -758,7 +758,7 @@ void Player::progress_callback(
   ScheduleProgressAt(time_next);
 }
 
-void Player::keyboard_callback(
+void Player::KeyboardCallback(
     unsigned int time,
     fluid_event_t *event,
     fluid_sequencer_t *seq) {
@@ -863,7 +863,7 @@ void FinalEvent::SetSendFluidEvent(
 
 ////////////////////////////////////////////////////////////////////////
 
-int play(
+int Play(
     const midi::Midi &parsed_midi,
     SynthSequencer &synth_sequencer,
     const PlayParams &play_params) {
