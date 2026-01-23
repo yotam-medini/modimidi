@@ -295,6 +295,7 @@ class Player {
   void RemoveEvents();
   void Resume(uint32_t now, uint32_t new_begin_ms);
   void PerformFinal();
+  void KeyboardHelp();
 
   int rc_{0};
 
@@ -717,6 +718,17 @@ void Player::PerformFinal() {
   }
 }
 
+void Player::KeyboardHelp() {
+  std::cerr << R"(
+    modimidi supports the following keyboard commands:
+    SPACE:          Pause or Resume
+    j, Left-Arrow:  Skip back 5 seconds
+    k, Right-Arrow: Skip forward 5 seconds
+    q:              Quit
+    h:              Show this help message
+  )";
+}
+
 void Player::KeyboardAction(unsigned int time, KeyAction action) {
   uint32_t dt = time - date_add_ms_;
   uint32_t time_in_music = begin_ms_ + dt/pp_.tempo_div_factor_;
@@ -743,6 +755,9 @@ void Player::KeyboardAction(unsigned int time, KeyAction action) {
    case KeyAction::Quit:
     RemoveEvents();
     PerformFinal();
+    break;
+   case KeyAction::Help:
+    KeyboardHelp();
     break;
    default:
     break;
