@@ -715,7 +715,8 @@ void Player::KeyboardAction(unsigned int time, KeyAction action) {
   switch (action) {
    case KeyAction::Pause:
     RemoveEvents();
-    pause_time_ = begin_ms_ + (time - date_add_ms_);
+    pause_time_ = begin_ms_ + (time - date_add_ms_)/pp_.tempo_div_factor_;
+std::cerr << fmt::format("\n pause_time_={}\n", pause_time_);
     break;
    case KeyAction::Resume:
     Resume(time, pause_time_);
@@ -734,6 +735,7 @@ void Player::RemoveEvents() {
   fluid_sequencer_remove_events(ss_.sequencer_, -1, -1, -1);
 }
 
+static bool progress_after_resume = false;
 void Player::ProgressCallback(
     unsigned int time,
     fluid_event_t *event,
@@ -745,8 +747,16 @@ void Player::ProgressCallback(
     uint32_t dt_div = static_cast<uint32_t>(dt_div_f);
     uint32_t btime = dt_div + begin_ms_;
     if ((date_add_ms_ <= btime) && (btime <= last_ms)) {
-      uint32_t tdone = btime - date_add_ms_;
+static int call_counter;
+      uint32_t tdone = btime; //  - date_add_ms_;
       auto mmss_done = milliseconds_to_string(tdone);
+if (progress_after_resume || (++call_counter == 50)) {
+ progress_after_resume = false;
+ std::cerr << fmt::format("{}:{} time={}, date_add_ms_={}, dt={}, dt_div={}, "
+   "btime={}, tdone={}, mmss_done={}\n", 
+   __FILE__, __LINE__, time, date_add_ms_, dt, dt_div,
+   btime, tdone, mmss_done);
+}
       auto mmss_final = milliseconds_to_string(last_ms);
       std::cout << fmt::format("\rProgress: {} / {}", mmss_done, mmss_final);
       std::cout.flush();
@@ -801,10 +811,12 @@ void Player::KeyboardCallback(
 }
 
 void Player::Resume(uint32_t now, uint32_t new_begin_ms) {
+progress_after_resume = true;
   begin_ms_ = new_begin_ms;
   SetAbsEvents();
   next_send_index_ = 0;
   uint32_t new_now = fluid_sequencer_get_tick(ss_.sequencer_);
+  // date_add_ms_ = new_now + pp_.initial_delay_ms_;
   SchedulePeriodicAt(new_now);
   if (pp_.progress_) {
     ScheduleProgressAt(100);
