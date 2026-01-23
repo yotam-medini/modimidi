@@ -230,6 +230,7 @@ class Player {
   int run();
 
  private:
+  static constexpr uint32_t SKIP_MS = 5000;
   using range_t = std::array<uint8_t, 2>;
   using key2affine_t = std::unordered_map<uint8_t, Affine>;
   enum class KeyAction { None, Pause, Resume, Backward, Forward, Quit, Help };
@@ -712,13 +713,29 @@ void Player::FinalCallback(
 }
 
 void Player::KeyboardAction(unsigned int time, KeyAction action) {
+  uint32_t dt = time - date_add_ms_;
+  uint32_t time_in_music = begin_ms_ + dt/pp_.tempo_div_factor_;
+  std::cerr << fmt::format(" {}  dt={}, time_in_music={}\n", __func__,
+    dt, time_in_music);
   switch (action) {
    case KeyAction::Pause:
     RemoveEvents();
-    pause_time_ = begin_ms_ + (time - date_add_ms_)/pp_.tempo_div_factor_;
+    pause_time_ = time_in_music;
     break;
    case KeyAction::Resume:
     Resume(time, pause_time_);
+    break;
+   case KeyAction::Backward:
+    if (time_in_music >= SKIP_MS) {
+      RemoveEvents();
+      Resume(time, time_in_music - SKIP_MS);
+    }
+    break;
+   case KeyAction::Forward:
+    if (time_in_music + SKIP_MS <= end_ms_) {
+      RemoveEvents();
+      Resume(time, time_in_music + SKIP_MS);
+    }
     break;
    default:
     break;
@@ -745,7 +762,7 @@ void Player::ProgressCallback(
     uint32_t dt_div = static_cast<uint32_t>(dt_div_f);
     uint32_t btime = dt_div + begin_ms_;
     if ((date_add_ms_ <= btime) && (btime <= last_ms)) {
-      uint32_t tdone = btime - date_add_ms_;
+      uint32_t tdone = btime;
       auto mmss_done = milliseconds_to_string(tdone);
       auto mmss_final = milliseconds_to_string(last_ms);
       std::cout << fmt::format("\rProgress: {} / {}", mmss_done, mmss_final);
@@ -791,8 +808,8 @@ void Player::KeyboardCallback(
   }
   if (action != KeyAction::None) {
     tcflush(STDIN_FILENO, TCIFLUSH);
+    KeyboardAction(time, action);
   }
-  KeyboardAction(time, action);
   // about event 1/10 second
   uint32_t new_now = fluid_sequencer_get_tick(ss_.sequencer_);
   uint32_t tmod100 = new_now % 100;
@@ -801,6 +818,10 @@ void Player::KeyboardCallback(
 }
 
 void Player::Resume(uint32_t now, uint32_t new_begin_ms) {
+  if (pp_.debug_ & 0x1) {
+    std::cerr << fmt::format("{} now={}, new_begin_ms={}\n",
+      __func__, now, new_begin_ms);
+  }
   begin_ms_ = new_begin_ms;
   SetAbsEvents();
   next_send_index_ = 0;
