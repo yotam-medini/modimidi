@@ -294,6 +294,7 @@ class Player {
   void KeyboardAction(unsigned int time, KeyAction action);
   void RemoveEvents();
   void Resume(uint32_t now, uint32_t new_begin_ms);
+  void PerformFinal();
 
   int rc_{0};
 
@@ -704,10 +705,14 @@ void Player::FinalCallback(
     fluid_event_t *event,
     fluid_sequencer_t *seq) {
   if (pp_.debug_ & 0x2) { std::cout << "FinalCallback\n"; } 
+  PerformFinal();
+}
+
+void Player::PerformFinal() {
   bool handled = final_handled_.exchange(true);
   if (!handled) {
     RemoveEvents();
-    if (pp_.debug_ & 0x2) { std::cout << "FinalCallback notify\n"; } 
+    if (pp_.debug_ & 0x2) { std::cout << "Final notify\n"; } 
     cv_.notify_one();
   }
 }
@@ -715,8 +720,6 @@ void Player::FinalCallback(
 void Player::KeyboardAction(unsigned int time, KeyAction action) {
   uint32_t dt = time - date_add_ms_;
   uint32_t time_in_music = begin_ms_ + dt/pp_.tempo_div_factor_;
-  std::cerr << fmt::format(" {}  dt={}, time_in_music={}\n", __func__,
-    dt, time_in_music);
   switch (action) {
    case KeyAction::Pause:
     RemoveEvents();
@@ -736,6 +739,10 @@ void Player::KeyboardAction(unsigned int time, KeyAction action) {
       RemoveEvents();
       Resume(time, time_in_music + SKIP_MS);
     }
+    break;
+   case KeyAction::Quit:
+    RemoveEvents();
+    PerformFinal();
     break;
    default:
     break;
@@ -787,11 +794,17 @@ void Player::KeyboardCallback(
       in_pause_ = !in_pause_;
       action = in_pause_ ? KeyAction::Pause : KeyAction::Resume;
       break;
+     case 'h':
+      action = KeyAction::Help;
+      break;
      case 'j':
       action = KeyAction::Backward;
       break;
      case 'k':
       action = KeyAction::Forward;
+      break;
+     case 'q':
+      action = KeyAction::Quit;
       break;
      case '\x1b': // Esc
       {
