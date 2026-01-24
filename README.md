@@ -15,8 +15,10 @@ Download the midi file of
 from [Mutopia](https://www.mutopiaproject.org) project.
 or via
 ```
-$ BASENAME=${BASENAME}
-$ wget https://www.mutopiaproject.org/ftp/BachJS/BWV230/${BASENAME}/${BASENAME}.mid
+$ MUTOPIA=https://www.mutopiaproject.org
+$ BASENAME=bach_BWV_230_Lobet_den_Herrn_alle_Heiden
+$ wget ${MUTOPIA}/ftp/BachJS/BWV230/${BASENAME}/${BASENAME}.mid
+https://www.mutopiaproject.org/ftp/BachJS/BWV230/bach_BWV_230_Lobet_den_Herrn_alle_Heiden/bach_BWV_230_Lobet_den_Herrn_alle_Heiden.mid
 
 ```
 
@@ -33,7 +35,8 @@ Since this Barouqe music we change the tuning to 415
 To ease practice we slow down the speed by factor of 0.8.
 
 ```
-$ modimidi --progress -b 5:35 -e 5:42 --tuning 415 --tmap 1:40 2:40 4:40 -T 0.8 ${BASENAME}.mid
+$ modimidi --progress -b 5:35 -e 5:42 \
+    --tuning 415 --tmap 1:40 2:40 4:40 -T 0.8 ${BASENAME}.mid
 ```
 # Build
 
@@ -48,7 +51,7 @@ $ modimidi --progress -b 5:35 -e 5:42 --tuning 415 --tmap 1:40 2:40 4:40 -T 0.8 
 ## Steps
 
 ```
-git clone https://github.com/yotam-medini/cmodimidi.git
+git clone https://github.com/yotam-medini/modimidi.git
 cd cmodimidi
 mkdir build
 cd build
@@ -92,6 +95,18 @@ which is provided by the ``fluid-soundfont-gm`` package.
 |   ``--noplay``                 |                    | Do not play, usefull with ``--info`` or ``--dump`` |
 |   ``--progress``               |                    | Show progress |
 |   ``--debug`` $bitsflags$      |                    | [<font color="green">0</font>] Debug flags |
+
+### Interactive keyboard commands
+
+```modimidi``` supports the following keyboard commands:
+
+| Key | Action |
+| --- | --- |
+| Space          | Pause or Resume        |
+| j, Left-Arrow  | Skip back 5 seconds    |
+| k, Right-Arrow | Skip forward 5 seconds |
+| q              | Quit                   |
+| h              | Show this help message |
 
 ### Notes
 * The *time* value format is [*minutes*]:*seconds*[.*millisecs*]
