@@ -154,7 +154,7 @@ class _OptionsImpl {
     {
     AddOptions();
     // last argument - the midi file
-    pos_desc_.add("midifile", -1);
+    pos_desc_.add("midifile", 1);
     po::store(po::command_line_parser(argc, argv)
         .options(desc_)
         .positional(pos_desc_)
