@@ -3,7 +3,7 @@ Command line midi player using
 [fluidsynth](https://www.fluidsynth.org/api/index.html) implemented in C++
 
 ## Version
-The current version is 0.1.4
+The current version is 0.1.5
 
 # Example
 
@@ -44,7 +44,7 @@ $ modimidi --progress -b 5:35 -e 5:42 \
 
 * [GNU/Linux](https://www.gnu.org/gnu/linux-and-gnu.en.html)
 * [CMake](https://cmake.org/)
-* [C++] Version 20 or above
+* [C++] version 20 or above
 * [fluidsynth](https://www.fluidsynth.org/api) library (available by the libfluidsynth-dev package).
 * Boost (C++ library for [program_options](https://www.boost.org/doc/libs/1_87_0/doc/html/program_options.html))
 
