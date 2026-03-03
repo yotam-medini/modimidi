@@ -181,7 +181,7 @@ class DynamicTiming {
 
 class CallBackData {
  public:
-  enum CallBack { Periodic, Final, Progress, Keyboard };
+  enum CallBack { Periodic, Final, Interactive };
   CallBackData(CallBack ecb, Player *player) : ecb_{ecb}, player_{player} {}
   CallBack ecb_;
   Player *player_;
@@ -213,7 +213,7 @@ class Affine {
 class Player {
  public:
   enum SeqId : size_t { 
-    SeqIdSynth, SeqIdPeriodic, SeqIdFinal, SeqIdProgress, SeqIdKbd, SeqId_N };
+    SeqIdSynth, SeqIdPeriodic, SeqIdFinal, SeqIdInterActive, SeqId_N };
   Player(
       const midi::Midi &pm,
       SynthSequencer &ss,
@@ -273,24 +273,19 @@ class Player {
     unsigned int time,
     fluid_event_t *event,
     fluid_sequencer_t *seq);
-  void ProgressCallback(
-    unsigned int time,
-    fluid_event_t *event,
-    fluid_sequencer_t *seq);
-  void KeyboardCallback(
+  void InteractiveCallback(
     unsigned int time,
     fluid_event_t *event,
     fluid_sequencer_t *seq);
   void SchedulePeriodicAt(uint32_t at) {
     ScheduleCallback(seq_ids_[SeqIdPeriodic], at);
   }
-  void ScheduleProgressAt(uint32_t at) {
-    ScheduleCallback(seq_ids_[SeqIdProgress], at);
-  }
-  void ScheduleKeyboardAt(uint32_t at) {
-    ScheduleCallback(seq_ids_[SeqIdKbd], at);
+  void ScheduleInterActiveAt(uint32_t at) {
+    ScheduleCallback(seq_ids_[SeqIdInterActive], at);
   }
   void ScheduleCallback(int seq_id, uint32_t at);
+  void ProgressHandle(unsigned int time);
+  KeyAction KeyboardProbe(unsigned int time);
   void KeyboardAction(unsigned int time, KeyAction action);
   void RemoveEvents();
   void Resume(uint32_t now, uint32_t new_begin_ms);
@@ -464,22 +459,14 @@ void Player::Play() {
   CallBackData cbd_final{CallBackData::CallBack::Final, this};
   seq_ids_[SeqIdFinal] = fluid_sequencer_register_client(
     ss_.sequencer_, "final", DispatchCallback, &cbd_final);
-  CallBackData cbd_progress{CallBackData::CallBack::Progress, this};
-  CallBackData cbd_keyboard{CallBackData::CallBack::Keyboard, this};
-  if (pp_.progress_) {
-    seq_ids_[SeqIdProgress] = fluid_sequencer_register_client(
-      ss_.sequencer_, "progress", DispatchCallback, &cbd_progress);
-  }
-  if (sense_keyboard_) {
-    seq_ids_[SeqIdKbd] = fluid_sequencer_register_client(
-      ss_.sequencer_, "keyboard", DispatchCallback, &cbd_keyboard);
+  CallBackData cbd_interactive{CallBackData::CallBack::Interactive, this};
+  if (pp_.progress_ || sense_keyboard_) {
+    seq_ids_[SeqIdInterActive] = fluid_sequencer_register_client(
+      ss_.sequencer_, "interactive", DispatchCallback, &cbd_interactive);
   }
   SchedulePeriodicAt(0);
-  if (pp_.progress_) {
-    ScheduleProgressAt(100);
-  }
-  if (sense_keyboard_) {
-    ScheduleKeyboardAt(150);
+  if (pp_.progress_ || sense_keyboard_) {
+    ScheduleInterActiveAt(100);
   }
   if (pp_.debug_ & 0x2) { std::cout << "wait on lock\n"; }
   cv_.wait(lock, [this]{ return final_handled_.load(); });
@@ -653,9 +640,9 @@ void Player::Callback(
     fluid_event_t *event,
     fluid_sequencer_t *seq,
     CallBackData::CallBack ecb) {
-  if (ecb == CallBackData::CallBack::Keyboard) {
-    KeyboardCallback(time, event, seq);
-  } else if (!in_pause_) {
+  if (in_pause_) {
+    InteractiveCallback(time, event, seq);
+  } else {
     switch (ecb) {     
      case CallBackData::CallBack::Periodic:
       PeriodicCallback(time, event, seq);
@@ -663,8 +650,8 @@ void Player::Callback(
      case CallBackData::CallBack::Final:
       FinalCallback(time, event, seq);
       break;
-     case CallBackData::CallBack::Progress:
-      ProgressCallback(time, event, seq);
+     case CallBackData::CallBack::Interactive:
+      InteractiveCallback(time, event, seq);
       break;
      default:
       std::cerr << "BUG: callback ecb=" << static_cast<int>(ecb) << '\n';
@@ -773,10 +760,21 @@ void Player::RemoveEvents() {
   fluid_sequencer_remove_events(ss_.sequencer_, -1, -1, -1);
 }
 
-void Player::ProgressCallback(
+void Player::InteractiveCallback(
     unsigned int time,
     fluid_event_t *event,
     fluid_sequencer_t *seq) {
+  KeyAction action = (sense_keyboard_ ? KeyboardProbe(time) : KeyAction::None);
+  if (pp_.progress_ && (!in_pause_) && (action == KeyAction::None)) {
+    ProgressHandle(time);
+  }
+  // about event 1/10 second
+  uint32_t tmod100 = time % 100;
+  uint32_t time_next = time + (tmod100 > 50 ? 200 : 100) - tmod100;
+  ScheduleInterActiveAt(time_next);
+}
+
+void Player::ProgressHandle(unsigned int time) {
   if ((next_send_index_ > 0) && time >= date_add_ms_) {
     const uint32_t last_ms = abs_events_.back()->time_ms_original_;
     uint32_t dt = time - date_add_ms_;
@@ -791,16 +789,9 @@ void Player::ProgressCallback(
       std::cout.flush();
     }
   }
-  // about event 1/10 second
-  uint32_t tmod100 = time % 100;
-  uint32_t time_next = time + (tmod100 > 50 ? 200 : 100) - tmod100;
-  ScheduleProgressAt(time_next);
 }
 
-void Player::KeyboardCallback(
-    unsigned int time,
-    fluid_event_t *event,
-    fluid_sequencer_t *seq) {
+auto Player::KeyboardProbe(unsigned int time) -> KeyAction {
   KeyAction action = KeyAction::None;
   char key_char;
   if (read(STDIN_FILENO, &key_char, 1) == 1) {
@@ -823,10 +814,10 @@ void Player::KeyboardCallback(
       break;
      case '\x1b': // Esc
       {
-        char seq[2];
-        if ((read(STDIN_FILENO, &seq[0], 2) == 2) && (seq[0] == '[') &&
-            ((seq[1] == 'C') || (seq[1] == 'D'))) {
-          action = (seq[1] == 'C') ? KeyAction::Forward : KeyAction::Backward;
+        char cseq[2];
+        if ((read(STDIN_FILENO, &cseq[0], 2) == 2) && (cseq[0] == '[') &&
+            ((cseq[1] == 'C') || (cseq[1] == 'D'))) {
+          action = (cseq[1] == 'C') ? KeyAction::Forward : KeyAction::Backward;
         }
       }
       break;
@@ -838,11 +829,7 @@ void Player::KeyboardCallback(
     tcflush(STDIN_FILENO, TCIFLUSH);
     KeyboardAction(time, action);
   }
-  // about event 1/10 second
-  uint32_t new_now = fluid_sequencer_get_tick(ss_.sequencer_);
-  uint32_t tmod100 = new_now % 100;
-  uint32_t time_next = new_now + (tmod100 > 50 ? 200 : 100) - tmod100;
-  ScheduleKeyboardAt(time_next);
+  return action;
 }
 
 void Player::Resume(uint32_t now, uint32_t new_begin_ms) {
@@ -854,11 +841,7 @@ void Player::Resume(uint32_t now, uint32_t new_begin_ms) {
   SetAbsEvents();
   next_send_index_ = 0;
   uint32_t new_now = fluid_sequencer_get_tick(ss_.sequencer_);
-  // date_add_ms_ = new_now + pp_.initial_delay_ms_;
   SchedulePeriodicAt(new_now);
-  if (pp_.progress_) {
-    ScheduleProgressAt(100);
-  }
 }
 
 
