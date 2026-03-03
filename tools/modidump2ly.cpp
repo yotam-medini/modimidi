@@ -1,10 +1,10 @@
-#include <iostream>
+#include <format>
 #include <fstream>
+#include <iostream>
 #include <regex>
 #include <unordered_map>
 #include <vector>
 #include <cstdint>
-#include <fmt/core.h>
 #include <boost/program_options.hpp>
 
 namespace po = boost::program_options;
@@ -50,7 +50,7 @@ class TimeSignature {
     return ret;
   }
   std::string ly_str() const {
-    return fmt::format("{}/{}", unsigned{nn_}, unsigned{denom_});
+    return std::format("{}/{}", unsigned{nn_}, unsigned{denom_});
   }
   uint32_t abs_time_{0};
   uint8_t nn_{0};
@@ -116,7 +116,7 @@ class Note : public NoteBase {
     return (abs_time_ == other.abs_time_) && (end_time_ == other.end_time_);
   }
   std::string str() const {
-    return fmt::format("Note([{}, {}], c={}, key={}, v={})",
+    return std::format("Note([{}, {}], c={}, key={}, v={})",
       abs_time_, end_time_, channel_, key_, value_);
   }
   uint8_t value_{0};
@@ -245,24 +245,24 @@ int ModiDump2Ly::Parse() {
   std::ifstream ifs(dump_filename_);
   if (ifs.fail()) {
     rc_ = 1;
-    std::cerr << fmt::format("Failed to open {}\n", dump_filename_);
+    std::cerr << std::format("Failed to open {}\n", dump_filename_);
   } else {
     bool getting_tracks = true;
     while (getting_tracks && (RC() == 0)) {
       getting_tracks = GetTrack(ifs);
     }
     if (debug_ & 0x2) {
-      std::cout << fmt::format("ticksPerQuarter={}\n", ticks_per_quarter_);
-      std::cout << fmt::format("#(TimeSignature)={}\n", time_sigs_.size());
-      std::cout << fmt::format("#(tracks)={}: [\n", tracks_.size());
+      std::cout << std::format("ticksPerQuarter={}\n", ticks_per_quarter_);
+      std::cout << std::format("#(TimeSignature)={}\n", time_sigs_.size());
+      std::cout << std::format("#(tracks)={}: [\n", tracks_.size());
       for (size_t i = 0; i < tracks_.size(); ++i) {
         const Track &track = tracks_[i];
-        std::cout << fmt::format("  [{}] name={}, #(notes)={}\n",
+        std::cout << std::format("  [{}] name={}, #(notes)={}\n",
           i, track.name_, track.notes_.size());
         if (debug_ & 0x4) {
           for (size_t ni = 0; ni < track.notes_.size(); ++ni) {
             const Note &note = track.notes_[ni];
-            std::cout << fmt::format(
+            std::cout << std::format(
               "    [{:4d} [{:5d},{:5d}) key={} duration={}\n",
               ni, note.abs_time_, note.end_time_, note.key_, note.Duration());
           }
@@ -331,7 +331,7 @@ bool ModiDump2Ly::GetTrack(std::istream &ifs) {
             NoteOff note_off{base_match};
             auto iter = note_ons.find(key);
             if ((iter == note_ons.end()) || iter->second.empty()) {
-              std::cerr << fmt::format("Unmatched NoteOff in {}\n", line);
+              std::cerr << std::format("Unmatched NoteOff in {}\n", line);
             } else {
               const NoteOn &note_on = iter->second.back();
               Note note{note_on.abs_time_, note_on.channel_, note_on.key_,
@@ -352,7 +352,7 @@ void ModiDump2Ly::WriteLyNotes() {
   if (debug_ & 0x1) { std::cerr << "{ WriteLyNotes\n"; }
   std::ofstream f_ly(ly_filename_);
   if (f_ly.fail()) {
-    std::cerr << fmt::format("Failed to open {}\n", ly_filename_);
+    std::cerr << std::format("Failed to open {}\n", ly_filename_);
     rc_ = 1;
   } else {
     for (size_t ti = 0; (rc_ == 0) && (ti < tracks_.size()); ++ti) {
@@ -366,10 +366,10 @@ void ModiDump2Ly::WriteLyNotes() {
 
 void ModiDump2Ly::WriteTrackNotes(std::ofstream &f_ly, size_t ti) {
   const Track &track = tracks_[ti];
-  f_ly << fmt::format("\ntrack{}{} = {}\n", ti, track.name_, "{");
+  f_ly << std::format("\ntrack{}{} = {}\n", ti, track.name_, "{");
   time_sig_idx = 0;
   curr_ts_bar_begin = 0;
-  f_ly << fmt::format("  \\time {}\n ", time_sigs_[0].ly_str());
+  f_ly << std::format("  \\time {}\n ", time_sigs_[0].ly_str());
   curr_bar = 0;
   curr_duration_sym_ = std::string("?");
   uint32_t prev_note_end_time = 0;
@@ -388,7 +388,7 @@ void ModiDump2Ly::WriteTrackNotes(std::ofstream &f_ly, size_t ti) {
       curr_bar = curr_ts_bar_begin + n_bars;
       ++time_sig_idx;
       curr_ts_bar_begin = curr_bar;
-      f_ly << fmt::format("  % bar {}\n  \\time {}\n ",
+      f_ly << std::format("  % bar {}\n  \\time {}\n ",
         curr_bar + 1 + bar_shift_, time_sigs_[time_sig_idx].ly_str());
     }
     bool polyphony = false;
@@ -430,12 +430,12 @@ void ModiDump2Ly::WriteKeyDuration(
       uint32_t end_of_bar = ts.abs_time_ + (curr_ts_bars + 1)*TsTicks(ts);
       if (tbegin + small_add >= end_of_bar) {
          ++curr_bar;
-         f_ly << fmt::format("\n  % bar {}\n ", curr_bar + 1 + bar_shift_);
+         f_ly << std::format("\n  % bar {}\n ", curr_bar + 1 + bar_shift_);
          tbegin += small_add;
          if (IsNextTimeSig(tbegin)) {
            ++time_sig_idx;
            curr_ts_bar_begin = curr_bar;
-           f_ly << fmt::format(" \\time {}\n ",
+           f_ly << std::format(" \\time {}\n ",
              time_sigs_[time_sig_idx].ly_str());
          }
          const TimeSignature &ts1 = time_sigs_[time_sig_idx];
@@ -448,7 +448,7 @@ void ModiDump2Ly::WriteKeyDuration(
     }
     uint32_t duration = (et - tbegin) + small_time_;
     while (duration >= 2*WholeTicks()) {
-      f_ly << fmt::format(" {}1", sym);
+      f_ly << std::format(" {}1", sym);
       if (wet) {
         curr_duration_sym_ = "1";
       }
@@ -488,7 +488,7 @@ void ModiDump2Ly::WriteKeyDuration(
           dur = qrule.sym_;
           curr_duration_sym_ = dur;
         }
-        f_ly << fmt::format(" {}{}{}", connect, *sym_who, dur);
+        f_ly << std::format(" {}{}{}", connect, *sym_who, dur);
         connect = "~ ";
         sym_who = &sym_base;
         duration -= delta;
@@ -514,12 +514,12 @@ std::string ModiDump2Ly::GetChordSym(
   std::string sym = GetSymKey(chord_key, key_last);
   key_last = chord_key;
   if (chord.size() > 1) {
-    sym = fmt::format("<{}", sym);
+    sym = std::format("<{}", sym);
     for (size_t i = 1; i < chord.size(); ++i) {
       uint8_t key_next = chord[i].key_;
       std::string sym_next = GetSymKey(key_next, chord_key);
       chord_key = key_next;
-      sym = fmt::format("{} {}", sym, sym_next);
+      sym = std::format("{} {}", sym, sym_next);
     }
     sym.push_back('>');
   }
@@ -556,7 +556,7 @@ std::string ModiDump2Ly::GetSymKey(uint8_t key, uint8_t key_last) const {
 }
 
 int main(int argc, char **argv) {
-  std::cout << fmt::format("Hello {}\n", argv[0]);
+  std::cout << std::format("Hello {}\n", argv[0]);
   ModiDump2Ly modi_dump_2ly;
   modi_dump_2ly.SetArgs(argc, argv);
   int rc = modi_dump_2ly.RC();

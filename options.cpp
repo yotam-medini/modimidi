@@ -1,9 +1,9 @@
 #include "options.h"
 #include <charconv>
+#include <format>
 #include <iostream>
 #include <limits>
 #include <sstream>
-#include <fmt/core.h>
 #include <boost/program_options.hpp>
 #include "version.h"
 
@@ -100,12 +100,12 @@ std::istream& operator>>(std::istream& is, U8ToRange& u2r) {
   u2r.range_ = {0xff, 0};
   size_t colon = s.find(':');
   if (colon == std::string::npos) {
-    std::cerr << fmt::format("U8ToRange missing colon in {}", s);
+    std::cerr << std::format("U8ToRange missing colon in {}", s);
   } else {
     uint8_t u8;
     auto pec = std::from_chars(s.data(), s.data() + colon, u8);
     if (pec.ec != std::errc()) {
-      std::cerr << fmt::format("U8ToRange: Bad key in {}\n", s);
+      std::cerr << std::format("U8ToRange: Bad key in {}\n", s);
     } else {
       u2r.key_ = u8;
       std::string tail = s.substr(colon + 1);
@@ -113,20 +113,20 @@ std::istream& operator>>(std::istream& is, U8ToRange& u2r) {
       if (comma == std::string::npos) {
         pec = std::from_chars(tail.data(), tail.data() + tail.size(), u8);
         if (pec.ec != std::errc()) {
-          std::cerr << fmt::format("U8ToRange: Bad range in {}\n", s);
+          std::cerr << std::format("U8ToRange: Bad range in {}\n", s);
         } else {
           u2r.range_ = {u8, u8};
         }
       } else {
         pec = std::from_chars(tail.data(), tail.data() + comma, u8);
         if (pec.ec != std::errc()) {
-          std::cerr << fmt::format("U8ToRange: Bad low in {}\n", s);
+          std::cerr << std::format("U8ToRange: Bad low in {}\n", s);
         } else {
           u2r.range_[0] = u8;
           pec = std::from_chars(
             tail.data() + comma + 1, tail.data() + tail.size(), u8);
           if (pec.ec != std::errc()) {
-            std::cerr << fmt::format("U8ToRange: Bad high in {}\n", s);
+            std::cerr << std::format("U8ToRange: Bad high in {}\n", s);
             u2r.range_[0] = 0xff;
           } else {
             u2r.range_[1] = u8;
@@ -139,7 +139,7 @@ std::istream& operator>>(std::istream& is, U8ToRange& u2r) {
 }
 
 std::ostream& operator<<(std::ostream& os, const U8ToRange& u2r) {
-  os << fmt::format("{}{}:{},{}",
+  os << std::format("{}{}:{},{}",
     (u2r.Valid() ? "" : "(Invalid)"), u2r.key_, u2r.range_[0], u2r.range_[1]);
   return os;
 }
@@ -148,7 +148,7 @@ class _OptionsImpl {
  public:
   using k2range_t = Options::k2range_t;
   _OptionsImpl(int argc, char **argv) :
-    desc_{fmt::format(
+    desc_{std::format(
       "modimidi {} - Play midi file with optional modifications",
       version).c_str()}
     {
@@ -176,7 +176,7 @@ class _OptionsImpl {
       if (v) {
         v = vm_[key].as<OptionMilliSec>().valid_;
         if (!v) {
-          std::cerr << fmt::format("Bad value for {}\n", key);
+          std::cerr << std::format("Bad value for {}\n", key);
         }
       }
     }
@@ -195,9 +195,9 @@ class _OptionsImpl {
     static float tempo_max = 8;
     float v = vm_["tempo"].as<float>();
     if (v < tempo_min) {
-      std::cerr << fmt::format("tempo increased from {} to {}\n", v, tempo_min);
+      std::cerr << std::format("tempo increased from {} to {}\n", v, tempo_min);
     } else if (tempo_max < v) {
-      std::cerr << fmt::format("tempo decreased from {} to {}\n", v, tempo_max);
+      std::cerr << std::format("tempo decreased from {} to {}\n", v, tempo_max);
     }
     return v;
   }
@@ -206,10 +206,10 @@ class _OptionsImpl {
     static unsigned tuning_max = 480;
     unsigned v = vm_["tuning"].as<unsigned>();
     if (v < tuning_min) {
-      std::cerr << fmt::format("tuning increased from {} to {}\n",
+      std::cerr << std::format("tuning increased from {} to {}\n",
         v, tuning_min);
     } else if (tuning_max < v) {
-      std::cerr << fmt::format("tuning decreased from {} to {}\n",
+      std::cerr << std::format("tuning decreased from {} to {}\n",
         v, tuning_max);
     }
     return v;
@@ -218,7 +218,7 @@ class _OptionsImpl {
     int raw = vm_["adjust-key"].as<int>();
     int8_t key_shift{0};
     if ((raw < -24) || (24 < raw)) {
-      std::cerr << fmt::format("adjust-key value {} not in [-24, 24]\n", raw);
+      std::cerr << std::format("adjust-key value {} not in [-24, 24]\n", raw);
     } else {
       key_shift = static_cast<int8_t>(raw);
     }
@@ -253,7 +253,7 @@ class _OptionsImpl {
       for (const U8ToRange &utr: keys_ranges) {
         if (utr.Valid()) {
           if (k2vel.find(utr.key_) != k2vel.end()) {
-            std::cerr << fmt::format("Warning: {} multiply defined in {}",
+            std::cerr << std::format("Warning: {} multiply defined in {}",
               utr.key_, name);
           }
           k2vel.insert({utr.key_, utr.range_});

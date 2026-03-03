@@ -1,5 +1,5 @@
+#include <format>
 #include <iostream>
-#include <fmt/core.h>
 #include <fluidsynth.h>
 #include "dump.h"
 #include "midi.h"
@@ -21,13 +21,13 @@ int main(int argc, char **argv) {
   } else {
     const uint32_t debug = options.Debug();
     if (debug) { 
-      std::cout << fmt::format("debug=0x{:x}, b={}, e={}\n",
+      std::cout << std::format("debug=0x{:x}, b={}, e={}\n",
         debug, options.BeginMillisec(), options.EndMillisec());
-      std::cout << fmt::format("mf={}\n", options.MidifilePath());
+      std::cout << std::format("mf={}\n", options.MidifilePath());
     }
     midi::Midi parsed_midi = midi::Midi(options.MidifilePath(), debug);
     if (!parsed_midi.Valid()) {
-      std::cerr << fmt::format("Midi error: {}\n", parsed_midi.GetError());
+      std::cerr << std::format("Midi error: {}\n", parsed_midi.GetError());
       rc = 1;
     }
     if (rc == 0) {
@@ -58,7 +58,7 @@ int main(int argc, char **argv) {
         pp.debug_ = debug;
         Play(parsed_midi, synth_sequencer, pp);
       } else {
-        std::cerr << fmt::format("Synth/Sequencer error: {}\n",
+        std::cerr << std::format("Synth/Sequencer error: {}\n",
           synth_sequencer.error());
       }
     }

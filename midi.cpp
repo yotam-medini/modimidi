@@ -1,9 +1,10 @@
 #include "midi.h"
+#include <algorithm>
 #include <filesystem>
+#include <format>
 #include <iostream>
 #include <fstream>
 #include <set>
-#include <fmt/core.h>
 
 namespace fs = std::filesystem;
 
@@ -22,79 +23,79 @@ static void MaxBy(uint8_t &v, uint8_t x) {
 }
 
 std::string Event::dt_str() const {
-  return fmt::format("DT={} {}", delta_time_, str());
+  return std::format("DT={} {}", delta_time_, str());
 }
 
 // Meta Event
 
 std::string SequenceNumberEvent::str() const {
-  return fmt::format("SequenceNumber({})", number_);
+  return std::format("SequenceNumber({})", number_);
 }
 
 std::string TextBaseEvent::str() const {
-  return fmt::format("{}({})", event_type_name(), s_);
+  return std::format("{}({})", event_type_name(), s_);
 }
 
 std::string ChannelPrefixEvent::str() const {
-  return fmt::format("ChannelPrefix({})", channel_);
+  return std::format("ChannelPrefix({})", channel_);
 }
 
 std::string PortEvent::str() const {
-  return fmt::format("PortEvent({})", port_);
+  return std::format("PortEvent({})", port_);
 }
 
 std::string EndOfTrackEvent::str() const {
-  return fmt::format("EndOfTrack");
+  return std::format("EndOfTrack");
 }
 
 std::string TempoEvent::str() const {
-  return fmt::format("Tempo({})", tttttt_);
+  return std::format("Tempo({})", tttttt_);
 }
 
 std::string SmpteOffsetEvent::str() const {
-  return fmt::format("SmpteOffset(hr={}, mn={}, se={}, fr={}, ff={})",
+  return std::format("SmpteOffset(hr={}, mn={}, se={}, fr={}, ff={})",
     hr_, mn_, se_, fr_, ff_);
 }
 
 std::string TimeSignatureEvent::str() const {
-  return fmt::format("TimeSignature(nn={}, dd={}, cc={}, bb={})",
+  return std::format("TimeSignature(nn={}, dd={}, cc={}, bb={})",
     nn_, dd_, cc_, bb_);
 }
 
 std::string KeySignatureEvent::str() const {
-  return fmt::format("KeySignatureEvent(sf={}, mi={})",
+  return std::format("KeySignatureEvent(sf={}, mi={})",
     sf_, mi_);
 }
 
 std::string SequencerEvent::str() const {
-  return fmt::format("Sequencer(#(data)={})", data_.size());
+  return std::format("Sequencer(#(data)={})", data_.size());
 }
 
 // Midi Event
 std::string NoteOffEvent::str() const { 
-  return fmt::format("NoteOff(channel={}, key={}, velocity={})",
+  return std::format("NoteOff(channel={}, key={}, velocity={})",
     channel_, key_, velocity_);
 }
 std::string NoteOnEvent::str() const {
-  return fmt::format("NoteOn(channel={}, key={}, velocity={})",
+  return std::format("NoteOn(channel={}, key={}, velocity={})",
     channel_, key_, velocity_);
 }
 std::string KeyPressureEvent::str() const {
-  return fmt::format("KeyPressure(channel={}, number={}, value={})",
+  return std::format("KeyPressure(channel={}, number={}, value={})",
     channel_, number_, value_);
 }
 std::string ControlChangeEvent::str() const {
-  return fmt::format("ControlChange(channel={}, number={}, value={})",
+  return std::format("ControlChange(channel={}, number={}, value={})",
     channel_, number_, value_);
 }
 std::string ProgramChangeEvent::str() const {
-  return fmt::format("ProgramChange(channel={}, number={})", channel_, number_);
+  return std::format("ProgramChange(channel={}, number={})", channel_, number_);
 }
 std::string ChannelPressureEvent::str() const {
-  return fmt::format("ChannelPressure(channel={}, value={})", channel_, value_);
+  return std::format("ChannelPressure(channel={}, value={})", channel_, value_);
 }
 std::string PitchWheelEvent::str() const {
-  return fmt::format("ChannelPressure(channel={}, bend={})", channel_, bend_);
+  return std::format("ChannelPressure(channel={}, bend={})", channel_, bend_);
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -157,7 +158,7 @@ std::string Track::info(const std::string& indent) const {
     if (meta_event) {
       if ((!dynamic_cast<const LyricEvent*>(meta_event)) &&
           (!dynamic_cast<const EndOfTrackEvent*>(meta_event))) {
-        s = fmt::format("{}{}{}\n", s, indent, meta_event->str());
+        s = std::format("{}{}{}\n", s, indent, meta_event->str());
       }
     } else if (midi_event) {
       const NoteOnEvent *note_on = dynamic_cast<const NoteOnEvent*>(midi_event);
@@ -166,19 +167,19 @@ std::string Track::info(const std::string& indent) const {
           ++n_notes;
         }
       } else if (!dynamic_cast<const NoteOffEvent*>(midi_event)) {
-        s = fmt::format("{}{}{}\n", s, indent, midi_event->str());
+        s = std::format("{}{}{}\n", s, indent, midi_event->str());
       }
     }
   }
   if (n_notes == 0) {
-    s = fmt::format("{}{}No notes\n", s, indent);
+    s = std::format("{}{}No notes\n", s, indent);
   } else {
     std::vector<uint8_t> channels = GetChannels();
     std::array<uint8_t, 2> key_range = GetKeyRange();
     std::array<uint8_t, 2> vel_range = GetVelocityRange();
-    s = fmt::format("{}{}Channels:", s, indent);
-    for (uint8_t c: channels) { s = fmt::format("{} {}", s, int(c)); }
-    s = fmt::format("{}\n{}{} notes, keys: [{}, {}], velocity: [{}, {}]\n",
+    s = std::format("{}{}Channels:", s, indent);
+    for (uint8_t c: channels) { s = std::format("{} {}", s, int(c)); }
+    s = std::format("{}\n{}{} notes, keys: [{}, {}], velocity: [{}, {}]\n",
       s, indent, n_notes,
       key_range[0], key_range[1], vel_range[0], vel_range[1]);
   }
@@ -241,12 +242,12 @@ Midi::channels_range_t Midi::GetChannelsRange() const {
 
 std::string Midi::info(const std::string& indent) const {
   const std::string sub_indent{indent + std::string("  ")};
-  std::string s = fmt::format("{}Format={} ntrks={}, Ticks Per (1/4)={}\n",
+  std::string s = std::format("{}Format={} ntrks={}, Ticks Per (1/4)={}\n",
     indent, format_, ntrks_, ticks_per_quarter_note_);
   for (size_t ti = 0; ti < tracks_.size(); ++ti) {
-    s = fmt::format("{}{}Track[{}] {}", s, indent, ti, "{\n");
-    s = fmt::format("{}{}", s, tracks_[ti].info(sub_indent));
-    s = fmt::format("{}{}{}", s, indent, "}\n");
+    s = std::format("{}{}Track[{}] {}", s, indent, ti, "{\n");
+    s = std::format("{}{}", s, tracks_[ti].info(sub_indent));
+    s = std::format("{}{}{}", s, indent, "}\n");
   }
   const channels_range_t channels_range = GetChannelsRange();
   if (!channels_range.empty()) {
@@ -255,13 +256,13 @@ std::string Midi::info(const std::string& indent) const {
       channels.push_back(kv.first);
     }
     std::sort(channels.begin(), channels.end());
-    s = fmt::format("{}{}{} channels: {}", s, indent, channels.size(), "{\n");
+    s = std::format("{}{}{} channels: {}", s, indent, channels.size(), "{\n");
     for (uint8_t channel: channels) {
       const range_t &range = channels_range.find(channel)->second;
-      s = fmt::format("{}{} channel={} velocity=[{}, {}]\n",
+      s = std::format("{}{} channel={} velocity=[{}, {}]\n",
         s, indent, channel, range[0], range[1]);
     }
-    s = fmt::format("{}{}{}", s, indent, "}\n");
+    s = std::format("{}{}{}", s, indent, "}\n");
   }
   return s;
 }
@@ -270,10 +271,10 @@ void Midi::GetData(const std::string &midifile_path) {
   if (fs::exists(midifile_path)) {
     auto file_size = fs::file_size(midifile_path);
     if (debug_ & 0x1) {
-      std::cout << fmt::format("size({})={}\n", midifile_path, file_size);
+      std::cout << std::format("size({})={}\n", midifile_path, file_size);
     }
     if (file_size < 0x20) {
-      error_ = fmt::format("Midi file size={} too short", file_size);
+      error_ = std::format("Midi file size={} too short", file_size);
     }
     if (Valid()) {
       data_.clear();
@@ -281,12 +282,12 @@ void Midi::GetData(const std::string &midifile_path) {
       std::ifstream f(midifile_path, std::ios::binary);
       f.read(reinterpret_cast<char*>(data_.data()), file_size);
       if (f.fail()) {
-        error_ = fmt::format("Failed to read {} bytes from {}",
+        error_ = std::format("Failed to read {} bytes from {}",
           file_size, midifile_path);
       }
     }
   } else {
-    error_ = fmt::format("Does not exist: {}", midifile_path);
+    error_ = std::format("Does not exist: {}", midifile_path);
   }
 }
 
@@ -301,7 +302,7 @@ void Midi::Parse() {
        ReadTracks();
        break;
      default:
-       error_ = fmt::format("Unsupported format={}", format_);
+       error_ = std::format("Unsupported format={}", format_);
     }
   }
 }
@@ -310,18 +311,18 @@ void Midi::ParseHeader() {
   static const std::string MThd{"MThd"};
   const std::string header = GetChunkType();
   if (header != MThd) {
-    error_ = fmt::format("header: {} != {}", header, MThd);
+    error_ = std::format("header: {} != {}", header, MThd);
   }
   if (Valid()) {
      size_t length = GetNextSize();
      if (length != 6) {
-       std::cerr << fmt::format("Unexpected length: {} != 6\n", length);
+       std::cerr << std::format("Unexpected length: {} != 6\n", length);
      }
      format_ = GetU16from(8);
      ntrks_ = GetU16from(10);
      division_ = GetU16from(12);
      if (debug_ & 0x1) {
-       std::cout << fmt::format("length={}, format={}, ntrks={}, "
+       std::cout << std::format("length={}, format={}, ntrks={}, "
          "division={:018b}\n",
          length, format_, ntrks_, division_);
      }
@@ -337,7 +338,7 @@ void Midi::ParseHeader() {
      }
      parse_state_.offset_ += length;
      if (debug_ & 0x1) {
-       std::cout << fmt::format(
+       std::cout << std::format(
          "ticks_per_quarter_note={} ticks_per_frame={}\n",
          ticks_per_quarter_note_, ticks_per_frame_);
      }
@@ -354,7 +355,7 @@ void Midi::ReadTrack() {
   static const std::string MTrk{"MTrk"};
   const std::string chunk_type = GetChunkType();
   if (chunk_type != MTrk) {
-    error_ = fmt::format("chunk_type={} != {} @ offset={}",
+    error_ = std::format("chunk_type={} != {} @ offset={}",
       chunk_type, MTrk, parse_state_.offset_ - 4);
   }
   const size_t length = GetNextSize();
@@ -368,7 +369,7 @@ void Midi::ReadTrack() {
     events.push_back(std::move(event));
   }
   if ((!got_eot) || (parse_state_.offset_ != offset_eot)) {
-    std::cerr << fmt::format(
+    std::cerr << std::format(
       "Track not cleanly ended got_eot={}, offset={} != offset_eot={}\n",
       got_eot, parse_state_.offset_, offset_eot);
   }
@@ -401,7 +402,7 @@ std::unique_ptr<MetaEvent> Midi::GetMetaEvent(uint32_t delta_time) {
    case MetaVarByte::SEQNUM_x00:
     length = data_[parse_state_.offset_++];
     if (length != 2) {
-      std::cerr << fmt::format("Unexpected length={}!=2 in SequenceNumber",
+      std::cerr << std::format("Unexpected length={}!=2 in SequenceNumber",
         length);
     }
     {
@@ -422,7 +423,7 @@ std::unique_ptr<MetaEvent> Midi::GetMetaEvent(uint32_t delta_time) {
    case MetaVarByte::CHANPFX_x20:
     length = GetVariableLengthQuantity();
     if (length != 1) {
-      std::cerr << fmt::format("Unexpected length={}!=1 in ChannelPrefix",
+      std::cerr << std::format("Unexpected length={}!=1 in ChannelPrefix",
         length);
     }
     e = std::make_unique<ChannelPrefixEvent>(
@@ -432,7 +433,7 @@ std::unique_ptr<MetaEvent> Midi::GetMetaEvent(uint32_t delta_time) {
    case MetaVarByte::PORT_x21:
     length = GetVariableLengthQuantity();
     if (length != 1) {
-      std::cerr << fmt::format("Unexpected length={}!=1 in ChannelPrefix",
+      std::cerr << std::format("Unexpected length={}!=1 in ChannelPrefix",
         length);
     }
     e = std::make_unique<PortEvent>(delta_time, data_[parse_state_.offset_]);
@@ -441,7 +442,7 @@ std::unique_ptr<MetaEvent> Midi::GetMetaEvent(uint32_t delta_time) {
    case MetaVarByte::ENDTRACK_x2f:
     length = data_[parse_state_.offset_++];
     if (length != 0) {
-      std::cerr << fmt::format("Unexpected length={}!=0 in EndOfTrack",
+      std::cerr << std::format("Unexpected length={}!=0 in EndOfTrack",
         length);
     }
     e = std::make_unique<EndOfTrackEvent>(delta_time);
@@ -455,7 +456,7 @@ std::unique_ptr<MetaEvent> Midi::GetMetaEvent(uint32_t delta_time) {
    case MetaVarByte::SMPTE_x54:
     length = data_[parse_state_.offset_++];
     if (length != 5) {
-      std::cerr << fmt::format("Unexpected length={}!=5 in Tempo",
+      std::cerr << std::format("Unexpected length={}!=5 in Tempo",
         length);
     }
     {
@@ -473,7 +474,7 @@ std::unique_ptr<MetaEvent> Midi::GetMetaEvent(uint32_t delta_time) {
    case MetaVarByte::TIMESIGN_x58:
     length = data_[parse_state_.offset_++];
     if (length != 4) {
-      std::cerr << fmt::format("Unexpected length={}!=4 in TimeSignature",
+      std::cerr << std::format("Unexpected length={}!=4 in TimeSignature",
         length);
     }
     {
@@ -490,7 +491,7 @@ std::unique_ptr<MetaEvent> Midi::GetMetaEvent(uint32_t delta_time) {
    case MetaVarByte::KEYSIGN_x59:
     length = data_[parse_state_.offset_++];
     if (length != 2) {
-      std::cerr << fmt::format("Unexpected length={}!=2 in KeySignature",
+      std::cerr << std::format("Unexpected length={}!=2 in KeySignature",
         length);
     }
     {
@@ -511,7 +512,7 @@ std::unique_ptr<MetaEvent> Midi::GetMetaEvent(uint32_t delta_time) {
     parse_state_.offset_ += length;
     break;
    default:
-    error_ = fmt::format("Meta event unsupported byte={:02x} @ {}",
+    error_ = std::format("Meta event unsupported byte={:02x} @ {}",
       meta_first_byte, parse_state_.offset_ - 1);
     length = GetVariableLengthQuantity();
     parse_state_.offset_ += length;
@@ -603,7 +604,7 @@ std::unique_ptr<TextBaseEvent> Midi::GetTextBaseEvent(
     e = std::make_unique<DeviceEvent>(delta_time, text);
     break;
    default:
-    error_ = fmt::format("BUG meta_first_byte={:0x2}", meta_first_byte);
+    error_ = std::format("BUG meta_first_byte={:02x}", meta_first_byte);
   }
   return e;
 }

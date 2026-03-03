@@ -44,9 +44,9 @@ $ modimidi --progress -b 5:35 -e 5:42 \
 
 * [GNU/Linux](https://www.gnu.org/gnu/linux-and-gnu.en.html)
 * [CMake](https://cmake.org/)
+* [C++] Version 20 or above
 * [fluidsynth](https://www.fluidsynth.org/api) library (available by the libfluidsynth-dev package).
 * Boost (C++ library for [program_options](https://www.boost.org/doc/libs/1_87_0/doc/html/program_options.html))
-* [libfmt](https://fmt.dev)  (C++ library for formatting)
 
 ## Steps
 

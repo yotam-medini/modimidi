@@ -3,7 +3,7 @@
 #include <array>
 #include <atomic>
 #include <condition_variable>
-#include <iostream>
+#include <format>
 #include <iostream>
 #include <mutex>
 #include <numeric>
@@ -11,7 +11,6 @@
 #include <vector>
 #include <cmath>
 #include <unistd.h>
-#include <fmt/core.h>
 #include <fluidsynth.h>
 #include "rawterm.h"
 #include "synthseq.h"
@@ -67,7 +66,7 @@ class NoteEvent : public AbsEvent {
     fluid_event_t *event, const Player *player, uint32_t date_ms);
   uint32_t end_time_ms() const { return time_ms_ + duration_ms_; }
   std::string str() const {
-    return fmt::format(
+    return std::format(
       "Note(t={}, channel={}, key={}, velocity={}, duration={})",
       time_ms_, channel_, key_, velocity_, duration_ms_);
   }
@@ -93,7 +92,7 @@ class ProgramChange : public AbsEvent {
   void SetSendFluidEvent(
     fluid_event_t *event, const Player *player, uint32_t date_ms);
   std::string str() const {
-    return fmt::format("ProgramChange(t={}, channel={}, program={})",
+    return std::format("ProgramChange(t={}, channel={}, program={})",
       time_ms_, channel_, program_);
   }
   int channel_;
@@ -115,7 +114,7 @@ class PitchWheel : public AbsEvent {
   void SetSendFluidEvent(
     fluid_event_t *event, const Player *player, uint32_t date_ms);
   std::string str() const {
-    return fmt::format("PitchWheel(t={}, channel={}, bend={})",
+    return std::format("PitchWheel(t={}, channel={}, bend={})",
       time_ms_, channel_, bend_);
   }
   int channel_;
@@ -129,7 +128,7 @@ class FinalEvent : public AbsEvent {
   virtual ~FinalEvent() {}
   void SetSendFluidEvent(
     fluid_event_t *event, const Player *player, uint32_t date_ms);
-  std::string str() const { return fmt::format("Final(t={})", time_ms_); }
+  std::string str() const { return std::format("Final(t={})", time_ms_); }
 };
 
 class DynamicTiming {
@@ -166,7 +165,7 @@ class DynamicTiming {
     static const uint64_t u64max32 = std::numeric_limits<uint32_t>::max();
     uint64_t q = (n + d/2) / d;
     if (q > u64max32) {
-      std::cerr << fmt::format("overflow @ RoundDiv({}, {})", n, d);
+      std::cerr << std::format("overflow @ RoundDiv({}, {})", n, d);
     }
     uint32_t ret = static_cast<uint32_t>(q);
     return ret;
@@ -335,12 +334,12 @@ void Player::SetIndexEvents() {
     [](size_t r, const midi::Track &track) {
       return r + track.events_.size();
     });
-  if (pp_.debug_ & 0x1) { std::cerr << fmt::format("Total events: {}\n", ne); }
+  if (pp_.debug_ & 0x1) { std::cerr << std::format("Total events: {}\n", ne); }
   index_events_.reserve(ne);
   if (pp_.debug_ & 0x100) { std::cout << "Raw events:\n"; }
   for (size_t ti = 0; ti < tracks.size(); ++ti) {
     if (pp_.debug_ & 0x100) {
-      std::cout << fmt::format("Track[{}]", ti) << " {\n";
+      std::cout << std::format("Track[{}]", ti) << " {\n";
     }
     const midi::Track &track = tracks[ti];
     const std::vector<std::unique_ptr<midi::Event>> &events = track.events_;
@@ -348,7 +347,7 @@ void Player::SetIndexEvents() {
     uint32_t time = 0;
     for (size_t tei = 0; tei < nte; ++tei) {
       if (pp_.debug_ & 0x100) {
-        std::cout << fmt::format("  [{:4d}] {}\n", tei, events[tei]->dt_str());
+        std::cout << std::format("  [{:4d}] {}\n", tei, events[tei]->dt_str());
       }
       uint32_t dt = events[tei]->delta_time_;
       time += dt;
@@ -379,7 +378,7 @@ void Player::SetAbsEvents() {
     if (!done) {
       const midi::Event *e = tracks[ie.track_].events_[ie.tei_].get();
       if (pp_.debug_ & 0x80) {
-        std::cout << fmt::format("[{:4}] time={} shifted={}, track_event={}\n",
+        std::cout << std::format("[{:4}] time={} shifted={}, track_event={}\n",
           i, ie.time_, time_shifted, e->str());
       }
       const midi::MetaEvent *meta_event =
@@ -398,11 +397,11 @@ void Player::SetAbsEvents() {
     abs_events_.empty() ? 0 : abs_events_.back()->time_ms_original_ + 1));
   if (pp_.debug_ & 0x4) {
     const size_t nae = abs_events_.size();
-    std::cout << fmt::format("abs_events[{}]", nae) << "{\n";
+    std::cout << std::format("abs_events[{}]", nae) << "{\n";
     for (size_t i = 0; i < nae; ++i) {
-      std::cout << fmt::format("  [{:4d}] {}\n", i, abs_events_[i]->str());
+      std::cout << std::format("  [{:4d}] {}\n", i, abs_events_[i]->str());
     }
-    std::cout << fmt::format("abs_events[{}]", nae) << "{\n";
+    std::cout << std::format("abs_events[{}]", nae) << "{\n";
   }
 }
 
@@ -413,7 +412,7 @@ void Player::Retune() {
   }
   std::vector<uint8_t> channels = pm_.GetChannels();
   if (pp_.debug_ & 0x1) {
-    std::cout << fmt::format("Retune {} programs on {} channels to A4={}\n",
+    std::cout << std::format("Retune {} programs on {} channels to A4={}\n",
       programs.size(), channels.size(), pp_.tuning_);
   }
   int bank = 0;
@@ -436,13 +435,13 @@ void Player::Retune() {
     rc_ = fluid_synth_tune_notes(
       ss_.synth_, bank, prog, 0x80, keys, pitches, 1);
     if (rc_ != FLUID_OK) {
-      std::cerr << fmt::format("fluid_synth_tune_notes failed {}\n", rc_);
+      std::cerr << std::format("fluid_synth_tune_notes failed {}\n", rc_);
     } else {
       for (size_t ci = 0; (rc_ == 0) && (ci < channels.size()); ++ci) {
         uint8_t channel = channels[ci];
         rc_ = fluid_synth_activate_tuning(ss_.synth_, channel, bank, prog, 1);
         if (rc_ != FLUID_OK) {
-          std::cerr << fmt::format(
+          std::cerr << std::format(
             "fluid_synth_activate_tuning failed {}\n", rc_);
         }
       }
@@ -478,7 +477,7 @@ void Player::Play() {
 void Player::SetVelocitiesMap() {
   auto const &tmap = pp_.tracks_velocity_map_;
   if (!tmap.empty()) {
-    if (pp_.debug_ & 0x1) {std::cerr<<fmt::format("#(tmap)={}\n", tmap.size());}
+    if (pp_.debug_ & 0x1) {std::cerr<<std::format("#(tmap)={}\n", tmap.size());}
     auto const channels_range = pm_.GetChannelsRange();
     for (size_t ti = 0, nt = pm_.GetNumTracks(); ti < nt; ++ti) {
       auto iter = tmap.find(ti);
@@ -491,7 +490,7 @@ void Player::SetVelocitiesMap() {
   }
   auto const &cmap = pp_.channels_velocity_map_;
   if (!cmap.empty()) {
-    if (pp_.debug_ & 0x1) {std::cerr<<fmt::format("#(cmap)={}\n", cmap.size());}
+    if (pp_.debug_ & 0x1) {std::cerr<<std::format("#(cmap)={}\n", cmap.size());}
     auto const channels_range = pm_.GetChannelsRange();
     for (auto const &[channel, orig_range]: channels_range) {
       auto iter = cmap.find(channel);
@@ -630,7 +629,7 @@ void Player::ScheduleCallback(int seq_id, uint32_t at) {
   fluid_event_timer(e, nullptr);
   int send_rc = fluid_sequencer_send_at(ss_.sequencer_, e, at, 1);
   if (send_rc != FLUID_OK) {
-    std::cerr << fmt::format("fluid_sequencer_send_at rc={}\n", send_rc);
+    std::cerr << std::format("fluid_sequencer_send_at rc={}\n", send_rc);
   }
   delete_fluid_event(e);
 }
@@ -673,7 +672,7 @@ void Player::PeriodicCallback(
     if (next_send_index_ == 0) {
       date_add_ms_ = now + pp_.initial_delay_ms_;
       if (pp_.debug_ & 0x1) {
-        std::cerr << fmt::format("date_add_ms_={}\n", date_add_ms_);
+        std::cerr << std::format("date_add_ms_={}\n", date_add_ms_);
       }
     }
     AbsEvent *e = abs_events_[next_send_index_].get();
@@ -785,7 +784,7 @@ void Player::ProgressHandle(unsigned int time) {
       uint32_t tdone = btime;
       auto mmss_done = milliseconds_to_string(tdone);
       auto mmss_final = milliseconds_to_string(last_ms);
-      std::cout << fmt::format("\rProgress: {} / {}", mmss_done, mmss_final);
+      std::cout << std::format("\rProgress: {} / {}", mmss_done, mmss_final);
       std::cout.flush();
     }
   }
@@ -834,7 +833,7 @@ auto Player::KeyboardProbe(unsigned int time) -> KeyAction {
 
 void Player::Resume(uint32_t now, uint32_t new_begin_ms) {
   if (pp_.debug_ & 0x1) {
-    std::cerr << fmt::format("{} now={}, new_begin_ms={}\n",
+    std::cerr << std::format("{} now={}, new_begin_ms={}\n",
       __func__, now, new_begin_ms);
   }
   begin_ms_ = new_begin_ms;
@@ -850,7 +849,7 @@ uint32_t Player::FactorU32(double f, uint32_t u) {
   uint32_t ret = 0;
   double fu = (f * u) + (1./2.);
   if (fu > dmaxu32) {
-    std::cerr << fmt::format("Overflow factor_u32(f={}, u={})", f, u);
+    std::cerr << std::format("Overflow factor_u32(f={}, u={})", f, u);
     ret = u;
   } else {
     ret = static_cast<uint32_t>(fu);
