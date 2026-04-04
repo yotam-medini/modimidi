@@ -1,9 +1,14 @@
 # modimidi
 Command line midi player using
-[fluidsynth](https://www.fluidsynth.org/api/index.html) implemented in C++
+[fluidsynth](https://www.fluidsynth.org/api/index.html) implemented in C++.
+Additional - work in progress:
+
+* **gmodimidi** GUI midi player using **Qt**-6.8.0.
+* **ModiMidi** .apk **android** application using **Qt**-6.8.0
+  and **NDK** r27d.
 
 ## Version
-The current version is 0.1.6
+The current version is 0.2.0
 
 # Example
 
@@ -18,7 +23,6 @@ or via
 $ MUTOPIA=https://www.mutopiaproject.org
 $ BASENAME=bach_BWV_230_Lobet_den_Herrn_alle_Heiden
 $ wget ${MUTOPIA}/ftp/BachJS/BWV230/${BASENAME}/${BASENAME}.mid
-https://www.mutopiaproject.org/ftp/BachJS/BWV230/bach_BWV_230_Lobet_den_Herrn_alle_Heiden/bach_BWV_230_Lobet_den_Herrn_alle_Heiden.mid
 
 ```
 

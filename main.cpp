@@ -5,6 +5,7 @@
 #include "midi.h"
 #include "options.h"
 #include "play.h"
+#include "player.h"
 #include "synthseq.h"
 #include "version.h"
 
@@ -44,7 +45,7 @@ int main(int argc, char **argv) {
     if ((rc == 0) && options.Play()) {
       SynthSequencer synth_sequencer(options.SoundfontsPath(), debug);
       if (synth_sequencer.ok()) {
-        PlayParams pp;
+        player::PlayerParams pp;
         pp.begin_ms_ = options.BeginMillisec();
         pp.end_ms_ = options.EndMillisec();
         pp.tempo_div_factor_ = 1./options.Tempo();
@@ -54,7 +55,7 @@ int main(int argc, char **argv) {
         pp.channels_velocity_map_ = options.GetChannelsVelocityMap();
         pp.initial_delay_ms_ = options.DelayMillisec();
         pp.batch_duration_ms_ = options.BatchDurationMillisec();
-        pp.progress_ = options.Progress();
+        pp.interactive_ = options.Progress();
         pp.debug_ = debug;
         Play(parsed_midi, synth_sequencer, pp);
       } else {

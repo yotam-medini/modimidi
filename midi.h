@@ -78,7 +78,7 @@ class SequenceNumberEvent : public MetaEvent { // 0xff 0x01
  public:
   SequenceNumberEvent(uint32_t dt, uint16_t number) :
     MetaEvent{dt},
-    number_{number_} {}
+    number_{number} {}
   virtual MetaVarByte VarByte() const { return MetaVarByte::SEQNUM_x00; }
   std::string str() const;
   uint16_t number_;
@@ -393,9 +393,11 @@ class Track {
 
 class Midi {
  public:
+  using vu8_t = std::vector<uint8_t>;
   using range_t = std::array<uint8_t, 2>;
   using channels_range_t = std::unordered_map<uint8_t, range_t>;
   Midi(const std::string &path, uint32_t debug=0);
+  Midi(vu8_t data, uint32_t debug=0);
   std::string GetError() const { return error_; }
   bool Valid() const { return error_.empty(); }
   uint16_t GetFormat() const { return format_; }
@@ -408,10 +410,10 @@ class Midi {
   std::vector<uint8_t> GetChannels() const;
   std::vector<uint8_t> GetPrograms() const;
   channels_range_t GetChannelsRange() const;
+  uint32_t GetTotalMilliSeconds() const;
   std::string info(const std::string& indent="") const;
-  
+
  private:
-  using vu8_t = std::vector<uint8_t>;
   Midi() = delete;
   Midi(const Midi&) = delete;
   void GetData(const std::string &path);
