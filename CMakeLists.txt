@@ -8,6 +8,8 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(GENERATE_VERSION_SCRIPT "${CMAKE_SOURCE_DIR}/tools/genver.py")
 set(VERSION_CPP "${CMAKE_SOURCE_DIR}/version.cpp")
 
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
 # Add a custom command to generate VERSION.h
 add_custom_command(
     OUTPUT ${VERSION_CPP}
@@ -21,23 +23,32 @@ add_custom_command(
 add_custom_target(generate_version ALL
   DEPENDS ${VERSION_CPP} version.h tools/genver.py CMakeLists.txt)
 
-# Find the Boost libraries
-find_package(Boost COMPONENTS program_options REQUIRED)
-
-# Find the fluidsynth library (adjust paths as needed)
-find_library(FLUIDSYNTH_LIBRARY NAMES fluidsynth PATHS /usr/lib /usr/lib/x86_64-linux-gnu)
-if(NOT FLUIDSYNTH_LIBRARY)
-    message(FATAL_ERROR "Could not find the fluidsynth library. Please check the installation and paths.")
-endif()
-
-# Set the include directories
-# /usr/include/fluidsynth
-include_directories(
-    ${Boost_INCLUDE_DIRS}
-    /usr/include
-)
 
 option(BUILD_CLI "Build modimidi command line" ON)
+option(BUILD_GUI "Build the Qt GUI and Android targets" OFF)
+# option(ANDROID "Build Android target" OFF)
+
+if(BUILD_CLI OR BUILD_GUI)
+    # Find the fluidsynth library (adjust paths as needed)
+    find_library(FLUIDSYNTH_LIBRARY 
+        NAMES fluidsynth PATHS /usr/lib /usr/lib/x86_64-linux-gnu)
+    if(NOT FLUIDSYNTH_LIBRARY)
+        message(FATAL_ERROR 
+            "fluidsynth library not found. Check the installation and paths.")
+    endif()
+
+    # Find the Boost libraries
+    find_package(Boost COMPONENTS program_options REQUIRED)
+
+    include_directories(
+        ${Boost_INCLUDE_DIRS}
+    )
+endif()
+
+# /usr/include/fluidsynth
+include_directories(
+    /usr/include
+)
 
 if(BUILD_CLI)
 # Set the source files
@@ -81,8 +92,7 @@ target_link_libraries(modidump2ly
 )
 endif()
 
-option(BUILD_GUI "Build the Qt GUI and Android targets" OFF)
-if(BUILD_GUI)
+if(BUILD_GUI OR ANDROID)
     find_package(Qt6
         REQUIRED COMPONENTS
             Core
@@ -90,6 +100,9 @@ if(BUILD_GUI)
             Widgets
     )
     qt_policy(SET QTP0002 NEW)
+endif()
+
+if(BUILD_GUI)
     set(GSOURCE_FILES
         gmain.cpp
     )
@@ -101,4 +114,24 @@ if(BUILD_GUI)
         Qt::Gui
         Qt::Widgets
     )
+endif()
+
+if(ANDROID)
+    set(ASOURCE_FILES
+        amain.cpp
+    )
+    qt_add_executable(ModiMidi ${ASOURCE_FILES})
+    set_target_properties(ModiMidi PROPERTIES
+        QT_ANDROID_PACKAGE_NAME "yotam.modimidi"
+        QT_ANDROID_PACKAGE_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/android"
+        OUTPUT_NAME "ModiMidi_arm64-v8a"
+    )
+
+    target_link_libraries(ModiMidi
+         PRIVATE
+             Qt6::Core
+             Qt6::Gui
+             Qt6::Widgets
+    )
+
 endif()
