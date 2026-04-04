@@ -37,6 +37,9 @@ include_directories(
     /usr/include
 )
 
+option(BUILD_CLI "Build modimidi command line" ON)
+
+if(BUILD_CLI)
 # Set the source files
 set(SOURCE_FILES
     main.cpp
@@ -73,7 +76,29 @@ add_executable(modidump2ly
 # C++20 or higher
 target_compile_features(modidump2ly PUBLIC cxx_std_20)
 
-
 target_link_libraries(modidump2ly
     ${Boost_LIBRARIES}
 )
+endif()
+
+option(BUILD_GUI "Build the Qt GUI and Android targets" OFF)
+if(BUILD_GUI)
+    find_package(Qt6
+        REQUIRED COMPONENTS
+            Core
+            Gui
+            Widgets
+    )
+    qt_policy(SET QTP0002 NEW)
+    set(GSOURCE_FILES
+        gmain.cpp
+    )
+    add_executable(gmodimidi ${GSOURCE_FILES})
+    target_compile_features(gmodimidi PUBLIC cxx_std_20)
+    target_link_libraries(gmodimidi
+        ${Boost_LIBRARIES}
+        Qt::Core
+        Qt::Gui
+        Qt::Widgets
+    )
+endif()
