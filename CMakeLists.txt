@@ -117,6 +117,23 @@ if(BUILD_GUI)
 endif()
 
 if(ANDROID)
+    set(FLUID_DIR "${CMAKE_SOURCE_DIR}/third_party/fluidsynth-android")
+
+    add_library(FluidSynth_Android SHARED IMPORTED)
+    set_target_properties(FluidSynth_Android PROPERTIES
+        IMPORTED_LOCATION "${FLUID_DIR}/lib/${ANDROID_ABI}/libfluidsynth.so"
+        INTERFACE_INCLUDE_DIRECTORIES "${FLUID_DIR}/include"
+    )
+
+    add_library(GLib_Android SHARED IMPORTED)
+    set_target_properties(GLib_Android PROPERTIES
+        IMPORTED_LOCATION "${FLUID_DIR}/lib/${ANDROID_ABI}/libglib-2.0.so"
+        # GLib often has its own include sub-directory
+        INTERFACE_INCLUDE_DIRECTORIES "${FLUID_DIR}/include/glib-2.0"
+    )
+
+    # Use this variable for linking later
+    set(FLUIDSYNTH_LIB FluidSynth_Android)
     set(ASOURCE_FILES
         amain.cpp
     )
@@ -127,8 +144,15 @@ if(ANDROID)
         OUTPUT_NAME "ModiMidi_arm64-v8a"
     )
 
+    set_property(TARGET ModiMidi APPEND PROPERTY
+        QT_ANDROID_EXTRA_LIBS
+        "${FLUID_DIR}/lib/${ANDROID_ABI}/libfluidsynth.so"
+        "${FLUID_DIR}/lib/${ANDROID_ABI}/libglib-2.0.so"
+    )
+
     target_link_libraries(ModiMidi
          PRIVATE
+             ${FLUIDSYNTH_LIB}
              Qt6::Core
              Qt6::Gui
              Qt6::Widgets
