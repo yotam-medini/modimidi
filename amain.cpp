@@ -10,8 +10,8 @@ int main(int argc, char *argv[]) {
     QApplication app(argc, argv);
 
     QMainWindow window;
-    window.setWindowTitle("Minimal Qt Toolbar");
-    window.resize(400, 300);
+    window.setWindowTitle("ModiMidi");
+    window.showMaximized();
 
     // Create Toolbar
     QToolBar *toolBar = window.addToolBar("Main Toolbar");
