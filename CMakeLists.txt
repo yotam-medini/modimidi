@@ -105,6 +105,7 @@ endif()
 if(BUILD_GUI)
     set(GSOURCE_FILES
         gmain.cpp
+        ui.cpp
     )
     add_executable(gmodimidi ${GSOURCE_FILES})
     target_compile_features(gmodimidi PUBLIC cxx_std_20)
