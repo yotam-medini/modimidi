@@ -126,6 +126,11 @@ if(ANDROID)
         "gthread-2.0"
         "sndfile"
         "ogg"
+        "vorbisenc"
+        "vorbis"
+        "FLAC"
+        "opus"
+        "oboe"
     )
 
     set(FLUID_EXTRA_LIBS_PATHS "")
