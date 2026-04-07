@@ -1,12 +1,62 @@
 #include "ui.h"
+#include "mainwin.h"
 
-#include <QApplication>
-#include <QMainWindow>
-#include <QToolBar>
 #include <QAction>
+#include <QApplication>
+#include <QFileDialog>
 #include <QLabel>
-#include <QVBoxLayout>
+#include <QMainWindow>
+#include <QMenuBar>
 #include <QMessageBox>
+#include <QToolBar>
+#include <QVBoxLayout>
+
+MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
+  // 1. Create Actions
+  openAction = new QAction(tr("&Open"), this);
+  reOpenAction = new QAction(tr("&Re-Open"), this);
+  reOpenAction->setEnabled(false); // Disable until a file is opened
+  quitAction = new QAction(tr("&Quit"), this);
+
+  // 2. Setup File Menu
+  QMenu *fileMenu = menuBar()->addMenu(tr("&File"));
+  fileMenu->addAction(openAction);
+  fileMenu->addAction(reOpenAction);
+  fileMenu->addAction(quitAction);
+
+  QMenu *options_menu = menuBar()->addMenu(tr("&Options"));
+
+#if 0
+  // 3. Setup Tool Bar
+  QToolBar *fileToolBar = addToolBar(tr("File"));
+  fileToolBar->addAction(openAction);
+  fileToolBar->addAction(reOpenAction);
+#endif
+
+  // 4. Connect Signals
+  connect(openAction, &QAction::triggered, this, &MainWindow::openFile);
+  connect(reOpenAction, &QAction::triggered, this, &MainWindow::reOpenFile);
+  connect(quitAction, &QAction::triggered, qApp, &QApplication::quit);
+}
+
+void MainWindow::openFile() {
+  QString filter = "MIDI Files (*.mid *.MID *.midi *.MIDI);;All Files (*)";
+
+  QString fileName = QFileDialog::getOpenFileName(this,
+      tr("Open MIDI File"), "", filter);
+
+  if (!fileName.isEmpty()) {
+      lastOpenedPath = fileName;
+      reOpenAction->setEnabled(true);
+      // Add your file processing logic here
+  }
+}
+
+void MainWindow::reOpenFile() {
+  if (!lastOpenedPath.isEmpty()) {
+      // Logic to reload the file at lastOpenedPath
+  }
+}
 
 class UI::Impl {
  public:
@@ -22,6 +72,7 @@ class UI::Impl {
       window_.resize(400, 300);
     }
 
+#if 0
     // Create Toolbar
     QToolBar *toolBar = window_.addToolBar("Main Toolbar");
 
@@ -46,7 +97,8 @@ class UI::Impl {
     });
 
     QObject::connect(
-      exitAction, &QAction::triggered, &app_, &QApplication::quit);
+      exitAction, &QAction::triggered, app_, &QApplication::quit);
+#endif
   }
 
   int Run() {
@@ -57,7 +109,7 @@ class UI::Impl {
    int argc_;
    char **argv_;
    QApplication app_;
-   QMainWindow window_;
+   MainWindow window_;
 };
 
 UI::UI(int argc, char **argv, bool is_android) :

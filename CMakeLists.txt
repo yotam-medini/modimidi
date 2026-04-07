@@ -100,12 +100,14 @@ if(BUILD_GUI OR ANDROID)
             Widgets
     )
     qt_policy(SET QTP0002 NEW)
+    set(CMAKE_AUTOMOC ON)
 endif()
 
 if(BUILD_GUI)
     set(GSOURCE_FILES
         gmain.cpp
         ui.cpp
+        mainwin.h
     )
     add_executable(gmodimidi ${GSOURCE_FILES})
     target_compile_features(gmodimidi PUBLIC cxx_std_20)
