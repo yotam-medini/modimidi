@@ -26,13 +26,6 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
 
   QMenu *options_menu = menuBar()->addMenu(tr("&Options"));
 
-#if 0
-  // 3. Setup Tool Bar
-  QToolBar *fileToolBar = addToolBar(tr("File"));
-  fileToolBar->addAction(openAction);
-  fileToolBar->addAction(reOpenAction);
-#endif
-
   // 4. Connect Signals
   connect(openAction, &QAction::triggered, this, &MainWindow::openFile);
   connect(reOpenAction, &QAction::triggered, this, &MainWindow::reOpenFile);
@@ -71,34 +64,6 @@ class UI::Impl {
     } else {
       window_.resize(400, 300);
     }
-
-#if 0
-    // Create Toolbar
-    QToolBar *toolBar = window_.addToolBar("Main Toolbar");
-
-    // Create Actions
-    QAction *fileAction = toolBar->addAction("File");
-    QAction *optionsAction = toolBar->addAction("Options");
-    toolBar->addSeparator();
-    QAction *exitAction = toolBar->addAction("Exit");
-
-    // Central Widget Label
-    QLabel *label = new QLabel("Welcome", &window_);
-    label->setAlignment(Qt::AlignCenter);
-    window_.setCentralWidget(label);
-
-    // Connect Actions (Lambda Functions)
-    QObject::connect(fileAction, &QAction::triggered, [label]() {
-        label->setText("File Action Clicked");
-    });
-
-    QObject::connect(optionsAction, &QAction::triggered, [label]() {
-        label->setText("Options Action Clicked");
-    });
-
-    QObject::connect(
-      exitAction, &QAction::triggered, app_, &QApplication::quit);
-#endif
   }
 
   int Run() {
