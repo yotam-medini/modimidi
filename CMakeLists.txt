@@ -157,7 +157,10 @@ if(ANDROID)
     endforeach()
 
     # --- Executable Definition ---
-    set(ASOURCE_FILES amain.cpp)
+    set(ASOURCE_FILES
+        amain.cpp
+        ui.cpp
+    )
     qt_add_executable(ModiMidi ${ASOURCE_FILES})
 
     set_target_properties(ModiMidi PROPERTIES

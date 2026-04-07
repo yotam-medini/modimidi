@@ -15,8 +15,12 @@ class UI::UiImpl {
       argv_{argv},
       app_{argc_, argv_} {
 
-    window_.setWindowTitle("Minimal Qt Toolbar");
-    window_.resize(400, 300);
+    window_.setWindowTitle("ModiMidi");
+    if (is_android) {
+      window_.showMaximized();
+    } else {
+      window_.resize(400, 300);
+    }
 
     // Create Toolbar
     QToolBar *toolBar = window_.addToolBar("Main Toolbar");
