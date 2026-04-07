@@ -8,9 +8,9 @@
 #include <QVBoxLayout>
 #include <QMessageBox>
 
-class UI::UiImpl {
+class UI::Impl {
  public:
-  UiImpl(int argc, char **argv, bool is_android) :
+  Impl(int argc, char **argv, bool is_android) :
       argc_{argc},
       argv_{argv},
       app_{argc_, argv_} {
@@ -61,7 +61,7 @@ class UI::UiImpl {
 };
 
 UI::UI(int argc, char **argv, bool is_android) :
-  impl_{std::make_unique<UiImpl>(argc, argv, is_android)} {
+  impl_{std::make_unique<Impl>(argc, argv, is_android)} {
 }
 
 UI::~UI() {

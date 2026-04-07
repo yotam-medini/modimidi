@@ -8,6 +8,6 @@ class UI
   ~UI();
   int Run();
  private:
-  class UiImpl;
-  std::unique_ptr<UiImpl> impl_;
+  class Impl;
+  std::unique_ptr<Impl> impl_;
 };
