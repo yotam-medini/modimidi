@@ -1,7 +1,6 @@
 #include "ui.h"
 #include "mainwin.h"
 
-#include <format>
 #include <QAction>
 #include <QApplication>
 #include <QDebug>
@@ -12,23 +11,45 @@
 #include <QMessageBox>
 #include <QString>
 #include <QToolBar>
+#include <QToolButton>
 #include <QVBoxLayout>
 
 MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
   // 1. Create Actions
-  qDebug() << std::format("{}:{} {}", __FILE__, __LINE__, __func__);
+  qDebug() << __FILE__<<':'<<__LINE__ << ' ' << __func__;
   openAction = new QAction(tr("&Open"), this);
   reOpenAction = new QAction(tr("&Re-Open"), this);
   reOpenAction->setEnabled(false); // Disable until a file is opened
   quitAction = new QAction(tr("&Quit"), this);
 
-  // 2. Setup File Menu
-  QMenu *fileMenu = menuBar()->addMenu(tr("&File"));
+  QToolBar *topMenuBar = addToolBar(tr("Main Menu"));
+  topMenuBar->setMovable(false); // Keep it locked at the top
+  topMenuBar->setFloatable(false);
+
+  // 2. Create a ToolButton to act as the "File" menu header
+  QToolButton *fileButton = new QToolButton(this);
+  fileButton->setText(tr("File"));
+  fileButton->setPopupMode(QToolButton::InstantPopup);
+
+  // 3. Create the actual Menu and attach it to the button
+  QMenu *fileMenu = new QMenu(fileButton);
   fileMenu->addAction(openAction);
   fileMenu->addAction(reOpenAction);
+  fileMenu->addSeparator();
   fileMenu->addAction(quitAction);
 
-  QMenu *options_menu = menuBar()->addMenu(tr("&Options"));
+  fileButton->setMenu(fileMenu);
+
+  // 4. Add the button to your toolbar
+  topMenuBar->addWidget(fileButton);
+
+  // QMenu *options_menu = menuBar()->addMenu(tr("&Options"));
+  // 3. Create the actual Menu and attach it to the button
+  QToolButton *optionsButton = new QToolButton(this);
+  optionsButton->setText(tr("Options"));
+  optionsButton->setPopupMode(QToolButton::InstantPopup);
+  QMenu *optionsMenu = new QMenu(optionsButton);
+  topMenuBar->addWidget(optionsButton);
 
   // 4. Connect Signals
   connect(openAction, &QAction::triggered, this, &MainWindow::openFile);
@@ -37,13 +58,13 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
 }
 
 void MainWindow::openFile() {
-  qDebug() << std::format("{}:{} {}", __FILE__, __LINE__, __func__);
+  qDebug() << __FILE__<<':'<<__LINE__ << ' ' << __func__;
   QString filter = "MIDI Files (*.mid *.MID *.midi *.MIDI);;All Files (*)";
 
   QString fileName = QFileDialog::getOpenFileName(this,
       tr("Open MIDI File"), "", filter);
 
-  qDebug() << std::format("{}:{} fileName=", __FILE__, __LINE__) << fileName;
+  qDebug() << __FILE__<<':'<<__LINE__ << " fileName=" << fileName;
   if (!fileName.isEmpty()) {
       lastOpenedPath = fileName;
       reOpenAction->setEnabled(true);
