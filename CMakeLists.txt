@@ -8,6 +8,7 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(GENERATE_VERSION_SCRIPT "${CMAKE_SOURCE_DIR}/tools/genver.py")
 set(VERSION_CPP "${CMAKE_SOURCE_DIR}/version.cpp")
 
+set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # Add a custom command to generate VERSION.h
@@ -120,6 +121,7 @@ if(BUILD_GUI)
 endif()
 
 if(ANDROID)
+    add_compile_options(-fexperimental-library)
     set(FLUID_DIR "${CMAKE_SOURCE_DIR}/third_party/fluidsynth-android")
 
     set(FLUID_DEPS

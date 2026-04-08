@@ -1,6 +1,8 @@
 #include "ui.h"
 #include "mainwin.h"
 
+
+#include <format>
 #include <QAction>
 #include <QApplication>
 #include <QDebug>
@@ -14,9 +16,11 @@
 #include <QToolButton>
 #include <QVBoxLayout>
 
+#include "fmtqstr.h"
+
 MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
   // 1. Create Actions
-  qDebug() << __FILE__<<':'<<__LINE__ << ' ' << __func__;
+  qDebug() << std::format("{}:{} {}", __FILE__, __LINE__, __func__);
   openAction = new QAction(tr("&Open"), this);
   reOpenAction = new QAction(tr("&Re-Open"), this);
   reOpenAction->setEnabled(false); // Disable until a file is opened
@@ -43,7 +47,6 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
   // 4. Add the button to your toolbar
   topMenuBar->addWidget(fileButton);
 
-  // QMenu *options_menu = menuBar()->addMenu(tr("&Options"));
   // 3. Create the actual Menu and attach it to the button
   QToolButton *optionsButton = new QToolButton(this);
   optionsButton->setText(tr("Options"));
@@ -58,13 +61,13 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
 }
 
 void MainWindow::openFile() {
-  qDebug() << __FILE__<<':'<<__LINE__ << ' ' << __func__;
+  qDebug() << std::format("{}:{} {}", __FILE__, __LINE__, __func__);
   QString filter = "MIDI Files (*.mid *.MID *.midi *.MIDI);;All Files (*)";
 
   QString fileName = QFileDialog::getOpenFileName(this,
       tr("Open MIDI File"), "", filter);
 
-  qDebug() << __FILE__<<':'<<__LINE__ << " fileName=" << fileName;
+  qDebug() << std::format("{}:{} fileName={}", __FILE__, __LINE__, fileName);
   if (!fileName.isEmpty()) {
       lastOpenedPath = fileName;
       reOpenAction->setEnabled(true);
