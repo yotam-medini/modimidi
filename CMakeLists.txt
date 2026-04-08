@@ -30,10 +30,10 @@ option(BUILD_GUI "Build the Qt GUI and Android targets" OFF)
 
 if(BUILD_CLI OR BUILD_GUI)
     # Find the fluidsynth library (adjust paths as needed)
-    find_library(FLUIDSYNTH_LIBRARY 
+    find_library(FLUIDSYNTH_LIBRARY
         NAMES fluidsynth PATHS /usr/lib /usr/lib/x86_64-linux-gnu)
     if(NOT FLUIDSYNTH_LIBRARY)
-        message(FATAL_ERROR 
+        message(FATAL_ERROR
             "fluidsynth library not found. Check the installation and paths.")
     endif()
 
@@ -162,6 +162,7 @@ if(ANDROID)
     set(ASOURCE_FILES
         amain.cpp
         ui.cpp
+        mainwin.h
     )
     qt_add_executable(ModiMidi ${ASOURCE_FILES})
 

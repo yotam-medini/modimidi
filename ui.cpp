@@ -1,18 +1,22 @@
 #include "ui.h"
 #include "mainwin.h"
 
+#include <format>
 #include <QAction>
 #include <QApplication>
+#include <QDebug>
 #include <QFileDialog>
 #include <QLabel>
 #include <QMainWindow>
 #include <QMenuBar>
 #include <QMessageBox>
+#include <QString>
 #include <QToolBar>
 #include <QVBoxLayout>
 
 MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
   // 1. Create Actions
+  qDebug() << std::format("{}:{} {}", __FILE__, __LINE__, __func__);
   openAction = new QAction(tr("&Open"), this);
   reOpenAction = new QAction(tr("&Re-Open"), this);
   reOpenAction->setEnabled(false); // Disable until a file is opened
@@ -33,11 +37,13 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
 }
 
 void MainWindow::openFile() {
+  qDebug() << std::format("{}:{} {}", __FILE__, __LINE__, __func__);
   QString filter = "MIDI Files (*.mid *.MID *.midi *.MIDI);;All Files (*)";
 
   QString fileName = QFileDialog::getOpenFileName(this,
       tr("Open MIDI File"), "", filter);
 
+  qDebug() << std::format("{}:{} fileName=", __FILE__, __LINE__) << fileName;
   if (!fileName.isEmpty()) {
       lastOpenedPath = fileName;
       reOpenAction->setEnabled(true);
