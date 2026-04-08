@@ -108,6 +108,7 @@ if(BUILD_GUI)
     set(GSOURCE_FILES
         gmain.cpp
         ui.cpp
+        gplay.cpp
         mainwin.h
     )
     add_executable(gmodimidi ${GSOURCE_FILES})

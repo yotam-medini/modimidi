@@ -18,7 +18,9 @@
 
 #include "fmtqstr.h"
 
-MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
+MainWindow::MainWindow(GPlay &gplay) : 
+     QMainWindow(nullptr),
+     gplay_{gplay} {
   // 1. Create Actions
   qDebug() << std::format("{}:{} {}", __FILE__, __LINE__, __func__);
   openAction = new QAction(tr("&Open"), this);
@@ -83,10 +85,11 @@ void MainWindow::reOpenFile() {
 
 class UI::Impl {
  public:
-  Impl(int argc, char **argv, bool is_android) :
+  Impl(int argc, char **argv, GPlay &gplay, bool is_android) :
       argc_{argc},
       argv_{argv},
-      app_{argc_, argv_} {
+      app_{argc_, argv_},
+      window_{gplay} {
 
     window_.setWindowTitle("ModiMidi");
     if (is_android) {
@@ -107,8 +110,8 @@ class UI::Impl {
    MainWindow window_;
 };
 
-UI::UI(int argc, char **argv, bool is_android) :
-  impl_{std::make_unique<Impl>(argc, argv, is_android)} {
+UI::UI(int argc, char **argv, GPlay &gplay, bool is_android) :
+  impl_{std::make_unique<Impl>(argc, argv, gplay, is_android)} {
 }
 
 UI::~UI() {

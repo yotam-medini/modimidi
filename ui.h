@@ -1,10 +1,12 @@
 #pragma once
 #include <memory>
 
+class GPlay;
+
 class UI
 {
  public:
-  UI(int argc, char **argv, bool is_android);
+  UI(int argc, char **argv, GPlay &gplay, bool is_android);
   ~UI();
   int Run();
  private:
