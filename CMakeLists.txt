@@ -109,6 +109,7 @@ if(BUILD_GUI)
         gmain.cpp
         ui.cpp
         gplay.cpp
+        midi.cpp
         mainwin.h
     )
     add_executable(gmodimidi ${GSOURCE_FILES})
@@ -122,7 +123,7 @@ if(BUILD_GUI)
 endif()
 
 if(ANDROID)
-    add_compile_options(-fexperimental-library)
+    # add_compile_options(-fexperimental-library)
     set(FLUID_DIR "${CMAKE_SOURCE_DIR}/third_party/fluidsynth-android")
 
     set(FLUID_DEPS
@@ -165,6 +166,8 @@ if(ANDROID)
     set(ASOURCE_FILES
         amain.cpp
         ui.cpp
+        gplay.cpp
+        midi.cpp
         mainwin.h
     )
     qt_add_executable(ModiMidi ${ASOURCE_FILES})

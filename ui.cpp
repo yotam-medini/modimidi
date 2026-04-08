@@ -17,6 +17,7 @@
 #include <QVBoxLayout>
 
 #include "fmtqstr.h"
+#include "gplay.h"
 
 MainWindow::MainWindow(GPlay &gplay) : 
      QMainWindow(nullptr),
@@ -69,11 +70,13 @@ void MainWindow::openFile() {
   QString fileName = QFileDialog::getOpenFileName(this,
       tr("Open MIDI File"), "", filter);
 
-  qDebug() << std::format("{}:{} fileName={}", __FILE__, __LINE__, fileName);
+  qDebug() << std::format("fileName={}", fileName.toStdString());
   if (!fileName.isEmpty()) {
       lastOpenedPath = fileName;
       reOpenAction->setEnabled(true);
       // Add your file processing logic here
+      auto err = gplay_.OpenMidi(fileName.toStdString());
+      qDebug() << std::format("err={}", err);
   }
 }
 

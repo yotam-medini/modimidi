@@ -78,7 +78,7 @@ class SequenceNumberEvent : public MetaEvent { // 0xff 0x01
  public:
   SequenceNumberEvent(uint32_t dt, uint16_t number) :
     MetaEvent{dt},
-    number_{number_} {}
+    number_{number} {}
   virtual MetaVarByte VarByte() const { return MetaVarByte::SEQNUM_x00; }
   std::string str() const;
   uint16_t number_;
