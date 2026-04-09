@@ -19,6 +19,11 @@
 #include "fmtqstr.h"
 #include "gplay.h"
 
+template <typename... Args>
+QString qFormat(std::format_string<Args...> fmt, Args&&... args) {
+  return QString::fromStdString(std::format(fmt, std::forward<Args>(args)...));
+}
+
 MainWindow::MainWindow(GPlay &gplay) : 
      QMainWindow(nullptr),
      gplay_{gplay} {
@@ -72,11 +77,22 @@ void MainWindow::openFile() {
 
   qDebug() << std::format("fileName={}", fileName.toStdString());
   if (!fileName.isEmpty()) {
+    lastOpenedPath = fileName;
+    reOpenAction->setEnabled(true);
+    // Add your file processing logic here
+    auto err = gplay_.OpenMidi(fileName.toStdString());
+    if (!err.empty()) {
+      qDebug() << std::format("err={}", err);
       lastOpenedPath = fileName;
       reOpenAction->setEnabled(true);
       // Add your file processing logic here
       auto err = gplay_.OpenMidi(fileName.toStdString());
-      qDebug() << std::format("err={}", err);
+      if (!err.empty()) {
+        qDebug() << std::format("err={}", err);
+        QMessageBox::warning(this, "ModiMidi Warning", 
+          qFormat("OpenMidi({}) failed:\n{}", fileName, err));
+      }
+    }
   }
 }
 
