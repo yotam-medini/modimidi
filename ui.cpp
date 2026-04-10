@@ -1,5 +1,6 @@
 #include "ui.h"
 #include "mainwin.h"
+#include <iostream>
 
 
 #include <format>
@@ -11,7 +12,9 @@
 #include <QMainWindow>
 #include <QMenuBar>
 #include <QMessageBox>
+#include <QPushButton>
 #include <QString>
+#include <QStyle>
 #include <QToolBar>
 #include <QToolButton>
 #include <QVBoxLayout>
@@ -66,6 +69,46 @@ MainWindow::MainWindow(GPlay &gplay) :
   connect(openAction, &QAction::triggered, this, &MainWindow::openFile);
   connect(reOpenAction, &QAction::triggered, this, &MainWindow::reOpenFile);
   connect(quitAction, &QAction::triggered, qApp, &QApplication::quit);
+
+  playAction = new QAction("Play", this);
+  pauseAction = new QAction("Pause", this);
+  playAction->setEnabled(false);
+  pauseAction->setEnabled(false);
+
+  // 1. Setup the Central Widget
+  QWidget *centralWidget = new QWidget(this);
+  setCentralWidget(centralWidget);
+
+  // 2. Main Vertical Layout (This fills the whole central area)
+  QVBoxLayout *mainLayout = new QVBoxLayout(centralWidget);
+
+  // 3. Horizontal Layout for the buttons (The "Button Bar")
+  QHBoxLayout *buttonLayout = new QHBoxLayout();
+
+  QPushButton *playButton = new QPushButton();
+  playButton->setIcon(style()->standardIcon(QStyle::SP_MediaPlay));
+  playButton->addAction(playAction);
+  connect(playButton, &QPushButton::clicked, playAction, &QAction::trigger);
+
+  QPushButton *pauseButton = new QPushButton();
+  pauseButton->setIcon(style()->standardIcon(QStyle::SP_MediaPause));
+
+  // 4. Assemble the Layouts
+  // Add "Springs" (stretch) to center the buttons horizontally
+  buttonLayout->addStretch(); 
+  buttonLayout->addWidget(playButton);
+  buttonLayout->addWidget(pauseButton);
+  buttonLayout->addStretch();
+
+  // Add "Springs" to center the horizontal row vertically
+  mainLayout->addStretch();    // Pushes everything down
+  mainLayout->addLayout(buttonLayout);
+  mainLayout->addStretch();    // Pushes everything up
+
+  connect(playAction, &QAction::triggered, this, [this]() {
+    std::cerr << std::format("{}:{}\n", __FILE__, __LINE__);
+    gplay_.Play();
+  });
 }
 
 void MainWindow::openFile() {
@@ -90,9 +133,11 @@ void MainWindow::openFile() {
       if (!err.empty()) {
         qDebug() << std::format("err={}", err);
         QMessageBox::warning(this, "ModiMidi Warning", 
-          qFormat("OpenMidi({}) failed:\n{}", fileName, err));
+          qFormat("OpenMidi({}) failed:\n{}", fileName.toStdString(), err));
       }
     }
+    playAction->setEnabled(err.empty());
+    pauseAction->setEnabled(err.empty());
   }
 }
 

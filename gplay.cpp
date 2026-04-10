@@ -1,4 +1,6 @@
 #include "gplay.h"
+#include <format>
+#include <iostream>
 #include "midi.h"
 
 class GPlay::Impl {
@@ -23,4 +25,8 @@ GPlay::~GPlay() {
 
 std::string GPlay::OpenMidi(const std::string& path) {
   return impl_->OpenMidi(path);
+}
+
+void GPlay::Play() {
+  std::cerr << std::format("{}:{} {} not yet\n", __FILE__, __LINE__, __func__);
 }

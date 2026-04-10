@@ -9,6 +9,7 @@ class GPlay {
   GPlay();
   ~GPlay();
   std::string OpenMidi(const std::string &path); // return error
+  void Play();
  private:
   class Impl;
   std::unique_ptr<Impl> impl_;
