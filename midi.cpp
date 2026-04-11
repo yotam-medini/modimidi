@@ -5,6 +5,7 @@
 #include <iostream>
 #include <fstream>
 #include <set>
+#include <utility>
 
 namespace fs = std::filesystem;
 
@@ -195,6 +196,12 @@ Midi::Midi(const std::string &midifile_path, uint32_t debug) :
   if (Valid()) {
     Parse();
   }
+}
+
+Midi::Midi(vu8_t data, uint32_t debug) :
+  data_{std::move(data)},
+  debug_{debug} {
+  Parse();
 }
 
 std::vector<uint8_t> Midi::GetChannels() const {

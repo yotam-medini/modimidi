@@ -102,15 +102,19 @@ if(BUILD_GUI OR ANDROID)
     )
     qt_policy(SET QTP0002 NEW)
     set(CMAKE_AUTOMOC ON)
+    set(UI_SOURCE_FILES
+        gplay.cpp
+        midi.cpp
+        qutil.cpp
+        ui.cpp
+        mainwin.h
+    )
 endif()
 
 if(BUILD_GUI)
     set(GSOURCE_FILES
         gmain.cpp
-        ui.cpp
-        gplay.cpp
-        midi.cpp
-        mainwin.h
+        ${UI_SOURCE_FILES}
     )
     add_executable(gmodimidi ${GSOURCE_FILES})
     target_compile_features(gmodimidi PUBLIC cxx_std_20)
@@ -165,10 +169,7 @@ if(ANDROID)
     # --- Executable Definition ---
     set(ASOURCE_FILES
         amain.cpp
-        ui.cpp
-        gplay.cpp
-        midi.cpp
-        mainwin.h
+        ${UI_SOURCE_FILES}
     )
     qt_add_executable(ModiMidi ${ASOURCE_FILES})
 

@@ -1,9 +1,12 @@
 #include "ui.h"
 #include "mainwin.h"
-#include <iostream>
 
-
+#include <cstdint>
 #include <format>
+#include <iostream>
+#include <utility>
+#include <vector>
+
 #include <QAction>
 #include <QApplication>
 #include <QDebug>
@@ -21,11 +24,7 @@
 
 #include "fmtqstr.h"
 #include "gplay.h"
-
-template <typename... Args>
-QString qFormat(std::format_string<Args...> fmt, Args&&... args) {
-  return QString::fromStdString(std::format(fmt, std::forward<Args>(args)...));
-}
+#include "qutil.h"
 
 MainWindow::MainWindow(GPlay &gplay) : 
      QMainWindow(nullptr),
@@ -123,13 +122,17 @@ void MainWindow::openFile() {
     lastOpenedPath = fileName;
     reOpenAction->setEnabled(true);
     // Add your file processing logic here
-    auto err = gplay_.OpenMidi(fileName.toStdString());
+    std::vector<uint8_t> data;
+    std::string err = read_binary_file(fileName, data);
+    if (err.empty()) {
+      err = gplay_.OpenMidi(data);
+    }
     if (!err.empty()) {
       qDebug() << std::format("err={}", err);
       lastOpenedPath = fileName;
       reOpenAction->setEnabled(true);
       // Add your file processing logic here
-      auto err = gplay_.OpenMidi(fileName.toStdString());
+      auto err = gplay_.OpenMidi(std::move(data));
       if (!err.empty()) {
         qDebug() << std::format("err={}", err);
         QMessageBox::warning(this, "ModiMidi Warning", 
