@@ -2,8 +2,9 @@
 #include "gplay.h"
 
 int main(int argc, char **argv) {
-  GPlay gplay;
-  UI ui(argc, argv, gplay, false);
+  constexpr auto is_android = false;
+  GPlay gplay(is_android);
+  UI ui(argc, argv, gplay, is_android);
   int rc = ui.Run();
   return rc;
 }

@@ -8,7 +8,7 @@
 
 class GPlay {
  public:
-  GPlay();
+  GPlay(bool is_android);
   ~GPlay();
   std::string OpenMidi(std::vector<uint8_t> data); // return error
   void Play();

@@ -8,6 +8,7 @@
 
 class GPlay::Impl {
  public:
+   Impl(bool is_android) : is_android_{is_android} {}
    std::string OpenMidi(std::vector<uint8_t> data) {
      parsed_midi_ = std::make_unique<midi::Midi>(std::move(data));
      auto err = parsed_midi_->GetError();
@@ -17,10 +18,12 @@ class GPlay::Impl {
      return err;
    }
    std::unique_ptr<midi::Midi> parsed_midi_;
+ private:
+   const bool is_android_;
 };
 
-GPlay::GPlay() :
- impl_{std::make_unique<Impl>()} {
+GPlay::GPlay(bool is_android) :
+ impl_{std::make_unique<Impl>(is_android)} {
 }
 
 GPlay::~GPlay() {

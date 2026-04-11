@@ -117,7 +117,8 @@ void MainWindow::openFile() {
   QString fileName = QFileDialog::getOpenFileName(this,
       tr("Open MIDI File"), "", filter);
 
-  qDebug() << std::format("fileName={}", fileName.toStdString());
+  qDebug() << std::format("{}:{} fileName={}",
+    __FILE__, __LINE__, fileName.toStdString());
   if (!fileName.isEmpty()) {
     lastOpenedPath = fileName;
     reOpenAction->setEnabled(true);
@@ -125,6 +126,8 @@ void MainWindow::openFile() {
     std::vector<uint8_t> data;
     std::string err = read_binary_file(fileName, data);
     if (err.empty()) {
+      qDebug() << std::format("{}:{} data.size=={}",
+        __FILE__, __LINE__, data.size());
       err = gplay_.OpenMidi(data);
     }
     if (!err.empty()) {
