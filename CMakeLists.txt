@@ -103,9 +103,11 @@ if(BUILD_GUI OR ANDROID)
     qt_policy(SET QTP0002 NEW)
     set(CMAKE_AUTOMOC ON)
     set(UI_SOURCE_FILES
+        debug.cpp
         gplay.cpp
         midi.cpp
         qutil.cpp
+        synthseq.cpp
         ui.cpp
         mainwin.h
     )
@@ -123,6 +125,7 @@ if(BUILD_GUI)
         Qt::Core
         Qt::Gui
         Qt::Widgets
+        ${FLUIDSYNTH_LIBRARY}
     )
 endif()
 

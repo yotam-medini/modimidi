@@ -15,12 +15,14 @@ public:
 private slots:
   void openFile();
   void reOpenFile();
+  void showDebugDialog();
 
 private:
   GPlay &gplay_;
   QString lastOpenedPath;
   QAction *openAction;
   QAction *reOpenAction;
+  QAction *showDebugAction;
   QAction *quitAction;
   QAction *playAction;
   QAction *pauseAction;

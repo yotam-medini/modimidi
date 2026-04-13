@@ -12,16 +12,19 @@
 #include <QDebug>
 #include <QFileDialog>
 #include <QLabel>
+#include <QListWidget>
 #include <QMainWindow>
 #include <QMenuBar>
 #include <QMessageBox>
 #include <QPushButton>
+#include <QScreen>
 #include <QString>
 #include <QStyle>
 #include <QToolBar>
 #include <QToolButton>
 #include <QVBoxLayout>
 
+#include "debug.h"
 #include "fmtqstr.h"
 #include "gplay.h"
 #include "qutil.h"
@@ -34,6 +37,7 @@ MainWindow::MainWindow(GPlay &gplay) :
   openAction = new QAction(tr("&Open"), this);
   reOpenAction = new QAction(tr("&Re-Open"), this);
   reOpenAction->setEnabled(false); // Disable until a file is opened
+  showDebugAction = new QAction(tr("Debug Messages"));
   quitAction = new QAction(tr("&Quit"), this);
 
   QToolBar *topMenuBar = addToolBar(tr("Main Menu"));
@@ -49,6 +53,7 @@ MainWindow::MainWindow(GPlay &gplay) :
   QMenu *fileMenu = new QMenu(fileButton);
   fileMenu->addAction(openAction);
   fileMenu->addAction(reOpenAction);
+  fileMenu->addAction(showDebugAction);
   fileMenu->addSeparator();
   fileMenu->addAction(quitAction);
 
@@ -67,6 +72,8 @@ MainWindow::MainWindow(GPlay &gplay) :
   // 4. Connect Signals
   connect(openAction, &QAction::triggered, this, &MainWindow::openFile);
   connect(reOpenAction, &QAction::triggered, this, &MainWindow::reOpenFile);
+  connect(
+    showDebugAction, &QAction::triggered, this, &MainWindow::showDebugDialog);
   connect(quitAction, &QAction::triggered, qApp, &QApplication::quit);
 
   playAction = new QAction("Play", this);
@@ -108,6 +115,7 @@ MainWindow::MainWindow(GPlay &gplay) :
     std::cerr << std::format("{}:{}\n", __FILE__, __LINE__);
     gplay_.Play();
   });
+  DebugMessage::AddMessage("MainWindow constructed");
 }
 
 void MainWindow::openFile() {
@@ -126,8 +134,10 @@ void MainWindow::openFile() {
     std::vector<uint8_t> data;
     std::string err = read_binary_file(fileName, data);
     if (err.empty()) {
-      qDebug() << std::format("{}:{} data.size=={}",
+      auto const msg = std::format("{}:{} data.size=={}",
         __FILE__, __LINE__, data.size());
+      qDebug() << msg;
+      DebugMessage::AddMessage(msg);
       err = gplay_.OpenMidi(data);
     }
     if (!err.empty()) {
@@ -151,6 +161,39 @@ void MainWindow::reOpenFile() {
   if (!lastOpenedPath.isEmpty()) {
       // Logic to reload the file at lastOpenedPath
   }
+}
+
+void MainWindow::showDebugDialog() {
+  QDialog *dialog = new QDialog(this);
+  dialog->setWindowTitle("Recent Debug Messages");
+
+  QVBoxLayout *layout = new QVBoxLayout(dialog);
+  QListWidget *listWidget = new QListWidget(dialog);
+
+  listWidget->setStyleSheet("QListWidget::item { height: 40px; }");
+
+  // Add logs from our Logger
+  QStringList debug_messages;
+  for (auto const &message: DebugMessage::GetMessages()) {
+     debug_messages << QString::fromStdString(message);
+  }
+  listWidget->addItems(debug_messages);
+
+  QPushButton *closeButton = new QPushButton("Close", dialog);
+
+  layout->addWidget(listWidget);
+  layout->addWidget(closeButton);
+
+  QObject::connect(
+    closeButton, &QPushButton::clicked, dialog, &QDialog::accept);
+
+  // Mobile Optimization: Resize dialog to 90% of screen width
+  QRect screenGeometry = QGuiApplication::primaryScreen()->geometry();
+  int width = screenGeometry.width() * 0.9;
+  int height = screenGeometry.height() * 0.6;
+  dialog->resize(width, height);
+
+  dialog->exec(); // Modal execution
 }
 
 class UI::Impl {
