@@ -5,6 +5,7 @@
 #include <utility>
 #include <vector>
 #include "midi.h"
+#include "debug.h"
 #include "synthseq.h"
 
 class GPlay::Impl {
@@ -12,6 +13,7 @@ class GPlay::Impl {
    Impl(bool is_android) : 
      is_android_{is_android},
      synseq_{"/usr/share/sounds/sf2/FluidR3_GM.sf2", 0x0} {
+     DebugMessage::AddMessage(std::format("synseq_.err={}", synseq_.error()));
    }
    std::string OpenMidi(std::vector<uint8_t> data) {
      parsed_midi_ = std::make_unique<midi::Midi>(std::move(data));

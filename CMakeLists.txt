@@ -169,10 +169,22 @@ if(ANDROID)
         list(APPEND FLUID_TARGETS ${TGT})
     endforeach()
 
+    set(SF2NAME TimGM6mb.sf2)
+    set(SYS_SF2NAME /usr/share/sounds/sf2/${SF2NAME})
+
+    add_custom_command(
+        OUTPUT ${SF2NAME}
+        DEPENDS ${SYS_SF2NAME}
+        COMMAND ${CMAKE_COMMAND} -E copy ${SYS_SF2NAME} ${SF2NAME}
+        COMMENT "Copying ${SYS_SF2NAME} to ${SF2NAME}"
+    )
+
     # --- Executable Definition ---
     set(ASOURCE_FILES
         amain.cpp
         ${UI_SOURCE_FILES}
+        resources.qrc # CMake runs 'rcc' (Qt Resource Compiler)
+        ${SF2NAME}
     )
     qt_add_executable(ModiMidi ${ASOURCE_FILES})
 

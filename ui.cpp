@@ -18,6 +18,7 @@
 #include <QMessageBox>
 #include <QPushButton>
 #include <QScreen>
+#include <QSpacerItem>
 #include <QString>
 #include <QStyle>
 #include <QToolBar>
@@ -182,6 +183,8 @@ void MainWindow::showDebugDialog() {
   QPushButton *closeButton = new QPushButton("Close", dialog);
 
   layout->addWidget(listWidget);
+  layout->addSpacerItem(
+    new QSpacerItem(20, 40, QSizePolicy::Minimum, QSizePolicy::Expanding));
   layout->addWidget(closeButton);
 
   QObject::connect(
