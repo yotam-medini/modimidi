@@ -106,9 +106,12 @@ if(BUILD_GUI OR ANDROID)
         debug.cpp
         gplay.cpp
         midi.cpp
+        play.cpp
         qutil.cpp
+        rawterm.cpp # how to avoid ?
         synthseq.cpp
         ui.cpp
+        util.cpp
         mainwin.h
     )
 endif()
