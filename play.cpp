@@ -471,7 +471,11 @@ void Player::Play() {
   cv_.wait(lock, [this]{ return final_handled_.load(); });
   if (pp_.progress_) { std::cout << '\n'; }
   if (pp_.debug_ & 0x2) { std::cout << "unlocked\n"; }
-  ss_.DeleteFluidObjects();
+  for (size_t si = SeqIdPeriodic; si < SeqId_N; ++si) {
+    if (seq_ids_[si] != -1) {
+      fluid_sequencer_unregister_client(ss_.sequencer_, seq_ids_[si]);
+    }
+  }
 }
 
 void Player::SetVelocitiesMap() {
