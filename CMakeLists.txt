@@ -171,22 +171,31 @@ if(ANDROID)
 
     set(SF2NAME TimGM6mb.sf2)
     set(SYS_SF2NAME /usr/share/sounds/sf2/${SF2NAME})
+    set(GEN_SF2PATH "${CMAKE_CURRENT_BINARY_DIR}/${SF2NAME}")
 
     add_custom_command(
         OUTPUT ${SF2NAME}
         DEPENDS ${SYS_SF2NAME}
-        COMMAND ${CMAKE_COMMAND} -E copy ${SYS_SF2NAME} ${SF2NAME}
-        COMMENT "Copying ${SYS_SF2NAME} to ${SF2NAME}"
+        COMMAND ${CMAKE_COMMAND} -E copy ${SYS_SF2NAME} ${GEN_SF2PATH}
+        COMMENT "Copying ${SYS_SF2NAME} to ${GEN_SF2PATH}"
     )
 
     # --- Executable Definition ---
     set(ASOURCE_FILES
         amain.cpp
         ${UI_SOURCE_FILES}
-        resources.qrc # CMake runs 'rcc' (Qt Resource Compiler)
         ${SF2NAME}
     )
     qt_add_executable(ModiMidi ${ASOURCE_FILES})
+
+    set_source_files_properties("${GEN_SF2PATH}" PROPERTIES 
+        QT_RESOURCE_ALIAS "${SF2NAME}"
+    )
+
+    qt_add_resources(ModiMidi "sf2_data"
+        PREFIX "/"
+        FILES ${GEN_SF2PATH}
+    )
 
     set_target_properties(ModiMidi PROPERTIES
         QT_ANDROID_PACKAGE_NAME "yotam.modimidi"
