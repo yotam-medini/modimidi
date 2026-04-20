@@ -44,7 +44,7 @@ int main(int argc, char **argv) {
     if ((rc == 0) && options.Play()) {
       SynthSequencer synth_sequencer(options.SoundfontsPath(), debug);
       if (synth_sequencer.ok()) {
-        PlayParams pp;
+        player::PlayerParams pp;
         pp.begin_ms_ = options.BeginMillisec();
         pp.end_ms_ = options.EndMillisec();
         pp.tempo_div_factor_ = 1./options.Tempo();

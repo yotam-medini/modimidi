@@ -221,7 +221,7 @@ class Player::Impl {
   const SynthSequencer &GetSynthSequencer() const { return ss_; }
   SynthSequencer &GetSynthSequencer() { return ss_; }
   int GetSeqId(SeqId esi) const { return seq_ids_[esi]; }
-  int run();
+  int Run();
 
  private:
 
@@ -310,7 +310,7 @@ class Player::Impl {
   std::condition_variable cv_;
 };
 
-int Player::Impl::run() {
+int Player::Impl::Run() {
   if (pp_.debug_ & 0x1) { std::cerr << "Player::Impl::run() begin\n"; }
   SetIndexEvents();
   if (pp_.debug_ & 0x1) { std::cerr << "Player::Impl::run() end\n"; }
@@ -814,5 +814,8 @@ Player::Player(
 Player::~Player() {
 }
 
-} // namespace
+int Player::run() {
+  return impl_->Run();
+}
 
+} // namespace

@@ -1,4 +1,6 @@
 #include "play.h"
+
+#if 0
 #include <algorithm>
 #include <array>
 #include <atomic>
@@ -900,15 +902,18 @@ void FinalEvent::SetSendFluidEvent(
   fluid_sequencer_send_at(
     player->GetSynthSequencer().sequencer_, event, date_ms, 1);
 }
+#endif
 
 ////////////////////////////////////////////////////////////////////////
+#include "player.h"
+#include "rawterm.h"
 
 int Play(
     const midi::Midi &parsed_midi,
     SynthSequencer &synth_sequencer,
-    const PlayParams &play_params) {
+    const player::PlayerParams &play_params) {
   RawTerminal raw_terminal;
-  int rc = Player(
+  int rc = player::Player(
     parsed_midi, synth_sequencer, play_params, raw_terminal.IsForground()
   ).run();
   return rc;
