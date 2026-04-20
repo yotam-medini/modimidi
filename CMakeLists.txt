@@ -59,6 +59,7 @@ set(SOURCE_FILES
     midi.cpp
     options.cpp
     play.cpp
+    player.cpp
     rawterm.cpp
     synthseq.cpp
     util.cpp
