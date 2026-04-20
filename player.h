@@ -12,6 +12,7 @@ class SynthSequencer;
 
 namespace player {
 
+// TODO: PlayerParams -> Params
 class PlayerParams {
  public:
   using range_t = std::array<uint8_t, 2>;
@@ -34,6 +35,8 @@ class PlayerParams {
   uint32_t debug_{0};
 };
 
+enum Command { Pause, Resume, Backward, Forward, Quit };
+
 class Player {
  public:
   class Impl;
@@ -43,6 +46,7 @@ class Player {
       const PlayerParams &pp);
   ~Player();
   int run();
+  void PostCommand(Command);
 
  private:
   std::unique_ptr<Impl> impl_;

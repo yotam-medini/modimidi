@@ -220,6 +220,7 @@ class Player::Impl {
   SynthSequencer &GetSynthSequencer() { return ss_; }
   int GetSeqId(SeqId esi) const { return seq_ids_[esi]; }
   int Run();
+  void PostCommand(player::Command);
 
  private:
 
@@ -316,6 +317,11 @@ int Player::Impl::Run() {
   }
   Play();
   return rc_;
+}
+
+void Player::Impl::PostCommand(Command command) {
+  std::cerr << std::format("{} command={} not yet supported\n",
+    __func__, static_cast<int>(command));
 }
 
 void Player::Impl::SetIndexEvents() {
@@ -802,6 +808,10 @@ Player::~Player() {
 
 int Player::run() {
   return impl_->Run();
+}
+
+void Player::PostCommand(Command command) {
+  return impl_->PostCommand(command);
 }
 
 } // namespace
