@@ -983,11 +983,17 @@ void handle_keyboard(player::Player& p) {
   auto iter = ka2cmd.find(action);
   if (iter != ka2cmd.end()) {
     p.PostCommand(iter->second);
-  } else if (action == KeyAction::Help) {
-    KeyboardHelp();
   } else {
-    std::cerr << std::format("{}:{} Unexpected action={}\n",
-      __FILE__, __LINE__, static_cast<int>(action));
+    switch (action) {
+     case KeyAction::None:
+      break;
+     case KeyAction::Help:
+      KeyboardHelp();
+      break;
+     default:
+      std::cerr << std::format("{}:{} Unexpected action={}\n",
+        __FILE__, __LINE__, static_cast<int>(action));
+    }
   }
 }
 
