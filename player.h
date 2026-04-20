@@ -35,7 +35,7 @@ class PlayerParams {
   uint32_t debug_{0};
 };
 
-enum Command { Pause, Resume, Backward, Forward, Quit };
+enum Command { PauseResume, Backward, Forward, Quit };
 
 class Player {
  public:
