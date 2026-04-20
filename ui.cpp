@@ -77,10 +77,16 @@ MainWindow::MainWindow(GPlay &gplay) :
     showDebugAction, &QAction::triggered, this, &MainWindow::showDebugDialog);
   connect(quitAction, &QAction::triggered, qApp, &QApplication::quit);
 
-  playAction = new QAction("Play", this);
   pauseAction = new QAction("Pause", this);
-  playAction->setEnabled(false);
+  stopAction = new QAction("Stop", this);
+  playAction = new QAction("Play", this);
+  forwardAction = new QAction("Forward", this);
+  backwardAction = new QAction("Backward", this);
   pauseAction->setEnabled(false);
+  stopAction->setEnabled(false);
+  playAction->setEnabled(false);
+  forwardAction->setEnabled(false);
+  backwardAction->setEnabled(false);
 
   // 1. Setup the Central Widget
   QWidget *centralWidget = new QWidget(this);
@@ -92,29 +98,62 @@ MainWindow::MainWindow(GPlay &gplay) :
   // 3. Horizontal Layout for the buttons (The "Button Bar")
   QHBoxLayout *buttonLayout = new QHBoxLayout();
 
-  QPushButton *playButton = new QPushButton();
+  QPushButton *pauseButton = new QPushButton(centralWidget);
+  pauseButton->setIcon(style()->standardIcon(QStyle::SP_MediaPause));
+
+  QPushButton *stopButton = new QPushButton(centralWidget);
+  stopButton->setIcon(style()->standardIcon(QStyle::SP_MediaStop));
+  connect(stopButton, &QPushButton::clicked, stopAction, &QAction::trigger);
+
+  QPushButton *playButton = new QPushButton(centralWidget);
   playButton->setIcon(style()->standardIcon(QStyle::SP_MediaPlay));
   playButton->addAction(playAction);
   connect(playButton, &QPushButton::clicked, playAction, &QAction::trigger);
 
-  QPushButton *pauseButton = new QPushButton();
-  pauseButton->setIcon(style()->standardIcon(QStyle::SP_MediaPause));
+  QPushButton *forwardButton = new QPushButton(centralWidget);
+  forwardButton->setIcon(style()->standardIcon(QStyle::SP_MediaSeekForward));
+
+  QPushButton *backwardButton = new QPushButton(centralWidget);
+  backwardButton->setIcon(style()->standardIcon(QStyle::SP_MediaSeekForward));
 
   // 4. Assemble the Layouts
   // Add "Springs" (stretch) to center the buttons horizontally
   buttonLayout->addStretch(); 
-  buttonLayout->addWidget(playButton);
   buttonLayout->addWidget(pauseButton);
+  buttonLayout->addWidget(stopButton);
+  buttonLayout->addWidget(playButton);
+  buttonLayout->addWidget(forwardButton);
+  buttonLayout->addWidget(backwardButton);
   buttonLayout->addStretch();
+
+  QHBoxLayout *progressLayout = new QHBoxLayout();
+  QLabel *progress_label = new QLabel("Progress", this);
+  progressLayout->addStretch();
+  progressLayout->addWidget(progress_label);
+  progressLayout->addStretch();
+  gplay_.SetProgressCallback([progress_label](
+      uint32_t done_ms,
+      uint32_t final_ms,
+      const std::string& mmss_done,
+      const std::string& mmss_final) {
+    auto const s = std::format("Progress: {} / {}", mmss_done, mmss_final);
+    progress_label->setText(QString::fromStdString(s));
+  });
 
   // Add "Springs" to center the horizontal row vertically
   mainLayout->addStretch();    // Pushes everything down
   mainLayout->addLayout(buttonLayout);
+  mainLayout->addLayout(progressLayout);    // Pushes everything up
   mainLayout->addStretch();    // Pushes everything up
 
-  connect(playAction, &QAction::triggered, this, [this]() {
+  connect(playAction, &QAction::triggered, this, [this, progress_label]() {
     std::cerr << std::format("{}:{}\n", __FILE__, __LINE__);
+    stopAction->setEnabled(true);
     gplay_.Play();
+  });
+  connect(stopAction, &QAction::triggered, this, [this]() {
+    std::cerr << std::format("{}:{}\n", __FILE__, __LINE__);
+    gplay_.Stop();
   });
   DebugMessage::AddMessage("MainWindow constructed");
 }
@@ -143,15 +182,8 @@ void MainWindow::openFile() {
     }
     if (!err.empty()) {
       qDebug() << std::format("err={}", err);
-      lastOpenedPath = fileName;
-      reOpenAction->setEnabled(true);
-      // Add your file processing logic here
-      auto err = gplay_.OpenMidi(std::move(data));
-      if (!err.empty()) {
-        qDebug() << std::format("err={}", err);
-        QMessageBox::warning(this, "ModiMidi Warning", 
-          qFormat("OpenMidi({}) failed:\n{}", fileName.toStdString(), err));
-      }
+      QMessageBox::warning(this, "ModiMidi Warning", 
+        qFormat("OpenMidi({}) failed:\n{}", fileName.toStdString(), err));
     }
     playAction->setEnabled(err.empty());
     pauseAction->setEnabled(err.empty());
