@@ -5,6 +5,7 @@
 #include "midi.h"
 #include "options.h"
 #include "play.h"
+#include "player.h"
 #include "synthseq.h"
 #include "version.h"
 

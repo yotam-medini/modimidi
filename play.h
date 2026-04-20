@@ -1,8 +1,9 @@
 // -*- c++ -*-
 #pragma once
 
-#include "player.h"
+namespace midi { class Midi; }
 class SynthSequencer;
+namespace player { class PlayerParams; }
 
 extern int Play(
   const midi::Midi &parsed_midi,
