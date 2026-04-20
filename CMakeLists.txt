@@ -59,6 +59,7 @@ set(SOURCE_FILES
     midi.cpp
     options.cpp
     play.cpp
+    player.cpp
     rawterm.cpp
     synthseq.cpp
     util.cpp
@@ -106,7 +107,7 @@ if(BUILD_GUI OR ANDROID)
         debug.cpp
         gplay.cpp
         midi.cpp
-        play.cpp
+        player.cpp
         qutil.cpp
         rawterm.cpp # how to avoid ?
         synthseq.cpp
