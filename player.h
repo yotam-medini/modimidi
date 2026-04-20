@@ -2,7 +2,9 @@
 
 #include <array>
 #include <cstdint>
+#include <functional>
 #include <memory>
+#include <string>
 #include <unordered_map>
 
 namespace midi { class Midi; }
@@ -23,7 +25,12 @@ class PlayerParams {
   k2range_t channels_velocity_map_;
   uint32_t initial_delay_ms_{0};
   uint32_t batch_duration_ms_{0};
-  bool progress_{false};
+  bool interactive_{false};
+  std::function<void(
+    uint32_t done_ms,
+    uint32_t final_ms,
+    const std::string&,
+    const std::string&)> progress_callback_{nullptr};
   uint32_t debug_{0};
 };
 
@@ -33,8 +40,7 @@ class Player {
   Player(
       const midi::Midi &pm,
       SynthSequencer &ss,
-      const PlayerParams &pp,
-      bool sense_keyboard);
+      const PlayerParams &pp);
   ~Player();
   int run();
 

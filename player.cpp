@@ -211,10 +211,8 @@ class Player::Impl {
   Impl(
       const midi::Midi &pm,
       SynthSequencer &ss,
-      const PlayerParams &pp,
-      bool sense_keyboard) :
-    pm_{pm}, ss_{ss}, pp_{pp}, begin_ms_{pp.begin_ms_}, end_ms_{pp.end_ms_},
-    sense_keyboard_{sense_keyboard} {
+      const PlayerParams &pp) :
+    pm_{pm}, ss_{ss}, pp_{pp}, begin_ms_{pp.begin_ms_}, end_ms_{pp.end_ms_} {
     std::fill(seq_ids_.begin(), seq_ids_.end(), -1);
     seq_ids_[SeqIdSynth] = ss.synth_seq_id_;
   }
@@ -283,7 +281,6 @@ class Player::Impl {
   void RemoveEvents();
   void Resume(uint32_t now, uint32_t new_begin_ms);
   void PerformFinal();
-  void KeyboardHelp();
 
   int rc_{0};
 
@@ -292,7 +289,6 @@ class Player::Impl {
   const PlayerParams &pp_;
   uint32_t begin_ms_;
   uint32_t end_ms_;
-  const bool sense_keyboard_;
   key2affine_t tracks_velocity_map_;
   key2affine_t channels_velocity_map_;
 
@@ -453,17 +449,16 @@ void Player::Impl::Play() {
   seq_ids_[SeqIdFinal] = fluid_sequencer_register_client(
     ss_.sequencer_, "final", DispatchCallback, &cbd_final);
   CallBackData cbd_interactive{CallBackData::CallBack::Interactive, this};
-  if (pp_.progress_ || sense_keyboard_) {
+  if (pp_.interactive_) {
     seq_ids_[SeqIdInterActive] = fluid_sequencer_register_client(
       ss_.sequencer_, "interactive", DispatchCallback, &cbd_interactive);
   }
   SchedulePeriodicAt(0);
-  if (pp_.progress_ || sense_keyboard_) {
+  if (pp_.interactive_) {
     ScheduleInterActiveAt(100);
   }
   if (pp_.debug_ & 0x2) { std::cout << "wait on lock\n"; }
   cv_.wait(lock, [this]{ return final_handled_.load(); });
-  if (pp_.progress_) { std::cout << '\n'; }
   if (pp_.debug_ & 0x2) { std::cout << "unlocked\n"; }
   for (size_t si = SeqIdPeriodic; si < SeqId_N; ++si) {
     if (seq_ids_[si] != -1) {
@@ -702,17 +697,6 @@ void Player::Impl::PerformFinal() {
   }
 }
 
-void Player::Impl::KeyboardHelp() {
-  std::cerr << R"(
-    modimidi supports the following keyboard commands:
-    SPACE:          Pause or Resume
-    j, Left-Arrow:  Skip back 5 seconds
-    k, Right-Arrow: Skip forward 5 seconds
-    q:              Quit
-    h:              Show this help message
-  )";
-}
-
 void Player::Impl::RemoveEvents() {
   fluid_synth_all_notes_off(ss_.synth_, -1);
   auto channel_count  = fluid_synth_count_midi_channels(ss_.synth_);
@@ -727,7 +711,7 @@ void Player::Impl::InteractiveCallback(
     fluid_event_t *event,
     fluid_sequencer_t *seq) {
   // if no action.....
-  if (pp_.progress_ && (!in_pause_)) {
+  if (pp_.interactive_ && (!in_pause_)) {
     ProgressHandle(time);
   }
   // about event 1/10 second
@@ -744,10 +728,13 @@ void Player::Impl::ProgressHandle(unsigned int time) {
     uint32_t dt_div = static_cast<uint32_t>(dt_div_f);
     uint32_t btime = dt_div + begin_ms_;
     if ((date_add_ms_ <= btime) && (btime <= last_ms)) {
-      uint32_t tdone = btime;
-      auto mmss_done = milliseconds_to_string(tdone);
+      uint32_t done_ms = btime;
+      auto mmss_done = milliseconds_to_string(done_ms);
       auto mmss_final = milliseconds_to_string(last_ms);
-      std::cout << std::format("\rProgress: {} / {}", mmss_done, mmss_final);
+      if (pp_.progress_callback_) {
+        pp_.progress_callback_(done_ms, last_ms, mmss_done, mmss_final);
+      }
+      // std::cout << std::format("\rProgress: {} / {}", mmss_done, mmss_final);
       std::cout.flush();
     }
   }
@@ -806,9 +793,8 @@ void FinalEvent::SetSendFluidEvent(
 Player::Player(
   const midi::Midi &pm,
   SynthSequencer &ss,
-  const PlayerParams &pp,
-  bool sense_keyboard) :
-    impl_{std::make_unique<Impl>(pm, ss, pp, sense_keyboard)} {
+  const PlayerParams &pp) :
+    impl_{std::make_unique<Impl>(pm, ss, pp)} {
 }
 
 Player::~Player() {

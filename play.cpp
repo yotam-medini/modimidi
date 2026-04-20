@@ -905,16 +905,26 @@ void FinalEvent::SetSendFluidEvent(
 #endif
 
 ////////////////////////////////////////////////////////////////////////
+#include <format>
+#include <iostream>
 #include "player.h"
 #include "rawterm.h"
 
 int Play(
     const midi::Midi &parsed_midi,
     SynthSequencer &synth_sequencer,
-    const player::PlayerParams &play_params) {
+    player::PlayerParams &play_params) {
   RawTerminal raw_terminal;
-  int rc = player::Player(
-    parsed_midi, synth_sequencer, play_params, raw_terminal.IsForground()
-  ).run();
+  std::cout << std::format("IsForground={}\n", raw_terminal.IsForground());
+  if (raw_terminal.IsForground() && play_params.interactive_) {
+    play_params.progress_callback_ =
+      [](uint32_t, uint32_t, 
+        const std::string& mmss_done, const std::string& mmss_final) {
+          std::cout << std::format("\rProgress: {} / {}",
+            mmss_done, mmss_final);
+        };
+  }
+  int rc = player::Player(parsed_midi, synth_sequencer, play_params).run();
+  if (play_params.interactive_) { std::cout << '\n'; }
   return rc;
 }
