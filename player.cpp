@@ -6,6 +6,7 @@
 #include <format>
 #include <iostream>
 #include <numeric>
+#include <queue>
 
 #include <cmath>
 
@@ -227,7 +228,6 @@ class Player::Impl {
   static constexpr uint32_t SKIP_MS = 5000;
   using range_t = std::array<uint8_t, 2>;
   using key2affine_t = std::unordered_map<uint8_t, Affine>;
-  enum class KeyAction { None, Pause, Resume, Backward, Forward, Quit, Help };
   void SetIndexEvents();
   uint32_t GetFirstNoteTime();
   void SetAbsEvents();
@@ -305,6 +305,9 @@ class Player::Impl {
   std::mutex sending_mtx_;
   std::mutex play_mtx_;
   std::condition_variable cv_;
+
+  std::mutex commands_mtx_;
+  std::queue<Command> commands_queue;
 };
 
 int Player::Impl::Run() {
@@ -320,8 +323,8 @@ int Player::Impl::Run() {
 }
 
 void Player::Impl::PostCommand(Command command) {
-  std::cerr << std::format("{} command={} not yet supported\n",
-    __func__, static_cast<int>(command));
+  std::lock_guard<std::mutex> lock(commands_mtx_);
+  commands_queue.push(command);
 }
 
 void Player::Impl::SetIndexEvents() {
@@ -717,6 +720,48 @@ void Player::Impl::InteractiveCallback(
     fluid_event_t *event,
     fluid_sequencer_t *seq) {
   // if no action.....
+  bool any_command = false;
+  {
+    std::lock_guard<std::mutex> lock(commands_mtx_);
+    any_command = !commands_queue.empty();
+    if (any_command) {
+      const uint32_t dt = time - date_add_ms_;
+      const uint32_t time_in_music = begin_ms_ + dt/pp_.tempo_div_factor_;
+      auto const command = commands_queue.front();
+      switch (command) {
+       case Command::PauseResume:
+        if (in_pause_) {
+          in_pause_ = false;
+          Resume(time, pause_time_);
+        } else {
+          in_pause_ = true;
+          RemoveEvents();
+          pause_time_ = time_in_music;
+        }
+        break;
+       case Command::Backward:
+        if (time_in_music >= SKIP_MS) {
+          RemoveEvents();
+          Resume(time, time_in_music - SKIP_MS);
+        }
+        break;
+       case Command::Forward:
+        if (time_in_music + SKIP_MS <= end_ms_) {
+          RemoveEvents();
+          Resume(time, time_in_music + SKIP_MS);
+        }
+        break;
+       case Command::Quit:
+        RemoveEvents();
+        PerformFinal();
+        break;
+       default:
+        std::cerr << std::format("{}:{} Unexpected command={}\n",
+          __FILE__, __LINE__, static_cast<int>(command));
+      }
+      commands_queue.pop();
+    }
+  }
   if (pp_.interactive_ && (!in_pause_)) {
     ProgressHandle(time);
   }
@@ -744,6 +789,18 @@ void Player::Impl::ProgressHandle(unsigned int time) {
       std::cout.flush();
     }
   }
+}
+
+void Player::Impl::Resume(uint32_t now, uint32_t new_begin_ms) {
+  if (pp_.debug_ & 0x1) {
+    std::cerr << std::format("{} now={}, new_begin_ms={}\n",
+      __func__, now, new_begin_ms);
+  }
+  begin_ms_ = new_begin_ms;
+  SetAbsEvents();
+  next_send_index_ = 0;
+  uint32_t new_now = fluid_sequencer_get_tick(ss_.sequencer_);
+  SchedulePeriodicAt(new_now);
 }
 
 uint32_t Player::Impl::FactorU32(double f, uint32_t u) {
