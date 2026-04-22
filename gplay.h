@@ -5,13 +5,14 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include "progress_cb.h"
 
 class GPlay {
  public:
   GPlay(bool is_android);
   ~GPlay();
   std::string OpenMidi(std::vector<uint8_t> data); // return error
-  void Play();
+  void Play(progress_callback_t progress_cb);
  private:
   class Impl;
   std::unique_ptr<Impl> impl_;

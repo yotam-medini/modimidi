@@ -107,7 +107,7 @@ if(BUILD_GUI OR ANDROID)
         debug.cpp
         gplay.cpp
         midi.cpp
-        play.cpp
+        player.cpp
         qutil.cpp
         rawterm.cpp # how to avoid ?
         synthseq.cpp

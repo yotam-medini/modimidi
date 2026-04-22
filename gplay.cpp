@@ -7,7 +7,7 @@
 #include <vector>
 #include "midi.h"
 #include "debug.h"
-#include "play.h"
+#include "player.h"
 #include "qutil.h"
 #include "synthseq.h"
 
@@ -28,27 +28,21 @@ class GPlay::Impl {
     }
     return err;
   }
-  void GPlay() {
+  void GPlay(progress_callback_t progress_cb) {
     DebugMessage::AddMessage("play...");
-#if 1
     int rc = 0;
-    std::thread([this, &rc]() {
-      PlayParams play_params;
+    std::thread([this, &rc, progress_cb]() {
+      player::PlayerParams play_params;
       constexpr uint32_t MINUTE_MILLIES = 60000;
       constexpr uint32_t INFINITE_MINUTES_MILLIES = MINUTE_MILLIES *
         (std::numeric_limits<uint32_t>::max() / MINUTE_MILLIES);
       // play_params.debug_ = 0x3;
       play_params.end_ms_ = INFINITE_MINUTES_MILLIES;
+      play_params.progress_callback_ = progress_cb;
       // This runs in background, leaving UI responsive
-      rc = ::Play(*parsed_midi_, synseq_, play_params); 
+      auto p = player::Player(*parsed_midi_, synseq_, play_params);
+      rc = p.run();
     }).detach();
-#else
-    PlayParams play_params;
-    constexpr uint32_t MINUTE_MILLIES = 60000;
-    constexpr uint32_t INFINITE_MINUTES_MILLIES = MINUTE_MILLIES *
-      (std::numeric_limits<uint32_t>::max() / MINUTE_MILLIES);
-    auto rc = ::Play(*parsed_midi_, synseq_, play_params);
-#endif
     DebugMessage::AddMessage(std::format("played? rc={}", rc));
   }
  private:
@@ -70,6 +64,6 @@ std::string GPlay::OpenMidi(std::vector<uint8_t> data) {
   return impl_->OpenMidi(std::move(data));
 }
 
-void GPlay::Play() {
-  impl_->GPlay();
+void GPlay::Play(progress_callback_t progress_cb) {
+  impl_->GPlay(progress_cb);
 }
