@@ -108,7 +108,7 @@ MainWindow::MainWindow(GPlay &gplay) :
   buttonLayout->addStretch();
 
   QHBoxLayout *progressLayout = new QHBoxLayout();
-  QLabel *progress_label = new QLabel("Progress");
+  QLabel *progress_label = new QLabel("Progress", this);
   progressLayout->addStretch();
   progressLayout->addWidget(progress_label);
   progressLayout->addStretch();

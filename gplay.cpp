@@ -38,6 +38,7 @@ class GPlay::Impl {
         (std::numeric_limits<uint32_t>::max() / MINUTE_MILLIES);
       // play_params.debug_ = 0x3;
       play_params.end_ms_ = INFINITE_MINUTES_MILLIES;
+      play_params.interactive_ = true;
       play_params.progress_callback_ = progress_cb;
       // This runs in background, leaving UI responsive
       auto p = player::Player(*parsed_midi_, synseq_, play_params);

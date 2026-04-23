@@ -298,6 +298,7 @@ class Player::Impl {
 
   std::array<int, SeqId_N>  seq_ids_;
   size_t next_send_index_{0};
+  uint32_t now0_{0};
   uint32_t date_add_ms_{0};
   unsigned pause_time_{0};
   bool in_pause_{false};
@@ -672,7 +673,10 @@ void Player::Impl::PeriodicCallback(
     ? abs_events_[next_send_index_]->time_ms_ + pp_.batch_duration_ms_ : 0;
   for (; (next_send_index_ < nae) && !batch_done; ++next_send_index_) {
     if (next_send_index_ == 0) {
+      now0_ = now;
       date_add_ms_ = now + pp_.initial_delay_ms_;
+std::cerr << std::format("date_add_ms_={} now0_={}, initial_delay_ms_={}\n", 
+ date_add_ms_, now0_, pp_.initial_delay_ms_);
       if (pp_.debug_ & 0x1) {
         std::cerr << std::format("date_add_ms_={}\n", date_add_ms_);
       }
@@ -772,13 +776,23 @@ void Player::Impl::InteractiveCallback(
 }
 
 void Player::Impl::ProgressHandle(unsigned int time) {
+static int s_call = 0;
+int call = ++s_call;
+  uint32_t time_shift = time; //  - now0_;
+if (call < 10) { std::cerr << 
+ std::format("call={}, time_shift={} time={}, now0_={}, date_add_ms_={}\n",
+ call, time_shift, time, now0_, date_add_ms_); }
   if ((next_send_index_ > 0) && time >= date_add_ms_) {
     const uint32_t last_ms = abs_events_.back()->time_ms_original_;
-    uint32_t dt = time - date_add_ms_;
+    uint32_t dt = time_shift - date_add_ms_;
     float dt_div_f = dt / pp_.tempo_div_factor_; // save div in PlayParams ?
     uint32_t dt_div = static_cast<uint32_t>(dt_div_f);
     uint32_t btime = dt_div + begin_ms_;
-    if ((date_add_ms_ <= btime) && (btime <= last_ms)) {
+if (call < 10) {
+ std::cerr << std::format(
+ "call={} dt={}, dt_div_f={}, dt_div={}, btime={}, begin_ms_={}, last_ms={}\n",
+   call, dt, dt_div_f, dt_div, btime, begin_ms_, last_ms); }
+    if ((begin_ms_ <= btime) && (btime <= last_ms)) {
       uint32_t done_ms = btime;
       auto mmss_done = milliseconds_to_string(done_ms);
       auto mmss_final = milliseconds_to_string(last_ms);
