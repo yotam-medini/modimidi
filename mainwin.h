@@ -24,6 +24,9 @@ private:
   QAction *reOpenAction;
   QAction *showDebugAction;
   QAction *quitAction;
-  QAction *playAction;
   QAction *pauseAction;
+  QAction *stopAction;
+  QAction *playAction;
+  QAction *forwardAction;
+  QAction *backwardAction;
 };

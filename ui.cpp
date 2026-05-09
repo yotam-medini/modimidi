@@ -77,10 +77,16 @@ MainWindow::MainWindow(GPlay &gplay) :
     showDebugAction, &QAction::triggered, this, &MainWindow::showDebugDialog);
   connect(quitAction, &QAction::triggered, qApp, &QApplication::quit);
 
-  playAction = new QAction("Play", this);
   pauseAction = new QAction("Pause", this);
-  playAction->setEnabled(false);
+  stopAction = new QAction("Stop", this);
+  playAction = new QAction("Play", this);
+  forwardAction = new QAction("Forward", this);
+  backwardAction = new QAction("Backward", this);
   pauseAction->setEnabled(false);
+  stopAction->setEnabled(false);
+  playAction->setEnabled(false);
+  forwardAction->setEnabled(false);
+  backwardAction->setEnabled(false);
 
   // 1. Setup the Central Widget
   QWidget *centralWidget = new QWidget(this);
@@ -92,19 +98,31 @@ MainWindow::MainWindow(GPlay &gplay) :
   // 3. Horizontal Layout for the buttons (The "Button Bar")
   QHBoxLayout *buttonLayout = new QHBoxLayout();
 
-  QPushButton *playButton = new QPushButton();
+  QPushButton *pauseButton = new QPushButton(centralWidget);
+  pauseButton->setIcon(style()->standardIcon(QStyle::SP_MediaPause));
+
+  QPushButton *stopButton = new QPushButton(centralWidget);
+  stopButton->setIcon(style()->standardIcon(QStyle::SP_MediaStop));
+
+  QPushButton *playButton = new QPushButton(centralWidget);
   playButton->setIcon(style()->standardIcon(QStyle::SP_MediaPlay));
   playButton->addAction(playAction);
   connect(playButton, &QPushButton::clicked, playAction, &QAction::trigger);
 
-  QPushButton *pauseButton = new QPushButton();
-  pauseButton->setIcon(style()->standardIcon(QStyle::SP_MediaPause));
+  QPushButton *forwardButton = new QPushButton(centralWidget);
+  forwardButton->setIcon(style()->standardIcon(QStyle::SP_MediaSeekForward));
+
+  QPushButton *backwardButton = new QPushButton(centralWidget);
+  backwardButton->setIcon(style()->standardIcon(QStyle::SP_MediaSeekForward));
 
   // 4. Assemble the Layouts
   // Add "Springs" (stretch) to center the buttons horizontally
   buttonLayout->addStretch(); 
-  buttonLayout->addWidget(playButton);
   buttonLayout->addWidget(pauseButton);
+  buttonLayout->addWidget(stopButton);
+  buttonLayout->addWidget(playButton);
+  buttonLayout->addWidget(forwardButton);
+  buttonLayout->addWidget(backwardButton);
   buttonLayout->addStretch();
 
   QHBoxLayout *progressLayout = new QHBoxLayout();

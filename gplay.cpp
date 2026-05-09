@@ -18,6 +18,12 @@ class GPlay::Impl {
     synseq_{
       is_android ? GetAndroidSoundFontPath(SF2_ANDROID) : SF2_DESKTOP, 
       0x0} {
+    constexpr uint32_t MINUTE_MILLIES = 60000;
+    constexpr uint32_t INFINITE_MINUTES_MILLIES = MINUTE_MILLIES *
+      (std::numeric_limits<uint32_t>::max() / MINUTE_MILLIES);
+    // play_params.debug_ = 0x3;
+    play_params_.end_ms_ = INFINITE_MINUTES_MILLIES;
+    play_params_.interactive_ = true;
     DebugMessage::AddMessage(std::format("synseq_.err={}", synseq_.error()));
   }
   std::string OpenMidi(std::vector<uint8_t> data) {
@@ -33,15 +39,9 @@ class GPlay::Impl {
     int rc = 0;
     std::thread([this, &rc, progress_cb]() {
       player::PlayerParams play_params;
-      constexpr uint32_t MINUTE_MILLIES = 60000;
-      constexpr uint32_t INFINITE_MINUTES_MILLIES = MINUTE_MILLIES *
-        (std::numeric_limits<uint32_t>::max() / MINUTE_MILLIES);
-      // play_params.debug_ = 0x3;
-      play_params.end_ms_ = INFINITE_MINUTES_MILLIES;
-      play_params.interactive_ = true;
-      play_params.progress_callback_ = progress_cb;
+      play_params_.progress_callback_ = progress_cb;
       // This runs in background, leaving UI responsive
-      auto p = player::Player(*parsed_midi_, synseq_, play_params);
+      auto p = player::Player(*parsed_midi_, synseq_, play_params_);
       rc = p.run();
     }).detach();
     DebugMessage::AddMessage(std::format("played? rc={}", rc));
@@ -51,6 +51,7 @@ class GPlay::Impl {
   static constexpr auto SF2_ANDROID = "TimGM6mb.sf2";
   const bool is_android_;
   SynthSequencer synseq_;
+  player::PlayerParams play_params_;
   std::unique_ptr<midi::Midi> parsed_midi_;
 };
 
