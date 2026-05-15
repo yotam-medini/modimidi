@@ -11,6 +11,53 @@
 #include "qutil.h"
 #include "synthseq.h"
 
+class Worker {
+ public:
+  Worker(
+    const midi::Midi &parsed_midi,
+    SynthSequencer &synseq,
+    const player::PlayerParams &play_params,
+    std::function<void()> notify) :
+      parsed_midi_{parsed_midi},
+      synseq_{synseq},
+      play_params_{play_params},
+      notify_{std::move(notify_)} {
+  }
+  void Start() {
+    rc_ = 0;
+    finished_ = false;
+    thread_ = std::thread([this] {
+      try {
+        Run();
+      } catch (...) {
+        {
+          std::lock_guard<std::mutex> lock(exception_mutex_);
+          exception_ = std::current_exception();
+        }
+        rc_ = 1;
+        finished_ = true;
+        notify_();
+      }
+    });
+  }
+ private:
+  void Run() {
+    auto p = player::Player(parsed_midi_, synseq_, play_params_);
+    rc_ = p.run();
+    finished_ = true;
+    notify_();
+  }
+  const midi::Midi &parsed_midi_;
+  SynthSequencer &synseq_;
+  const player::PlayerParams &play_params_;
+  std::function<void()> notify_;
+  std::thread thread_;
+  int rc_{0};
+  std::atomic<bool> finished_{false};
+  std::mutex exception_mutex_;
+  std::exception_ptr exception_;
+};
+
 class GPlay::Impl {
  public:
   Impl(bool is_android) : 
