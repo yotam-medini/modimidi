@@ -95,7 +95,7 @@ std::string ChannelPressureEvent::str() const {
   return std::format("ChannelPressure(channel={}, value={})", channel_, value_);
 }
 std::string PitchWheelEvent::str() const {
-  return std::format("ChannelPressure(channel={}, bend={})", channel_, bend_);
+  return std::format("PitchWheelEvent(channel={}, bend={})", channel_, bend_);
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -417,6 +417,8 @@ std::unique_ptr<MetaEvent> Midi::GetMetaEvent(uint32_t delta_time) {
    case MetaVarByte::INSTRNAME_x04:
    case MetaVarByte::LYRICS_x05:
    case MetaVarByte::MARK_x06:
+   case MetaVarByte::CUEPOINT_x07:
+   case MetaVarByte::PROGRAMNAME_x08:
    case MetaVarByte::DEVICE_x09:
     e = GetTextBaseEvent(delta_time, meta_first_byte);
     break;
@@ -529,7 +531,7 @@ std::unique_ptr<MidiEvent> Midi::GetMidiEvent(
     parse_state_.last_status_ = upper4 & 0x7;
     parse_state_.last_channel_ = event_first_byte & 0xf;
   } else {
-    --parse_state_.offset_; 
+    --parse_state_.offset_;
   }
   const size_t offs = parse_state_.offset_;
   switch (parse_state_.last_status_) {
@@ -570,6 +572,7 @@ std::unique_ptr<MidiEvent> Midi::GetMidiEvent(
       e = std::make_unique<PitchWheelEvent>(
         delta_time, parse_state_.last_channel_, bend);
     }
+    parse_state_.offset_ += 2;
     break;
   }
   return e;
@@ -599,6 +602,12 @@ std::unique_ptr<TextBaseEvent> Midi::GetTextBaseEvent(
     break;
    case MetaVarByte::MARK_x06:
     e = std::make_unique<MarkerEvent>(delta_time, text);
+    break;
+   case MetaVarByte::CUEPOINT_x07:
+    e = std::make_unique<CuePointEvent>(delta_time, text);
+    break;
+   case MetaVarByte::PROGRAMNAME_x08:
+    e = std::make_unique<ProgramNameEvent>(delta_time, text);
     break;
    case MetaVarByte::DEVICE_x09:
     e = std::make_unique<DeviceEvent>(delta_time, text);

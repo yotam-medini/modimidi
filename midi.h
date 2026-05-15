@@ -11,22 +11,24 @@
 namespace midi {
 
 enum MetaVarByte : uint8_t {
-  SEQNUM_x00    = 0x00,
-  TEXT_x01      = 0x01,
-  COPYRIGHT_x02 = 0x02,
-  TRACKNAME_x03 = 0x03,
-  INSTRNAME_x04 = 0x04,
-  LYRICS_x05    = 0x05,
-  MARK_x06      = 0x06,
-  DEVICE_x09    = 0x09,
-  CHANPFX_x20   = 0x20,
-  PORT_x21      = 0x21,
-  ENDTRACK_x2f  = 0x2f,
-  TEMPO_x51     = 0x51,
-  SMPTE_x54     = 0x54,
-  TIMESIGN_x58  = 0x58,
-  KEYSIGN_x59   = 0x59,
-  SEQUEMCER_x7f = 0x7f,
+  SEQNUM_x00      = 0x00,
+  TEXT_x01        = 0x01,
+  COPYRIGHT_x02   = 0x02,
+  TRACKNAME_x03   = 0x03,
+  INSTRNAME_x04   = 0x04,
+  LYRICS_x05      = 0x05,
+  MARK_x06        = 0x06,
+  CUEPOINT_x07    = 0x07,
+  PROGRAMNAME_x08 = 0x08,
+  DEVICE_x09      = 0x09,
+  CHANPFX_x20     = 0x20,
+  PORT_x21        = 0x21,
+  ENDTRACK_x2f    = 0x2f,
+  TEMPO_x51       = 0x51,
+  SMPTE_x54       = 0x54,
+  TIMESIGN_x58    = 0x58,
+  KEYSIGN_x59     = 0x59,
+  SEQUEMCER_x7f   = 0x7f,
 };
 
 enum MidiVarByte : uint8_t {
@@ -137,6 +139,23 @@ class MarkerEvent : public TextBaseEvent { // 0xff 0x06
  public:
   MarkerEvent(unsigned dt, const std::string& s="") : TextBaseEvent{dt, s} {}
   virtual ~MarkerEvent() {}
+  virtual MetaVarByte VarByte() const { return MetaVarByte::MARK_x06; }
+  std::string event_type_name() const { return "Marker"; }
+};
+
+class CuePointEvent : public TextBaseEvent { // 0xff 0x07
+ public:
+  CuePointEvent(unsigned dt, const std::string& s="") : TextBaseEvent{dt, s} {}
+  virtual ~CuePointEvent() {}
+  virtual MetaVarByte VarByte() const { return MetaVarByte::MARK_x06; }
+  std::string event_type_name() const { return "Marker"; }
+};
+
+class ProgramNameEvent : public TextBaseEvent { // 0xff 0x08
+ public:
+  ProgramNameEvent(unsigned dt, const std::string& s="") :
+    TextBaseEvent{dt, s} {}
+  virtual ~ProgramNameEvent() {}
   virtual MetaVarByte VarByte() const { return MetaVarByte::MARK_x06; }
   std::string event_type_name() const { return "Marker"; }
 };

@@ -585,21 +585,24 @@ uint32_t Player::GetNoteDuration(
   uint32_t curr_time = 0;
   const std::vector<midi::Track> &tracks = pm_.GetTracks();
   bool end_note_found = false;
+  const auto target_track = index_events_[iei].track_; 
   for (size_t i = iei + 1; (i < index_events_.size()) && !end_note_found; ++i) {
     const IndexEvent &ie = index_events_[i];
-    curr_time = ie.time_;
-    const midi::Event *e = tracks[ie.track_].events_[ie.tei_].get();
-    const midi::NoteOffEvent *note_off =
-      dynamic_cast<const midi::NoteOffEvent*>(e);
-    const midi::NoteOnEvent *note_on1 =
-      dynamic_cast<const midi::NoteOnEvent*>(e);
-    if (note_off) {
-      end_note_found = (note_off->channel_ == note_on.channel_) &&
-        (note_off->key_ == note_on.key_);
-    } else if (note_on1) {
-      end_note_found = (note_on1->velocity_ == 0) &&
-        (note_on1->channel_ == note_on.channel_) &&
-        (note_on1->key_ == note_on.key_);
+    if (ie.track_ == target_track) {
+      curr_time = ie.time_;
+      const midi::Event *e = tracks[ie.track_].events_[ie.tei_].get();
+      const midi::NoteOffEvent *note_off =
+        dynamic_cast<const midi::NoteOffEvent*>(e);
+      const midi::NoteOnEvent *note_on1 =
+        dynamic_cast<const midi::NoteOnEvent*>(e);
+      if (note_off) {
+        end_note_found = (note_off->channel_ == note_on.channel_) &&
+          (note_off->key_ == note_on.key_);
+      } else if (note_on1) {
+        end_note_found = (note_on1->velocity_ == 0) &&
+          (note_on1->channel_ == note_on.channel_) &&
+          (note_on1->key_ == note_on.key_);
+      }
     }
   }
   uint32_t dur = curr_time - index_events_[iei].time_;
@@ -880,7 +883,8 @@ void PitchWheel::SetSendFluidEvent(
     fluid_event_t *event, const Player *player, uint32_t date_ms) {
   fluid_event_set_source(event, -1);
   fluid_event_set_dest(event, player->GetSeqId(Player::SeqIdSynth));
-  fluid_event_pitch_bend(event, channel_, bend_);
+  int fluid_bend = static_cast<int>(bend_) - 0x2000;
+  fluid_event_pitch_bend(event, channel_, fluid_bend);
   fluid_sequencer_send_at(
     player->GetSynthSequencer().sequencer_, event, date_ms, 1);
 }
