@@ -3,7 +3,7 @@ Command line midi player using
 [fluidsynth](https://www.fluidsynth.org/api/index.html) implemented in C++
 
 ## Version
-The current version is 0.1.5
+The current version is 0.1.6
 
 # Example
 
