@@ -8,11 +8,7 @@ Additional - work in progress:
   and **NDK** r27d.
 
 ## Version
-<<<<<<< HEAD
-The current version is 0.1.6
-=======
 The current version is 0.2.0
->>>>>>> 7a87982 (README.md += version, Qt & .apk)
 
 # Example
 
