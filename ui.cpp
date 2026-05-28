@@ -104,7 +104,7 @@ MainWindow::MainWindow(GPlay &gplay) :
     b->setToolButtonStyle(Qt::ToolButtonIconOnly);
     b->setDefaultAction(a);
     b->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
-    a->setEnabled(true); // false , temporary true 
+    a->setEnabled(false);
   };
   init_button(Pause, QStyle::SP_MediaPause); // or SP_MediaSeekForward
   init_button(Stop, QStyle::SP_MediaStop);
@@ -114,7 +114,7 @@ MainWindow::MainWindow(GPlay &gplay) :
 
   // 4. Assemble the Layouts
   // Add "Springs" (stretch) to center the buttons horizontally
-  buttonLayout->addStretch(1); 
+  buttonLayout->addStretch(1);
   for (auto b : buttons_) {
     buttonLayout->addWidget(b, 1);
   }
@@ -154,17 +154,6 @@ MainWindow::MainWindow(GPlay &gplay) :
       (gplay_.*gp_method)();
     });
   }
-
-#if 0
-  connect(actions_[Play], &QAction::triggered, this, [this]() {
-    std::cerr << std::format("{}:{}\n", __FILE__, __LINE__);
-    gplay_.Play();
-  });
-  connect(actions_[Stop], &QAction::triggered, this, [this]() {
-    std::cerr << std::format("{}:{}\n", __FILE__, __LINE__);
-    gplay_.Stop();
-  });
-#endif
   DebugMessage::AddMessage("MainWindow constructed");
 }
 
@@ -196,7 +185,7 @@ void MainWindow::openFile() {
         qFormat("OpenMidi({}) failed:\n{}", fileName.toStdString(), err));
     }
     actions_[Play]->setEnabled(err.empty());
-    actions_[Pause]->setEnabled(err.empty());
+    // actions_[Pause]->setEnabled(err.empty());
   }
 }
 
@@ -244,6 +233,18 @@ void MainWindow::showDebugDialog() {
 void MainWindow::OnStateChange(State state) {
   qDebug() << std::format("{}:{} {} state={}",
     __FILE__, __LINE__, __func__, static_cast<int>(state));
+  switch (state) {
+   case State::None: // only play
+    break;
+   case State::Play: // all but play
+    break;
+   case State::Pause: // PauseResume, Stop, Play
+    break;
+   default:
+    qDebug() << std::format("{}:{} {} unexpected state={}",
+      __FILE__, __LINE__, __func__, static_cast<int>(state));
+    break;
+  }
 }
 
 class UI::Impl {
