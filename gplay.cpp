@@ -93,9 +93,11 @@ class GPlay::Impl {
     }
     return err;
   }
-  void GPlay(progress_callback_t progress_cb) {
-    DebugMessage::AddMessage("FPlay...");
+  void SetProgressCallback(progress_callback_t progress_cb) {
     play_params_.progress_callback_ = progress_cb;
+  }
+  void GPlay() {
+    DebugMessage::AddMessage("FPlay...");
     worker_ = std::make_unique<Worker>(
       *parsed_midi_, synseq_, play_params_, [](){;});
     worker_->Start();
@@ -121,6 +123,10 @@ std::string GPlay::OpenMidi(std::vector<uint8_t> data) {
   return impl_->OpenMidi(std::move(data));
 }
 
-void GPlay::Play(progress_callback_t progress_cb) {
-  impl_->GPlay(progress_cb);
+void GPlay::SetProgressCallback(progress_callback_t progress_cb) {
+  impl_->SetProgressCallback(progress_cb);
+}
+
+void GPlay::Play() {
+  impl_->GPlay();
 }

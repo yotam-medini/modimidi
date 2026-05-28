@@ -130,6 +130,14 @@ MainWindow::MainWindow(GPlay &gplay) :
   progressLayout->addStretch();
   progressLayout->addWidget(progress_label);
   progressLayout->addStretch();
+  gplay_.SetProgressCallback([progress_label](
+      uint32_t done_ms,
+      uint32_t final_ms,
+      const std::string& mmss_done,
+      const std::string& mmss_final) {
+    auto const s = std::format("Progress: {} / {}", mmss_done, mmss_final);
+    progress_label->setText(QString::fromStdString(s));
+  });
 
   // Add "Springs" to center the horizontal row vertically
   mainLayout->addStretch();    // Pushes everything down
@@ -139,14 +147,7 @@ MainWindow::MainWindow(GPlay &gplay) :
 
   connect(playAction, &QAction::triggered, this, [this, progress_label]() {
     std::cerr << std::format("{}:{}\n", __FILE__, __LINE__);
-    gplay_.Play([progress_label](
-        uint32_t done_ms,
-        uint32_t final_ms,
-        const std::string& mmss_done,
-        const std::string& mmss_final) {
-      auto const s = std::format("Progress: {} / {}", mmss_done, mmss_final);
-      progress_label->setText(QString::fromStdString(s));
-    });
+    gplay_.Play();
   });
   DebugMessage::AddMessage("MainWindow constructed");
 }

@@ -12,7 +12,8 @@ class GPlay {
   GPlay(bool is_android);
   ~GPlay();
   std::string OpenMidi(std::vector<uint8_t> data); // return error
-  void Play(progress_callback_t progress_cb);
+  void SetProgressCallback(progress_callback_t progress_cb);
+  void Play();
  private:
   class Impl;
   std::unique_ptr<Impl> impl_;
