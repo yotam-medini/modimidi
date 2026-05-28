@@ -97,10 +97,16 @@ class GPlay::Impl {
     play_params_.progress_callback_ = progress_cb;
   }
   void GPlay() {
-    DebugMessage::AddMessage("FPlay...");
+    DebugMessage::AddMessage("GPlay...");
     worker_ = std::make_unique<Worker>(
       *parsed_midi_, synseq_, play_params_, [](){;});
     worker_->Start();
+  }
+  void Stop() {
+    DebugMessage::AddMessage("Stop...");
+    if (worker_) {
+      worker_->Stop();
+    }
   }
  private:
   static constexpr auto SF2_DESKTOP = "/usr/share/sounds/sf2/FluidR3_GM.sf2";
@@ -129,4 +135,8 @@ void GPlay::SetProgressCallback(progress_callback_t progress_cb) {
 
 void GPlay::Play() {
   impl_->GPlay();
+}
+
+void GPlay::Stop() {
+  impl_->Stop();
 }

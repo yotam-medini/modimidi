@@ -14,6 +14,7 @@ class GPlay {
   std::string OpenMidi(std::vector<uint8_t> data); // return error
   void SetProgressCallback(progress_callback_t progress_cb);
   void Play();
+  void Stop();
  private:
   class Impl;
   std::unique_ptr<Impl> impl_;
