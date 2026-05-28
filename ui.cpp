@@ -133,6 +133,7 @@ MainWindow::MainWindow(GPlay &gplay) :
     auto const s = std::format("Progress: {} / {}", mmss_done, mmss_final);
     progress_label->setText(QString::fromStdString(s));
   });
+  gplay_.SetStateCallback([this](State state) { OnStateChange(state); });
 
   // Add "Springs" to center the horizontal row vertically
   mainLayout->addStretch();    // Pushes everything down
@@ -223,6 +224,11 @@ void MainWindow::showDebugDialog() {
   dialog->resize(width, height);
 
   dialog->exec(); // Modal execution
+}
+
+void MainWindow::OnStateChange(State state) {
+  qDebug() << std::format("{}:{} {} state={}",
+    __FILE__, __LINE__, __func__, static_cast<int>(state));
 }
 
 class UI::Impl {

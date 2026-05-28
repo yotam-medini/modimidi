@@ -102,12 +102,19 @@ class GPlay::Impl {
       *parsed_midi_, synseq_, play_params_, [](){;});
     worker_->Start();
   }
+  void SetStateCallback(OnStateChange_t on_state_change) {
+    on_state_change_ = on_state_change;
+  }
   void Stop() {
     DebugMessage::AddMessage("Stop...");
     if (worker_) {
       worker_->Stop();
     }
   }
+  void PauseResume() {
+  }
+  State GetState() const { return state_; }
+
  private:
   static constexpr auto SF2_DESKTOP = "/usr/share/sounds/sf2/FluidR3_GM.sf2";
   static constexpr auto SF2_ANDROID = "TimGM6mb.sf2";
@@ -116,6 +123,8 @@ class GPlay::Impl {
   player::PlayerParams play_params_;
   std::unique_ptr<midi::Midi> parsed_midi_;
   std::unique_ptr<Worker> worker_;
+  State state_{State::None};
+  OnStateChange_t on_state_change_;
 };
 
 GPlay::GPlay(bool is_android) :
@@ -139,4 +148,16 @@ void GPlay::Play() {
 
 void GPlay::Stop() {
   impl_->Stop();
+}
+
+void GPlay::PauseResume() {
+  impl_->PauseResume();
+}
+
+State GPlay::GetState() const {
+  return impl_->GetState();
+}
+
+void GPlay::SetStateCallback(OnStateChange_t on_state_change) {
+  impl_->SetStateCallback(on_state_change);
 }

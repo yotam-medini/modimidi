@@ -3,6 +3,7 @@
 #include <array>
 #include <QMainWindow>
 #include <QString>
+#include "state.h"
 
 class GPlay;
 class QAction;
@@ -20,7 +21,7 @@ class MainWindow : public QMainWindow {
   void showDebugDialog();
 
  private:
-  enum class State { None, Play, Pause };
+  void OnStateChange(State state);
   enum {Pause, Stop, Play, Forward, Backward, N_ButtonOps};
   GPlay &gplay_;
   QString lastOpenedPath;
@@ -30,5 +31,4 @@ class MainWindow : public QMainWindow {
   QAction *quitAction;
   std::array<QAction*, N_ButtonOps> actions_;
   std::array<QToolButton*, N_ButtonOps> buttons_;
-  State state_{State::None};
 };
