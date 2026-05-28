@@ -106,11 +106,11 @@ MainWindow::MainWindow(GPlay &gplay) :
     b->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
     a->setEnabled(false);
   };
-  init_button(Pause, QStyle::SP_MediaPause);
+  init_button(Pause, QStyle::SP_MediaPause); // or SP_MediaSeekForward
   init_button(Stop, QStyle::SP_MediaStop);
   init_button(Play, QStyle::SP_MediaPlay);
-  init_button(Forward, QStyle::SP_MediaSeekForward);
-  init_button(Backward, QStyle::SP_MediaSeekBackward);
+  init_button(Forward, QStyle::SP_MediaSkipForward);
+  init_button(Backward, QStyle::SP_MediaSkipBackward);
 
   // 4. Assemble the Layouts
   // Add "Springs" (stretch) to center the buttons horizontally

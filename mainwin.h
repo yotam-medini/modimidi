@@ -20,6 +20,7 @@ class MainWindow : public QMainWindow {
   void showDebugDialog();
 
  private:
+  enum class State { None, Play, Pause };
   enum {Pause, Stop, Play, Forward, Backward, N_ButtonOps};
   GPlay &gplay_;
   QString lastOpenedPath;
@@ -27,13 +28,7 @@ class MainWindow : public QMainWindow {
   QAction *reOpenAction;
   QAction *showDebugAction;
   QAction *quitAction;
-#if 0
-  QAction *pauseAction;
-  QAction *stopAction;
-  QAction *playAction;
-  QAction *forwardAction;
-  QAction *backwardAction;
-#endif
   std::array<QAction*, N_ButtonOps> actions_;
   std::array<QToolButton*, N_ButtonOps> buttons_;
+  State state_{State::None};
 };
