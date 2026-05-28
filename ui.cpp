@@ -103,6 +103,7 @@ MainWindow::MainWindow(GPlay &gplay) :
     a->setIcon(style()->standardIcon(icon));
     b->setToolButtonStyle(Qt::ToolButtonIconOnly);
     b->setDefaultAction(a);
+    b->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
     a->setEnabled(false);
   };
   init_button(Pause, QStyle::SP_MediaPause);
@@ -113,11 +114,11 @@ MainWindow::MainWindow(GPlay &gplay) :
 
   // 4. Assemble the Layouts
   // Add "Springs" (stretch) to center the buttons horizontally
-  buttonLayout->addStretch(); 
+  buttonLayout->addStretch(1); 
   for (auto b : buttons_) {
-    buttonLayout->addWidget(b);
+    buttonLayout->addWidget(b, 1);
   }
-  buttonLayout->addStretch();
+  buttonLayout->addStretch(1);
 
   QHBoxLayout *progressLayout = new QHBoxLayout();
   QLabel *progress_label = new QLabel("Progress", this);
