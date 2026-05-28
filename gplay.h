@@ -18,6 +18,8 @@ class GPlay {
   void Play();
   void Stop();
   void PauseResume();
+  void SkipForward();
+  void SkipBackward();
   State GetState() const;
  private:
   State state_{State::None};

@@ -50,6 +50,11 @@ class Worker {
       player_->PostCommand(player::Command::Quit);
     }
   }
+  void PauseResume() {
+    if (player_ && !finished_) {
+      player_->PostCommand(player::Command::PauseResume);
+    }
+  }
  private:
   void Run() {
     player_ = std::make_unique<player::Player>(
@@ -101,6 +106,7 @@ class GPlay::Impl {
     worker_ = std::make_unique<Worker>(
       *parsed_midi_, synseq_, play_params_, [](){;});
     worker_->Start();
+    SetState(State::Play);
   }
   void SetStateCallback(OnStateChange_t on_state_change) {
     on_state_change_ = on_state_change;
@@ -110,12 +116,28 @@ class GPlay::Impl {
     if (worker_) {
       worker_->Stop();
     }
+    SetState(State::None);
   }
   void PauseResume() {
+    if (state_ == State::Play) {
+      SetState(State::Pause);
+      worker_->PauseResume();
+    } else if (state_ == State::Pause) {
+      SetState(State::Play);
+      worker_->PauseResume();
+    }
+  }
+  void SkipForward() {
+  }
+  void SkipBackward() {
   }
   State GetState() const { return state_; }
 
  private:
+  void SetState(State state) {
+    state_ = state;
+    on_state_change_(state);
+  }
   static constexpr auto SF2_DESKTOP = "/usr/share/sounds/sf2/FluidR3_GM.sf2";
   static constexpr auto SF2_ANDROID = "TimGM6mb.sf2";
   const bool is_android_;
@@ -152,6 +174,14 @@ void GPlay::Stop() {
 
 void GPlay::PauseResume() {
   impl_->PauseResume();
+}
+
+void GPlay::SkipForward() {
+  impl_->SkipForward();
+}
+
+void GPlay::SkipBackward() {
+  impl_->SkipBackward();
 }
 
 State GPlay::GetState() const {

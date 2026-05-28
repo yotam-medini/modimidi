@@ -104,7 +104,7 @@ MainWindow::MainWindow(GPlay &gplay) :
     b->setToolButtonStyle(Qt::ToolButtonIconOnly);
     b->setDefaultAction(a);
     b->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
-    a->setEnabled(false);
+    a->setEnabled(true); // false , temporary true 
   };
   init_button(Pause, QStyle::SP_MediaPause); // or SP_MediaSeekForward
   init_button(Stop, QStyle::SP_MediaStop);
@@ -141,15 +141,30 @@ MainWindow::MainWindow(GPlay &gplay) :
   mainLayout->addLayout(progressLayout);    // Pushes everything up
   mainLayout->addStretch();    // Pushes everything up
 
-  connect(actions_[Play], &QAction::triggered, this, [this, progress_label]() {
+  using GPlayMethod = void (GPlay::*)();
+  using l_idx_gpm_t = std::initializer_list<std::pair<size_t, GPlayMethod>>;
+  for (auto [i, gp_method]: l_idx_gpm_t{
+      {Pause, &GPlay::PauseResume},
+      {Stop, &GPlay::Stop},
+      {Play, &GPlay::Play},
+      {Forward, &GPlay::SkipForward},
+      {Backward, &GPlay::SkipBackward}}) {
+    connect(actions_[i], &QAction::triggered, this, [this, i, gp_method]() {
+      std::cerr << std::format("{}:{} i={}\n", __FILE__, __LINE__, i);
+      (gplay_.*gp_method)();
+    });
+  }
+
+#if 0
+  connect(actions_[Play], &QAction::triggered, this, [this]() {
     std::cerr << std::format("{}:{}\n", __FILE__, __LINE__);
-    actions_[Stop]->setEnabled(true);
     gplay_.Play();
   });
   connect(actions_[Stop], &QAction::triggered, this, [this]() {
     std::cerr << std::format("{}:{}\n", __FILE__, __LINE__);
     gplay_.Stop();
   });
+#endif
   DebugMessage::AddMessage("MainWindow constructed");
 }
 
