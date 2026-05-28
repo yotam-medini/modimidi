@@ -103,6 +103,7 @@ MainWindow::MainWindow(GPlay &gplay) :
 
   QPushButton *stopButton = new QPushButton(centralWidget);
   stopButton->setIcon(style()->standardIcon(QStyle::SP_MediaStop));
+  connect(stopButton, &QPushButton::clicked, stopAction, &QAction::trigger);
 
   QPushButton *playButton = new QPushButton(centralWidget);
   playButton->setIcon(style()->standardIcon(QStyle::SP_MediaPlay));
@@ -147,7 +148,12 @@ MainWindow::MainWindow(GPlay &gplay) :
 
   connect(playAction, &QAction::triggered, this, [this, progress_label]() {
     std::cerr << std::format("{}:{}\n", __FILE__, __LINE__);
+    stopAction->setEnabled(true);
     gplay_.Play();
+  });
+  connect(stopAction, &QAction::triggered, this, [this]() {
+    std::cerr << std::format("{}:{}\n", __FILE__, __LINE__);
+    gplay_.Stop();
   });
   DebugMessage::AddMessage("MainWindow constructed");
 }
