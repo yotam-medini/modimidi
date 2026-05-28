@@ -175,15 +175,8 @@ void MainWindow::openFile() {
     }
     if (!err.empty()) {
       qDebug() << std::format("err={}", err);
-      lastOpenedPath = fileName;
-      reOpenAction->setEnabled(true);
-      // Add your file processing logic here
-      auto err = gplay_.OpenMidi(std::move(data));
-      if (!err.empty()) {
-        qDebug() << std::format("err={}", err);
-        QMessageBox::warning(this, "ModiMidi Warning", 
-          qFormat("OpenMidi({}) failed:\n{}", fileName.toStdString(), err));
-      }
+      QMessageBox::warning(this, "ModiMidi Warning", 
+        qFormat("OpenMidi({}) failed:\n{}", fileName.toStdString(), err));
     }
     playAction->setEnabled(err.empty());
     pauseAction->setEnabled(err.empty());
