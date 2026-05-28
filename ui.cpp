@@ -77,16 +77,14 @@ MainWindow::MainWindow(GPlay &gplay) :
     showDebugAction, &QAction::triggered, this, &MainWindow::showDebugDialog);
   connect(quitAction, &QAction::triggered, qApp, &QApplication::quit);
 
-  pauseAction = new QAction("Pause", this);
-  stopAction = new QAction("Stop", this);
-  playAction = new QAction("Play", this);
-  forwardAction = new QAction("Forward", this);
-  backwardAction = new QAction("Backward", this);
-  pauseAction->setEnabled(false);
-  stopAction->setEnabled(false);
-  playAction->setEnabled(false);
-  forwardAction->setEnabled(false);
-  backwardAction->setEnabled(false);
+  actions_[Pause] = new QAction(this);
+  actions_[Stop] = new QAction(this);
+  actions_[Play] = new QAction(this);
+  actions_[Forward] = new QAction(this);
+  actions_[Backward] = new QAction(this);
+  for (auto action: actions_) {
+    action->setEnabled(false);
+  }
 
   // 1. Setup the Central Widget
   QWidget *centralWidget = new QWidget(this);
@@ -98,32 +96,27 @@ MainWindow::MainWindow(GPlay &gplay) :
   // 3. Horizontal Layout for the buttons (The "Button Bar")
   QHBoxLayout *buttonLayout = new QHBoxLayout();
 
-  QPushButton *pauseButton = new QPushButton(centralWidget);
-  pauseButton->setIcon(style()->standardIcon(QStyle::SP_MediaPause));
-
-  QPushButton *stopButton = new QPushButton(centralWidget);
-  stopButton->setIcon(style()->standardIcon(QStyle::SP_MediaStop));
-  connect(stopButton, &QPushButton::clicked, stopAction, &QAction::trigger);
-
-  QPushButton *playButton = new QPushButton(centralWidget);
-  playButton->setIcon(style()->standardIcon(QStyle::SP_MediaPlay));
-  playButton->addAction(playAction);
-  connect(playButton, &QPushButton::clicked, playAction, &QAction::trigger);
-
-  QPushButton *forwardButton = new QPushButton(centralWidget);
-  forwardButton->setIcon(style()->standardIcon(QStyle::SP_MediaSeekForward));
-
-  QPushButton *backwardButton = new QPushButton(centralWidget);
-  backwardButton->setIcon(style()->standardIcon(QStyle::SP_MediaSeekForward));
+  auto init_button = [this, centralWidget](
+      size_t i, QStyle::StandardPixmap icon) -> void {
+    auto a = actions_[i];
+    auto b = buttons_[i] = new QToolButton(centralWidget);
+    a->setIcon(style()->standardIcon(icon));
+    b->setToolButtonStyle(Qt::ToolButtonIconOnly);
+    b->setDefaultAction(a);
+    a->setEnabled(false);
+  };
+  init_button(Pause, QStyle::SP_MediaPause);
+  init_button(Stop, QStyle::SP_MediaStop);
+  init_button(Play, QStyle::SP_MediaPlay);
+  init_button(Forward, QStyle::SP_MediaSeekForward);
+  init_button(Backward, QStyle::SP_MediaSeekBackward);
 
   // 4. Assemble the Layouts
   // Add "Springs" (stretch) to center the buttons horizontally
   buttonLayout->addStretch(); 
-  buttonLayout->addWidget(pauseButton);
-  buttonLayout->addWidget(stopButton);
-  buttonLayout->addWidget(playButton);
-  buttonLayout->addWidget(forwardButton);
-  buttonLayout->addWidget(backwardButton);
+  for (auto b : buttons_) {
+    buttonLayout->addWidget(b);
+  }
   buttonLayout->addStretch();
 
   QHBoxLayout *progressLayout = new QHBoxLayout();
@@ -146,12 +139,12 @@ MainWindow::MainWindow(GPlay &gplay) :
   mainLayout->addLayout(progressLayout);    // Pushes everything up
   mainLayout->addStretch();    // Pushes everything up
 
-  connect(playAction, &QAction::triggered, this, [this, progress_label]() {
+  connect(actions_[Play], &QAction::triggered, this, [this, progress_label]() {
     std::cerr << std::format("{}:{}\n", __FILE__, __LINE__);
-    stopAction->setEnabled(true);
+    actions_[Stop]->setEnabled(true);
     gplay_.Play();
   });
-  connect(stopAction, &QAction::triggered, this, [this]() {
+  connect(actions_[Stop], &QAction::triggered, this, [this]() {
     std::cerr << std::format("{}:{}\n", __FILE__, __LINE__);
     gplay_.Stop();
   });
@@ -185,8 +178,8 @@ void MainWindow::openFile() {
       QMessageBox::warning(this, "ModiMidi Warning", 
         qFormat("OpenMidi({}) failed:\n{}", fileName.toStdString(), err));
     }
-    playAction->setEnabled(err.empty());
-    pauseAction->setEnabled(err.empty());
+    actions_[Play]->setEnabled(err.empty());
+    actions_[Pause]->setEnabled(err.empty());
   }
 }
 
