@@ -21,7 +21,12 @@ class Worker {
       parsed_midi_{parsed_midi},
       synseq_{synseq},
       play_params_{play_params},
-      notify_{std::move(notify_)} {
+      notify_{std::move(notify)} {
+  }
+  ~Worker() {
+    if (thread_.joinable()) {
+      thread_.join();
+    }
   }
   void Start() {
     rc_ = 0;
@@ -40,17 +45,24 @@ class Worker {
       }
     });
   }
+  void Stop() {
+    if (player_ && !finished_) {
+      player_->PostCommand(player::Command::Quit);
+    }
+  }
  private:
   void Run() {
-    auto p = player::Player(parsed_midi_, synseq_, play_params_);
-    rc_ = p.run();
+    player_ = std::make_unique<player::Player>(
+      parsed_midi_, synseq_, play_params_);
+    rc_ = player_->run();
     finished_ = true;
     notify_();
   }
   const midi::Midi &parsed_midi_;
   SynthSequencer &synseq_;
   const player::PlayerParams &play_params_;
-  std::function<void()> notify_;
+  std::unique_ptr<player::Player> player_;
+  std::function<void()> notify_; // Used for notifying only the end.
   std::thread thread_;
   int rc_{0};
   std::atomic<bool> finished_{false};
@@ -82,16 +94,11 @@ class GPlay::Impl {
     return err;
   }
   void GPlay(progress_callback_t progress_cb) {
-    DebugMessage::AddMessage("play...");
-    int rc = 0;
-    std::thread([this, &rc, progress_cb]() {
-      player::PlayerParams play_params;
-      play_params_.progress_callback_ = progress_cb;
-      // This runs in background, leaving UI responsive
-      auto p = player::Player(*parsed_midi_, synseq_, play_params_);
-      rc = p.run();
-    }).detach();
-    DebugMessage::AddMessage(std::format("played? rc={}", rc));
+    DebugMessage::AddMessage("FPlay...");
+    play_params_.progress_callback_ = progress_cb;
+    worker_ = std::make_unique<Worker>(
+      *parsed_midi_, synseq_, play_params_, [](){;});
+    worker_->Start();
   }
  private:
   static constexpr auto SF2_DESKTOP = "/usr/share/sounds/sf2/FluidR3_GM.sf2";
@@ -100,6 +107,7 @@ class GPlay::Impl {
   SynthSequencer synseq_;
   player::PlayerParams play_params_;
   std::unique_ptr<midi::Midi> parsed_midi_;
+  std::unique_ptr<Worker> worker_;
 };
 
 GPlay::GPlay(bool is_android) :
