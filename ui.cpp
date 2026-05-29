@@ -9,6 +9,7 @@
 
 #include <QAction>
 #include <QApplication>
+#include <QColor>
 #include <QDebug>
 #include <QFileDialog>
 #include <QLabel>
@@ -104,6 +105,7 @@ MainWindow::MainWindow(GPlay &gplay) :
     b->setToolButtonStyle(Qt::ToolButtonIconOnly);
     b->setDefaultAction(a);
     b->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+    SetButtonOpColor(i);
     a->setEnabled(false);
   };
   init_button(Pause, QStyle::SP_MediaPause); // or SP_MediaSeekForward
@@ -247,6 +249,20 @@ void MainWindow::OnStateChange(State state) {
   }
 }
 
+void MainWindow::SetButtonOpColor(size_t button_op_index) {
+  static const auto i2name = std::unordered_map<size_t, const char*>({
+    {Pause, "magenta"},
+    {Stop, "red"},
+    {Play, "green"},
+    {Forward, "blue"},
+    {Backward, "yellow"},
+  });
+  auto iter = i2name.find(button_op_index);
+  if (iter != i2name.end()) {
+    auto color_style = std::format("background-color: {}", iter->second);
+    buttons_[button_op_index]->setStyleSheet(color_style.c_str());
+  }
+}
 class UI::Impl {
  public:
   Impl(int argc, char **argv, GPlay &gplay, bool is_android) :
