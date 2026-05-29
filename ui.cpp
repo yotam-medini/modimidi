@@ -235,12 +235,25 @@ void MainWindow::showDebugDialog() {
 void MainWindow::OnStateChange(State state) {
   qDebug() << std::format("{}:{} {} state={}",
     __FILE__, __LINE__, __func__, static_cast<int>(state));
+  auto const in_pause = (state == State::Pause);
+  auto pause_icon =
+    in_pause ? QStyle::SP_MediaSeekForward : QStyle::SP_MediaPause;
+  auto pause_color = in_pause ? "darkGreen" : "magenta";
+  auto color_style = std::format("background-color: {}", pause_color);
+  buttons_[Pause]->setIcon(style()->standardIcon(pause_icon));
+  buttons_[Pause]->setStyleSheet(color_style.c_str());
   switch (state) {
    case State::None: // only play
+    for (size_t i = 0; i < N_ButtonOps; ++i) {
+      actions_[i]->setEnabled(i == Play);
+    }
     break;
    case State::Play: // all but play
+    for (size_t i = 0; i < N_ButtonOps; ++i) {
+      actions_[i]->setEnabled(i != Play);
+    }
     break;
-   case State::Pause: // PauseResume, Stop, Play
+   case State::Pause: // leave as is (State::Play)
     break;
    default:
     qDebug() << std::format("{}:{} {} unexpected state={}",
