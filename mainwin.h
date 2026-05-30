@@ -24,6 +24,7 @@ class MainWindow : public QMainWindow {
   enum {Pause, Stop, Play, Forward, Backward, N_ButtonOps};
   void OnStateChange(State state);
   void SetButtonOpColor(size_t button_op_index);
+  void ConnectButtonsActions();
   GPlay &gplay_;
   QString lastOpenedPath;
   QAction *openAction;

@@ -31,7 +31,7 @@
 #include "gplay.h"
 #include "qutil.h"
 
-MainWindow::MainWindow(GPlay &gplay) : 
+MainWindow::MainWindow(GPlay &gplay) :
      QMainWindow(nullptr),
      gplay_{gplay} {
   // 1. Create Actions
@@ -143,19 +143,7 @@ MainWindow::MainWindow(GPlay &gplay) :
   mainLayout->addLayout(progressLayout);    // Pushes everything up
   mainLayout->addStretch();    // Pushes everything up
 
-  using GPlayMethod = void (GPlay::*)();
-  using l_idx_gpm_t = std::initializer_list<std::pair<size_t, GPlayMethod>>;
-  for (auto [i, gp_method]: l_idx_gpm_t{
-      {Pause, &GPlay::PauseResume},
-      {Stop, &GPlay::Stop},
-      {Play, &GPlay::Play},
-      {Forward, &GPlay::SkipForward},
-      {Backward, &GPlay::SkipBackward}}) {
-    connect(actions_[i], &QAction::triggered, this, [this, i, gp_method]() {
-      std::cerr << std::format("{}:{} i={}\n", __FILE__, __LINE__, i);
-      (gplay_.*gp_method)();
-    });
-  }
+  ConnectButtonsActions();
   DebugMessage::AddMessage("MainWindow constructed");
 }
 
@@ -276,6 +264,23 @@ void MainWindow::SetButtonOpColor(size_t button_op_index) {
     buttons_[button_op_index]->setStyleSheet(color_style.c_str());
   }
 }
+
+void MainWindow::ConnectButtonsActions() {
+  using GPlayMethod = void (GPlay::*)();
+  using l_idx_gpm_t = std::initializer_list<std::pair<size_t, GPlayMethod>>;
+  for (auto [i, gp_method]: l_idx_gpm_t{
+      {Pause, &GPlay::PauseResume},
+      {Stop, &GPlay::Stop},
+      {Play, &GPlay::Play},
+      {Forward, &GPlay::SkipForward},
+      {Backward, &GPlay::SkipBackward}}) {
+    connect(actions_[i], &QAction::triggered, this, [this, i, gp_method]() {
+      std::cerr << std::format("{}:{} i={}\n", __FILE__, __LINE__, i);
+      (gplay_.*gp_method)();
+    });
+  }
+}
+
 class UI::Impl {
  public:
   Impl(int argc, char **argv, GPlay &gplay, bool is_android) :
