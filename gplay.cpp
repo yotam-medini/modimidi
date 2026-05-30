@@ -55,6 +55,11 @@ class Worker {
       player_->PostCommand(player::Command::PauseResume);
     }
   }
+  void Skip(player::Command command) {
+    if (player_ && !finished_) {
+      player_->PostCommand(command);
+    }
+  }
  private:
   void Run() {
     player_ = std::make_unique<player::Player>(
@@ -130,8 +135,14 @@ class GPlay::Impl {
     }
   }
   void SkipForward() {
+    if (state_ == State::Play) {
+      worker_->Skip(player::Command::Forward);
+    }
   }
   void SkipBackward() {
+    if (state_ == State::Play) {
+      worker_->Skip(player::Command::Backward);
+    }
   }
   State GetState() const { return state_; }
 

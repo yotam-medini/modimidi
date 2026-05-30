@@ -278,6 +278,10 @@ void MainWindow::ConnectButtonsActions() {
       std::cerr << std::format("{}:{} i={}\n", __FILE__, __LINE__, i);
       (gplay_.*gp_method)();
     });
+    connect(actions_[i], &QAction::changed, this, [this, i]() {
+      bool is_clickable = actions_[i]->isEnabled();
+      buttons_[i]->setAutoRaise(is_clickable);
+    });
   }
 }
 
