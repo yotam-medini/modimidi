@@ -104,7 +104,9 @@ class GPlay::Impl {
   void GPlay() {
     DebugMessage::AddMessage("GPlay...");
     worker_ = std::make_unique<Worker>(
-      *parsed_midi_, synseq_, play_params_, [](){;});
+      *parsed_midi_, synseq_, play_params_, [this]() {
+        SetState(State::None);
+      });
     worker_->Start();
     SetState(State::Play);
   }
