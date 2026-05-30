@@ -78,12 +78,8 @@ MainWindow::MainWindow(GPlay &gplay) :
     showDebugAction, &QAction::triggered, this, &MainWindow::showDebugDialog);
   connect(quitAction, &QAction::triggered, qApp, &QApplication::quit);
 
-  actions_[Pause] = new QAction(this);
-  actions_[Stop] = new QAction(this);
-  actions_[Play] = new QAction(this);
-  actions_[Forward] = new QAction(this);
-  actions_[Backward] = new QAction(this);
-  for (auto action: actions_) {
+  for (auto &action: actions_) {
+    action = new QAction(this);
     action->setEnabled(false);
   }
 
