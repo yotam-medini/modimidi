@@ -21,7 +21,9 @@ class MainWindow : public QMainWindow {
   void showDebugDialog();
 
  private:
-  enum {Pause, Stop, Play, Forward, Backward, N_ButtonOps};
+  struct Op {
+    enum {Pause, Stop, Play, Forward, Backward, N_ButtonOps};
+  };
   void OnStateChange(State state);
   void SetButtonOpColor(size_t button_op_index);
   void ConnectButtonsActions();
@@ -31,6 +33,6 @@ class MainWindow : public QMainWindow {
   QAction *reOpenAction;
   QAction *showDebugAction;
   QAction *quitAction;
-  std::array<QAction*, N_ButtonOps> actions_;
-  std::array<QToolButton*, N_ButtonOps> buttons_;
+  std::array<QAction*, Op::N_ButtonOps> actions_;
+  std::array<QToolButton*, Op::N_ButtonOps> buttons_;
 };

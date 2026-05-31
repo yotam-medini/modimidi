@@ -102,11 +102,11 @@ MainWindow::MainWindow(GPlay &gplay) :
     SetButtonOpColor(i);
     a->setEnabled(false);
   };
-  init_button(Pause, QStyle::SP_MediaPause); // or SP_MediaSeekForward
-  init_button(Stop, QStyle::SP_MediaStop);
-  init_button(Play, QStyle::SP_MediaPlay);
-  init_button(Forward, QStyle::SP_MediaSkipForward);
-  init_button(Backward, QStyle::SP_MediaSkipBackward);
+  init_button(Op::Pause, QStyle::SP_MediaPause); // or SP_MediaSeekForward
+  init_button(Op::Stop, QStyle::SP_MediaStop);
+  init_button(Op::Play, QStyle::SP_MediaPlay);
+  init_button(Op::Forward, QStyle::SP_MediaSkipForward);
+  init_button(Op::Backward, QStyle::SP_MediaSkipBackward);
 
   // 4. Assemble the Layouts
   // Add "Springs" (stretch) to center the buttons horizontally
@@ -168,7 +168,7 @@ void MainWindow::openFile() {
       QMessageBox::warning(this, "ModiMidi Warning", 
         qFormat("OpenMidi({}) failed:\n{}", fileName.toStdString(), err));
     }
-    actions_[Play]->setEnabled(err.empty());
+    actions_[Op::Play]->setEnabled(err.empty());
     // actions_[Pause]->setEnabled(err.empty());
   }
 }
@@ -222,17 +222,17 @@ void MainWindow::OnStateChange(State state) {
     in_pause ? QStyle::SP_MediaSeekForward : QStyle::SP_MediaPause;
   auto pause_color = in_pause ? "darkGreen" : "magenta";
   auto color_style = std::format("background-color: {}", pause_color);
-  buttons_[Pause]->setIcon(style()->standardIcon(pause_icon));
-  buttons_[Pause]->setStyleSheet(color_style.c_str());
+  buttons_[Op::Pause]->setIcon(style()->standardIcon(pause_icon));
+  buttons_[Op::Pause]->setStyleSheet(color_style.c_str());
   switch (state) {
    case State::None: // only play
-    for (size_t i = 0; i < N_ButtonOps; ++i) {
-      actions_[i]->setEnabled(i == Play);
+    for (size_t i = 0; i < Op::N_ButtonOps; ++i) {
+      actions_[i]->setEnabled(i == Op::Play);
     }
     break;
    case State::Play: // all but play
-    for (size_t i = 0; i < N_ButtonOps; ++i) {
-      actions_[i]->setEnabled(i != Play);
+    for (size_t i = 0; i < Op::N_ButtonOps; ++i) {
+      actions_[i]->setEnabled(i != Op::Play);
     }
     break;
    case State::Pause: // leave as is (State::Play)
@@ -246,11 +246,11 @@ void MainWindow::OnStateChange(State state) {
 
 void MainWindow::SetButtonOpColor(size_t button_op_index) {
   static const auto i2name = std::unordered_map<size_t, const char*>({
-    {Pause, "magenta"},
-    {Stop, "red"},
-    {Play, "green"},
-    {Forward, "blue"},
-    {Backward, "yellow"},
+    {Op::Pause, "magenta"},
+    {Op::Stop, "red"},
+    {Op::Play, "green"},
+    {Op::Forward, "blue"},
+    {Op::Backward, "yellow"},
   });
   auto iter = i2name.find(button_op_index);
   if (iter != i2name.end()) {
@@ -263,11 +263,11 @@ void MainWindow::ConnectButtonsActions() {
   using GPlayMethod = void (GPlay::*)();
   using l_idx_gpm_t = std::initializer_list<std::pair<size_t, GPlayMethod>>;
   for (auto [i, gp_method]: l_idx_gpm_t{
-      {Pause, &GPlay::PauseResume},
-      {Stop, &GPlay::Stop},
-      {Play, &GPlay::Play},
-      {Forward, &GPlay::SkipForward},
-      {Backward, &GPlay::SkipBackward}}) {
+      {Op::Pause, &GPlay::PauseResume},
+      {Op::Stop, &GPlay::Stop},
+      {Op::Play, &GPlay::Play},
+      {Op::Forward, &GPlay::SkipForward},
+      {Op::Backward, &GPlay::SkipBackward}}) {
     connect(actions_[i], &QAction::triggered, this, [this, i, gp_method]() {
       std::cerr << std::format("{}:{} i={}\n", __FILE__, __LINE__, i);
       (gplay_.*gp_method)();
