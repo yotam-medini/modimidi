@@ -106,6 +106,7 @@ if(BUILD_GUI OR ANDROID)
     set(UI_SOURCE_FILES
         debug.cpp
         gplay.cpp
+        mainwin.cpp
         midi.cpp
         player.cpp
         qutil.cpp
