@@ -7,6 +7,7 @@
 
 class GPlay;
 class QAction;
+class QLabel;
 class QToolButton;
 
 class MainWindow : public QMainWindow {
@@ -27,12 +28,23 @@ class MainWindow : public QMainWindow {
   void OnStateChange(State state);
   void SetButtonOpColor(size_t button_op_index);
   void ConnectButtonsActions();
+
+  QWidget *BuildPlayerPage();
+  QWidget *BuildModifyPage();
+  QWidget *BuildInfoPage();
+  QWidget *BuildAboutPage();
+
   GPlay &gplay_;
+
+  QLabel* fileLabel_{nullptr};
+
   QString lastOpenedPath;
   QAction *openAction;
-  QAction *reOpenAction;
+  QAction *reOpenAction{nullptr};
   QAction *showDebugAction;
   QAction *quitAction;
   std::array<QAction*, Op::N_ButtonOps> actions_;
   std::array<QToolButton*, Op::N_ButtonOps> buttons_;
+
+  QTabWidget* tabs_{nullptr};
 };
