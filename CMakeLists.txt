@@ -101,7 +101,7 @@ if(BUILD_GUI OR ANDROID)
             Gui
             Widgets
     )
-    qt_policy(SET QTP0002 NEW)
+    # qt_policy(SET QTP0002 NEW) # commented out for local test build
     set(CMAKE_AUTOMOC ON)
     set(UI_SOURCE_FILES
         debug.cpp
@@ -110,11 +110,13 @@ if(BUILD_GUI OR ANDROID)
         midi.cpp
         player.cpp
         qutil.cpp
+        rangeslider.cpp
         rawterm.cpp # how to avoid ?
         synthseq.cpp
         ui.cpp
         util.cpp
         mainwin.h
+        rangeslider.h
     )
 endif()
 

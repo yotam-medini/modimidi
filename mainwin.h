@@ -8,7 +8,9 @@
 class GPlay;
 class QAction;
 class QLabel;
+class QPushButton;
 class QToolButton;
+class RangeSlider;
 
 class MainWindow : public QMainWindow {
   Q_OBJECT
@@ -20,6 +22,8 @@ class MainWindow : public QMainWindow {
   void openFile();
   void reOpenFile();
   void showDebugDialog();
+  void showFilePathDialog();
+  void confirmQuit();
 
  private:
   struct Op {
@@ -36,13 +40,17 @@ class MainWindow : public QMainWindow {
 
   GPlay &gplay_;
 
-  QLabel* fileLabel_{nullptr};
-
+  QPushButton* fileButton_{nullptr};
   QString lastOpenedPath;
   QAction *openAction;
   QAction *reOpenAction{nullptr};
   QAction *showDebugAction;
   QAction *quitAction;
+
+  RangeSlider* rangeSlider_{nullptr};
+  QLabel* rangeStartLabel_{nullptr};
+  QLabel* rangeEndLabel_{nullptr};
+
   std::array<QAction*, Op::N_ButtonOps> actions_;
   std::array<QToolButton*, Op::N_ButtonOps> buttons_;
 

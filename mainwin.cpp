@@ -11,6 +11,7 @@
 #include <QColor>
 #include <QDebug>
 #include <QFileDialog>
+#include <QFileInfo>
 #include <QLabel>
 #include <QListWidget>
 #include <QMainWindow>
@@ -29,6 +30,8 @@
 #include "debug.h"
 #include "gplay.h"
 #include "qutil.h"
+#include "rangeslider.h"
+#include "util.h"
 
 MainWindow::MainWindow(GPlay &gplay) :
      QMainWindow(nullptr),
@@ -163,17 +166,32 @@ QWidget* MainWindow::BuildPlayerPage() {
   QVBoxLayout *mainLayout = new QVBoxLayout(page);
 
   QHBoxLayout* fileRow = new QHBoxLayout;
-  fileLabel_ = new QLabel(tr("(no file)"));
-  fileLabel_->setWordWrap(false);
-  fileLabel_->setStyleSheet("font-style: italic; color: gray;");
+
+  // Task 1: the file basename is a button; clicking it pops up the
+  // full path of the currently opened file.
+  fileButton_ = new QPushButton(tr("(no file)"), page);
+  fileButton_->setFlat(true);
+  fileButton_->setStyleSheet("text-align: left; font-style: italic; color: gray;");
+  fileButton_->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
+  fileButton_->setEnabled(false); // nothing to show until a file is opened
+  connect(
+    fileButton_, &QPushButton::clicked,
+    this, &MainWindow::showFilePathDialog);
 
   QToolButton* openBtn = new QToolButton;
   openBtn->setText(tr("Open…"));
   openBtn->setToolButtonStyle(Qt::ToolButtonTextOnly);
   connect(openBtn, &QToolButton::clicked, this, &MainWindow::openFile);
 
-  fileRow->addWidget(fileLabel_, 1);
+  // Task 2: Quit button next to "Open…", with a confirmation dialog.
+  QToolButton* quitBtn = new QToolButton;
+  quitBtn->setText(tr("Quit"));
+  quitBtn->setToolButtonStyle(Qt::ToolButtonTextOnly);
+  connect(quitBtn, &QToolButton::clicked, this, &MainWindow::confirmQuit);
+
+  fileRow->addWidget(fileButton_, 1);
   fileRow->addWidget(openBtn);
+  fileRow->addWidget(quitBtn);
   mainLayout->addLayout(fileRow);
 
 
@@ -210,7 +228,46 @@ QWidget* MainWindow::BuildPlayerPage() {
   progressLayout->addStretch();
   progressLayout->addWidget(progress_label);
   progressLayout->addStretch();
-  gplay_.SetProgressCallback([progress_label](
+
+  // Task 3: dual-handle range slider below the "Progress: ..." label,
+  // mapping [0, file-duration-ms] and letting the user pick a
+  // start/end sub segment to play. Disabled until a file's duration
+  // is known (i.e. until the first progress callback of a play run).
+  rangeSlider_ = new RangeSlider(page);
+  rangeSlider_->setEnabled(true);
+
+  QHBoxLayout *rangeLabelsLayout = new QHBoxLayout();
+  rangeStartLabel_ = new QLabel(
+    QString::fromStdString(
+      std::format("Start: {}", milliseconds_to_string(0))), page);
+  rangeEndLabel_ = new QLabel(
+    QString::fromStdString(
+      std::format("End: {}", milliseconds_to_string(1000*(60*123 + 45) + 678))), page);
+  rangeLabelsLayout->addWidget(rangeStartLabel_);
+  rangeLabelsLayout->addStretch();
+  rangeLabelsLayout->addWidget(rangeEndLabel_);
+
+#if 0
+  connect(
+      rangeSlider_, &RangeSlider::lowValueChanged, this,
+      [this](uint32_t ms) {
+    rangeStartLabel_->setText(QString::fromStdString(
+      std::format("Start: {}", milliseconds_to_string(ms))));
+  });
+  connect(
+      rangeSlider_, &RangeSlider::highValueChanged, this,
+      [this](uint32_t ms) {
+    rangeEndLabel_->setText(QString::fromStdString(
+      std::format("End: {}", milliseconds_to_string(ms))));
+  });
+  connect(
+      rangeSlider_, &RangeSlider::rangeEdited, this,
+      [this](uint32_t low_ms, uint32_t high_ms) {
+    // Commit the user's chosen sub segment; takes effect on next Play().
+    gplay_.SetSegment(low_ms, high_ms);
+  });
+#endif
+  gplay_.SetProgressCallback([this, progress_label](
       uint32_t done_ms,
       uint32_t final_ms,
       const std::string& mmss_done,
@@ -223,7 +280,9 @@ QWidget* MainWindow::BuildPlayerPage() {
   // Add "Springs" to center the horizontal row vertically
   mainLayout->addStretch();    // Pushes everything down
   mainLayout->addLayout(buttonLayout);
-  mainLayout->addLayout(progressLayout);    // Pushes everything up
+  mainLayout->addLayout(progressLayout);
+  mainLayout->addWidget(rangeSlider_);
+  mainLayout->addLayout(rangeLabelsLayout);    // Pushes everything up
   mainLayout->addStretch();    // Pushes everything up
 
   ConnectButtonsActions();
@@ -278,7 +337,25 @@ void MainWindow::openFile() {
     }
     actions_[Op::Play]->setEnabled(err.empty());
     if (err.empty()) {
-      fileLabel_->setText(QFileInfo(fileName).fileName());
+      fileButton_->setText(QFileInfo(fileName).fileName());
+      fileButton_->setEnabled(true);
+#if 0
+      // A new file was opened: forget the previous file's duration and
+      // sub-segment selection; the slider gets re-armed once the first
+      // progress callback of a play run reports the new duration.
+      durationKnown_ = false;
+      durationMs_ = 0;
+      rangeSlider_->setEnabled(false);
+      constexpr uint32 max_ms = 1000*(123*60 + 45) + 678;
+      rangeSlider_->SetRange(0, max_ms);
+      rangeSlider_->SetValues(0, max_ms);
+      rangeSlider_->ClearCurrentPosition();
+      rangeStartLabel_->setText(QString::fromStdString(
+        std::format("Start: {}", milliseconds_to_string(0))));
+      rangeEndLabel_->setText(QString::fromStdString(
+        std::format("End: {}", milliseconds_to_string(max_ms))));
+      gplay_.ResetSegment();
+#endif
     }
   }
 }
@@ -286,6 +363,23 @@ void MainWindow::openFile() {
 void MainWindow::reOpenFile() {
   if (!lastOpenedPath.isEmpty()) {
       // Logic to reload the file at lastOpenedPath
+  }
+}
+
+void MainWindow::showFilePathDialog() {
+  // Task 1: clicking the file-basename button shows the full path.
+  const QString path = lastOpenedPath.isEmpty() ?
+    tr("(no file opened)") : lastOpenedPath;
+  QMessageBox::information(this, tr("File Path"), path);
+}
+
+void MainWindow::confirmQuit() {
+  // Task 2: Quit button, with a "Really Quit?" confirmation dialog.
+  const auto answer = QMessageBox::question(
+    this, tr("Quit"), tr("Really Quit?"),
+    QMessageBox::Yes | QMessageBox::No, QMessageBox::No);
+  if (answer == QMessageBox::Yes) {
+    qApp->quit();
   }
 }
 
