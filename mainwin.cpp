@@ -18,8 +18,6 @@
 #include <QMenuBar>
 #include <QMessageBox>
 #include <QPushButton>
-#include <QScreen>
-#include <QSpacerItem>
 #include <QString>
 #include <QStyle>
 #include <QTabWidget>
@@ -230,24 +228,32 @@ QWidget* MainWindow::BuildPlayerPage() {
   progressLayout->addStretch();
 
   // Task 3: dual-handle range slider below the "Progress: ..." label,
-  // mapping [0, file-duration-ms] and letting the user pick a
-  // start/end sub segment to play. Disabled until a file's duration
-  // is known (i.e. until the first progress callback of a play run).
+  // for picking a start/end sub-range. This widget is purely
+  // look-and-feel: it is not wired to GPlay or to any loaded MIDI
+  // file's actual duration — that wiring is left to the caller.
+  // A placeholder [0, 5:00.000] domain is set here just so both
+  // handles are visible and independently draggable; replace with a
+  // real duration (and connect RangeSlider::rangeEdited to whatever
+  // playback logic is appropriate) as needed.
   rangeSlider_ = new RangeSlider(page);
   rangeSlider_->setEnabled(true);
+  constexpr uint32_t kPlaceholderMaxMs = 5 * 60 * 1000; // 5:00.000
+  rangeSlider_->SetRange(0, kPlaceholderMaxMs);
+  rangeSlider_->SetValues(0, kPlaceholderMaxMs);
 
   QHBoxLayout *rangeLabelsLayout = new QHBoxLayout();
   rangeStartLabel_ = new QLabel(
-    QString::fromStdString(
-      std::format("Start: {}", milliseconds_to_string(0))), page);
+    QString::fromStdString(std::format(
+      "Start: {}", milliseconds_to_string(rangeSlider_->LowValue()))),
+    page);
   rangeEndLabel_ = new QLabel(
-    QString::fromStdString(
-      std::format("End: {}", milliseconds_to_string(1000*(60*123 + 45) + 678))), page);
+    QString::fromStdString(std::format(
+      "End: {}", milliseconds_to_string(rangeSlider_->HighValue()))),
+    page);
   rangeLabelsLayout->addWidget(rangeStartLabel_);
   rangeLabelsLayout->addStretch();
   rangeLabelsLayout->addWidget(rangeEndLabel_);
 
-#if 0
   connect(
       rangeSlider_, &RangeSlider::lowValueChanged, this,
       [this](uint32_t ms) {
@@ -260,14 +266,11 @@ QWidget* MainWindow::BuildPlayerPage() {
     rangeEndLabel_->setText(QString::fromStdString(
       std::format("End: {}", milliseconds_to_string(ms))));
   });
-  connect(
-      rangeSlider_, &RangeSlider::rangeEdited, this,
-      [this](uint32_t low_ms, uint32_t high_ms) {
-    // Commit the user's chosen sub segment; takes effect on next Play().
-    gplay_.SetSegment(low_ms, high_ms);
-  });
-#endif
-  gplay_.SetProgressCallback([this, progress_label](
+  // Note: RangeSlider::rangeEdited (emitted once a handle is released)
+  // is intentionally left unconnected here — hook it up to whatever
+  // playback/sub-segment logic is appropriate.
+
+  gplay_.SetProgressCallback([progress_label](
       uint32_t done_ms,
       uint32_t final_ms,
       const std::string& mmss_done,
@@ -339,23 +342,6 @@ void MainWindow::openFile() {
     if (err.empty()) {
       fileButton_->setText(QFileInfo(fileName).fileName());
       fileButton_->setEnabled(true);
-#if 0
-      // A new file was opened: forget the previous file's duration and
-      // sub-segment selection; the slider gets re-armed once the first
-      // progress callback of a play run reports the new duration.
-      durationKnown_ = false;
-      durationMs_ = 0;
-      rangeSlider_->setEnabled(false);
-      constexpr uint32 max_ms = 1000*(123*60 + 45) + 678;
-      rangeSlider_->SetRange(0, max_ms);
-      rangeSlider_->SetValues(0, max_ms);
-      rangeSlider_->ClearCurrentPosition();
-      rangeStartLabel_->setText(QString::fromStdString(
-        std::format("Start: {}", milliseconds_to_string(0))));
-      rangeEndLabel_->setText(QString::fromStdString(
-        std::format("End: {}", milliseconds_to_string(max_ms))));
-      gplay_.ResetSegment();
-#endif
     }
   }
 }
@@ -387,10 +373,20 @@ void MainWindow::showDebugDialog() {
   QDialog *dialog = new QDialog(this);
   dialog->setWindowTitle("Recent Debug Messages");
 
+  // Size the dialog relative to this MainWindow's own current
+  // geometry (not the screen's) — a comfortable sub-window that
+  // scales with however big/small the main window happens to be.
+  const QSize main_size = this->size();
+  dialog->resize(main_size.width() * 9 / 10, main_size.height() * 6 / 10);
+
   QVBoxLayout *layout = new QVBoxLayout(dialog);
   QListWidget *listWidget = new QListWidget(dialog);
 
-  listWidget->setStyleSheet("QListWidget::item { height: 40px; }");
+  // Row height relative to the list's own font metrics, rather than a
+  // hard-coded pixel constant.
+  const int row_height = listWidget->fontMetrics().height() * 2;
+  listWidget->setStyleSheet(
+    QString("QListWidget::item { height: %1px; }").arg(row_height));
 
   // Add logs from our Logger
   QStringList debug_messages;
@@ -402,18 +398,11 @@ void MainWindow::showDebugDialog() {
   QPushButton *closeButton = new QPushButton("Close", dialog);
 
   layout->addWidget(listWidget);
-  layout->addSpacerItem(
-    new QSpacerItem(20, 40, QSizePolicy::Minimum, QSizePolicy::Expanding));
+  layout->addStretch(1); // flexible space instead of a fixed-size spacer
   layout->addWidget(closeButton);
 
   QObject::connect(
     closeButton, &QPushButton::clicked, dialog, &QDialog::accept);
-
-  // Mobile Optimization: Resize dialog to 90% of screen width
-  QRect screenGeometry = QGuiApplication::primaryScreen()->geometry();
-  int width = screenGeometry.width() * 0.9;
-  int height = screenGeometry.height() * 0.6;
-  dialog->resize(width, height);
 
   dialog->exec(); // Modal execution
 }

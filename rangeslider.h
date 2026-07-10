@@ -4,35 +4,34 @@
 #include <cstdint>
 #include <QWidget>
 
-// A horizontal slider with TWO draggable handles ("Low" and "High"),
-// used to select a start/end sub-range within [minimum, maximum].
-// Intended use here: minimum=0, maximum=<midi file duration in ms>,
-// so the user can pick a start/end time to play a sub segment of the
-// currently loaded MIDI file.
+// A horizontal slider with TWO independently draggable handles ("Low"
+// and "High"), for picking a [low, high] sub-range within an overall
+// [minimum, maximum] domain — e.g. a start/end time selection.
 //
-// Pure C++ / QWidget based (no .qml, no .ui/.xml).
+// This widget is purely look-and-feel: it knows nothing about MIDI
+// files or playback. It just tracks a numeric [minimum, maximum]
+// domain and two handle values within it, and emits signals when they
+// change. Wiring it up to anything (a player, a duration, etc.) is
+// entirely up to the caller.
 //
-// Optionally shows a third, non-interactive marker that can track the
-// current playback position (see SetCurrentPosition()).
+// Pure C++ / QWidget based (no .qml, no .ui/.xml). All of the widget's
+// own visual metrics (handle size, groove thickness, size hints) are
+// derived from its font metrics rather than hard-coded pixel values,
+// so it scales naturally with font/DPI settings like other Qt widgets.
 class RangeSlider : public QWidget {
   Q_OBJECT
 
  public:
   explicit RangeSlider(QWidget *parent = nullptr);
 
-  // Sets the overall [minimum_ms, maximum_ms] domain of the slider.
+  // Sets the overall [minimum, maximum] domain of the slider.
   // Existing Low/High values are clamped into the new domain.
-  void SetRange(uint32_t minimum_ms, uint32_t maximum_ms);
+  void SetRange(uint32_t minimum, uint32_t maximum);
 
   // Sets both handle values at once (e.g. to reset to full range).
-  void SetValues(uint32_t low_ms, uint32_t high_ms);
-  void SetLowValue(uint32_t ms);
-  void SetHighValue(uint32_t ms);
-
-  // Current playback-position marker (thin line), independent of the
-  // two range handles. ClearCurrentPosition() hides it again.
-  void SetCurrentPosition(uint32_t ms);
-  void ClearCurrentPosition();
+  void SetValues(uint32_t low, uint32_t high);
+  void SetLowValue(uint32_t value);
+  void SetHighValue(uint32_t value);
 
   uint32_t Minimum() const { return minimum_; }
   uint32_t Maximum() const { return maximum_; }
@@ -44,12 +43,13 @@ class RangeSlider : public QWidget {
 
  signals:
   // Emitted continuously while a handle is being dragged.
-  void lowValueChanged(uint32_t ms);
-  void highValueChanged(uint32_t ms);
+  void lowValueChanged(uint32_t value);
+  void highValueChanged(uint32_t value);
 
   // Emitted once, when the user releases a handle after moving it:
-  // the "committed" edit of the [low, high] sub-segment.
-  void rangeEdited(uint32_t low_ms, uint32_t high_ms);
+  // the "committed" edit of the [low, high] sub-range. Not connected
+  // to anything by default; the caller can hook it up as needed.
+  void rangeEdited(uint32_t low, uint32_t high);
 
  protected:
   void paintEvent(QPaintEvent *event) override;
@@ -59,6 +59,12 @@ class RangeSlider : public QWidget {
 
  private:
   enum class Handle { None, Low, High };
+
+  // Visual metrics, all derived from the widget's current font
+  // metrics rather than fixed pixel constants.
+  int HandleRadius() const;
+  int GrooveHeight() const;
+  int Margin() const;
 
   int GrooveLeft() const;
   int GrooveWidth() const;
@@ -72,13 +78,6 @@ class RangeSlider : public QWidget {
   uint32_t low_{0};
   uint32_t high_{0};
 
-  bool has_current_position_{false};
-  uint32_t current_position_{0};
-
   Handle pressed_handle_{Handle::None};
   Handle hover_handle_{Handle::None};
-
-  static constexpr int kHandleRadius = 8;
-  static constexpr int kGrooveHeight = 4;
-  static constexpr int kMargin = kHandleRadius + 2;
 };
