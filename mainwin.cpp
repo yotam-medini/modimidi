@@ -35,116 +35,11 @@ MainWindow::MainWindow(GPlay &gplay) :
      QMainWindow(nullptr),
      gplay_{gplay} {
   menuBar()->setVisible(false);
-#if 0
-  // 1. Create Actions
-  qDebug() << std::format("{}:{} {}", __FILE__, __LINE__, __func__);
-  openAction = new QAction(tr("&Open"), this);
-  reOpenAction = new QAction(tr("&Re-Open"), this);
-  reOpenAction->setEnabled(false); // Disable until a file is opened
-  showDebugAction = new QAction(tr("Debug Messages"));
-  quitAction = new QAction(tr("&Quit"), this);
-
-  QToolBar *topMenuBar = addToolBar(tr("Main Menu"));
-  topMenuBar->setMovable(false); // Keep it locked at the top
-  topMenuBar->setFloatable(false);
-
-  // 2. Create a ToolButton to act as the "File" menu header
-  QToolButton *fileButton = new QToolButton(this);
-  fileButton->setText(tr("File"));
-  fileButton->setPopupMode(QToolButton::InstantPopup);
-
-  // 3. Create the actual Menu and attach it to the button
-  QMenu *fileMenu = new QMenu(fileButton);
-  fileMenu->addAction(openAction);
-  fileMenu->addAction(reOpenAction);
-  fileMenu->addAction(showDebugAction);
-  fileMenu->addSeparator();
-  fileMenu->addAction(quitAction);
-
-  fileButton->setMenu(fileMenu);
-
-  // 4. Add the button to your toolbar
-  topMenuBar->addWidget(fileButton);
-
-  // 3. Create the actual Menu and attach it to the button
-  QToolButton *optionsButton = new QToolButton(this);
-  optionsButton->setText(tr("Options"));
-  optionsButton->setPopupMode(QToolButton::InstantPopup);
-  QMenu *optionsMenu = new QMenu(optionsButton);
-  topMenuBar->addWidget(optionsButton);
-
-  // 4. Connect Signals
-  connect(openAction, &QAction::triggered, this, &MainWindow::openFile);
-  connect(reOpenAction, &QAction::triggered, this, &MainWindow::reOpenFile);
-  connect(
-    showDebugAction, &QAction::triggered, this, &MainWindow::showDebugDialog);
-  connect(quitAction, &QAction::triggered, qApp, &QApplication::quit);
-#endif
 
   for (auto &action: actions_) {
     action = new QAction(this);
     action->setEnabled(false);
   }
-
-#if 0
-  // 1. Setup the Central Widget
-  QWidget *centralWidget = new QWidget(this);
-  setCentralWidget(centralWidget);
-
-  // 2. Main Vertical Layout (This fills the whole central area)
-  QVBoxLayout *mainLayout = new QVBoxLayout(centralWidget);
-
-  // 3. Horizontal Layout for the buttons (The "Button Bar")
-  QHBoxLayout *buttonLayout = new QHBoxLayout();
-
-  auto init_button = [this, centralWidget](
-      size_t i, QStyle::StandardPixmap icon) -> void {
-    auto a = actions_[i];
-    auto b = buttons_[i] = new QToolButton(centralWidget);
-    a->setIcon(style()->standardIcon(icon));
-    b->setToolButtonStyle(Qt::ToolButtonIconOnly);
-    b->setDefaultAction(a);
-    b->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
-    SetButtonOpColor(i);
-    a->setEnabled(false);
-  };
-  init_button(Op::Pause, QStyle::SP_MediaPause); // or SP_MediaSeekForward
-  init_button(Op::Stop, QStyle::SP_MediaStop);
-  init_button(Op::Play, QStyle::SP_MediaPlay);
-  init_button(Op::Forward, QStyle::SP_MediaSkipForward);
-  init_button(Op::Backward, QStyle::SP_MediaSkipBackward);
-
-  // 4. Assemble the Layouts
-  // Add "Springs" (stretch) to center the buttons horizontally
-  buttonLayout->addStretch(1);
-  for (auto b : buttons_) {
-    buttonLayout->addWidget(b, 1);
-  }
-  buttonLayout->addStretch(1);
-
-  QHBoxLayout *progressLayout = new QHBoxLayout();
-  QLabel *progress_label = new QLabel("Progress", this);
-  progressLayout->addStretch();
-  progressLayout->addWidget(progress_label);
-  progressLayout->addStretch();
-  gplay_.SetProgressCallback([progress_label](
-      uint32_t done_ms,
-      uint32_t final_ms,
-      const std::string& mmss_done,
-      const std::string& mmss_final) {
-    auto const s = std::format("Progress: {} / {}", mmss_done, mmss_final);
-    progress_label->setText(QString::fromStdString(s));
-  });
-  gplay_.SetStateCallback([this](State state) { OnStateChange(state); });
-
-  // Add "Springs" to center the horizontal row vertically
-  mainLayout->addStretch();    // Pushes everything down
-  mainLayout->addLayout(buttonLayout);
-  mainLayout->addLayout(progressLayout);    // Pushes everything up
-  mainLayout->addStretch();    // Pushes everything up
-
-  ConnectButtonsActions();
-#endif
 
   tabs_ = new QTabWidget(this);
   tabs_->setTabPosition(QTabWidget::South); // bottom tabs – Android friendly
@@ -165,8 +60,6 @@ QWidget* MainWindow::BuildPlayerPage() {
 
   QHBoxLayout* fileRow = new QHBoxLayout;
 
-  // Task 1: the file basename is a button; clicking it pops up the
-  // full path of the currently opened file.
   fileButton_ = new QPushButton(tr("(no file)"), page);
   fileButton_->setFlat(true);
   fileButton_->setStyleSheet("text-align: left; font-style: italic; color: gray;");
@@ -193,7 +86,6 @@ QWidget* MainWindow::BuildPlayerPage() {
   mainLayout->addLayout(fileRow);
 
 
-  // 3. Horizontal Layout for the buttons (The "Button Bar")
   QHBoxLayout *buttonLayout = new QHBoxLayout();
 
   auto init_button = [this, page](
@@ -207,7 +99,9 @@ QWidget* MainWindow::BuildPlayerPage() {
     SetButtonOpColor(i);
     a->setEnabled(false);
   };
-  init_button(Op::Pause, QStyle::SP_MediaPause); // or SP_MediaSeekForward
+  // or SP_MediaSeekForward
+  init_button(Op::Pause, QStyle::SP_MediaPause); 
+
   init_button(Op::Stop, QStyle::SP_MediaStop);
   init_button(Op::Play, QStyle::SP_MediaPlay);
   init_button(Op::Forward, QStyle::SP_MediaSkipForward);
@@ -227,14 +121,7 @@ QWidget* MainWindow::BuildPlayerPage() {
   progressLayout->addWidget(progress_label);
   progressLayout->addStretch();
 
-  // Task 3: dual-handle range slider below the "Progress: ..." label,
-  // for picking a start/end sub-range. This widget is purely
-  // look-and-feel: it is not wired to GPlay or to any loaded MIDI
-  // file's actual duration — that wiring is left to the caller.
-  // A placeholder [0, 5:00.000] domain is set here just so both
-  // handles are visible and independently draggable; replace with a
-  // real duration (and connect RangeSlider::rangeEdited to whatever
-  // playback logic is appropriate) as needed.
+  // TODO: start without, activate slider only after loaded midi file
   rangeSlider_ = new RangeSlider(page);
   rangeSlider_->setEnabled(true);
   constexpr uint32_t kPlaceholderMaxMs = 5 * 60 * 1000; // 5:00.000
@@ -373,9 +260,6 @@ void MainWindow::showDebugDialog() {
   QDialog *dialog = new QDialog(this);
   dialog->setWindowTitle("Recent Debug Messages");
 
-  // Size the dialog relative to this MainWindow's own current
-  // geometry (not the screen's) — a comfortable sub-window that
-  // scales with however big/small the main window happens to be.
   const QSize main_size = this->size();
   dialog->resize(main_size.width() * 9 / 10, main_size.height() * 6 / 10);
 

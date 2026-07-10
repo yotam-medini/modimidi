@@ -8,16 +8,6 @@
 // and "High"), for picking a [low, high] sub-range within an overall
 // [minimum, maximum] domain — e.g. a start/end time selection.
 //
-// This widget is purely look-and-feel: it knows nothing about MIDI
-// files or playback. It just tracks a numeric [minimum, maximum]
-// domain and two handle values within it, and emits signals when they
-// change. Wiring it up to anything (a player, a duration, etc.) is
-// entirely up to the caller.
-//
-// Pure C++ / QWidget based (no .qml, no .ui/.xml). All of the widget's
-// own visual metrics (handle size, groove thickness, size hints) are
-// derived from its font metrics rather than hard-coded pixel values,
-// so it scales naturally with font/DPI settings like other Qt widgets.
 class RangeSlider : public QWidget {
   Q_OBJECT
 
