@@ -3,6 +3,8 @@
 #include <cstdint>
 #include <format>
 #include <iostream>
+#include <regex>
+#include <string>
 #include <utility>
 #include <vector>
 
@@ -21,13 +23,12 @@
 #include <QMenuBar>
 #include <QMessageBox>
 #include <QPushButton>
-#include <QRegularExpression>
-#include <QRegularExpressionValidator>
 #include <QString>
 #include <QStyle>
 #include <QTabWidget>
 #include <QToolBar>
 #include <QToolButton>
+#include <QValidator>
 #include <QVBoxLayout>
 
 #include "debug.h"
@@ -61,32 +62,52 @@ QString FormatMmSsDotMmm(uint32_t ms) {
 // Returns false, leaving *ms_out untouched, on any syntax or range
 // violation.
 bool ParseMmSsMmm(const QString &text, uint32_t *ms_out) {
-  static const QRegularExpression kPattern(QStringLiteral(
-    "^\\s*(\\d+):(\\d{1,2})(?:\\.(\\d{1,3}))?\\s*$"));
-  const QRegularExpressionMatch match = kPattern.match(text);
-  if (!match.hasMatch()) {
+  static const std::regex kPattern(
+    R"(^\s*(\d+):(\d{1,2})(?:\.(\d{1,3}))?\s*$)");
+  const std::string s = text.toStdString();
+  std::smatch match;
+  if (!std::regex_match(s, match, kPattern)) {
     return false;
   }
-  bool mm_ok = false, ss_ok = false;
-  const uint32_t mm = match.captured(1).toUInt(&mm_ok);
-  const uint32_t ss = match.captured(2).toUInt(&ss_ok);
-  if (!mm_ok || !ss_ok || ss >= 60) {
-    return false;
+  uint32_t mm = 0, ss = 0, mmm = 0;
+  try {
+    mm = static_cast<uint32_t>(std::stoul(match[1].str()));
+    ss = static_cast<uint32_t>(std::stoul(match[2].str()));
+    if (ss >= 60) {
+      return false;
+    }
+    // Right-pad the fractional digits to 3 so ".5" == ".500" ==
+    // 500ms, ".25" == ".250" == 250ms, missing fraction == 0ms.
+    std::string frac = match[3].str();
+    while (frac.size() < 3) {
+      frac += '0';
+    }
+    mmm = static_cast<uint32_t>(std::stoul(frac));
+  } catch (const std::exception &) {
+    return false; // out-of-range digit string, etc.
   }
-  // Right-pad the fractional digits to 3 so ".5" == ".500" == 500ms,
-  // ".25" == ".250" == 250ms, and a missing fraction == 0ms.
-  QString frac = match.captured(3);
-  while (frac.size() < 3) {
-    frac += '0';
-  }
-  bool mmm_ok = false;
-  const uint32_t mmm = frac.toUInt(&mmm_ok);
-  if (!mmm_ok || mmm >= 1000) {
+  if (mmm >= 1000) {
     return false;
   }
   *ms_out = (mm * 60 + ss) * 1000 + mmm;
   return true;
 }
+
+// Loose live-typing filter for the time-input QLineEdit: accepts
+// only digits, ':' and '.' while the user types. The actual
+// MM:SS.mmm syntax + range check happens on OK, via ParseMmSsMmm()
+// above. A small std::regex-backed QValidator, in place of Qt's own
+// QRegularExpressionValidator, since std::regex covers this need.
+class TimeCharsValidator : public QValidator {
+ public:
+  explicit TimeCharsValidator(QObject *parent) : QValidator(parent) {}
+
+  State validate(QString &input, int &) const override {
+    static const std::regex kAllowed(R"(^[0-9:.]*$)");
+    return std::regex_match(input.toStdString(), kAllowed) ?
+      Acceptable : Invalid;
+  }
+};
 
 }  // namespace
 
@@ -358,12 +379,9 @@ void MainWindow::EditRangeValue(bool is_start) {
   layout->addWidget(hint);
 
   QLineEdit *edit = new QLineEdit(FormatMmSsDotMmm(current), &dialog);
-  // Loose live-typing filter (digits and dot only); the actual
+  // Loose live-typing filter (digits, ':' and '.' only); the actual
   // MM:SS.mmm syntax + range check happens on OK, in ParseMmSsMmm().
-  static const QRegularExpression kAllowedChars(
-    QStringLiteral("^[0-9:.]*$"));
-  edit->setValidator(
-    new QRegularExpressionValidator(kAllowedChars, edit));
+  edit->setValidator(new TimeCharsValidator(edit));
   layout->addWidget(edit);
 
   QLabel *error_label = new QLabel(&dialog);
