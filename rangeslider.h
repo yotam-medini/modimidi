@@ -20,8 +20,19 @@ class RangeSlider : public QWidget {
 
   // Sets both handle values at once (e.g. to reset to full range).
   void SetValues(uint32_t low, uint32_t high);
+
+  // These clamp into the current domain (and against the other
+  // handle, same as dragging does) and emit lowValueChanged /
+  // highValueChanged, so external editors (e.g. a text-input dialog)
+  // stay in sync with the slider the same way a drag would.
   void SetLowValue(uint32_t value);
   void SetHighValue(uint32_t value);
+
+  // Emits rangeEdited(LowValue(), HighValue()). Callers that changed
+  // Low/High via SetLowValue()/SetHighValue() from outside a drag
+  // (e.g. a text-input dialog) call this once editing is done, to
+  // mirror the "committed edit" signal a mouse release would emit.
+  void CommitEdit();
 
   uint32_t Minimum() const { return minimum_; }
   uint32_t Maximum() const { return maximum_; }

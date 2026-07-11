@@ -10,14 +10,19 @@
 #include <QApplication>
 #include <QColor>
 #include <QDebug>
+#include <QDialog>
+#include <QDialogButtonBox>
 #include <QFileDialog>
 #include <QFileInfo>
 #include <QLabel>
+#include <QLineEdit>
 #include <QListWidget>
 #include <QMainWindow>
 #include <QMenuBar>
 #include <QMessageBox>
 #include <QPushButton>
+#include <QRegularExpression>
+#include <QRegularExpressionValidator>
 #include <QString>
 #include <QStyle>
 #include <QTabWidget>
@@ -30,6 +35,60 @@
 #include "qutil.h"
 #include "rangeslider.h"
 #include "util.h"
+
+namespace {
+
+// Formats ms as "MM:SS.mmm" (2-digit minutes/seconds, 3-digit
+// millis), for pre-filling the range-edit text-input dialog. This
+// happens to be one valid input for ParseMmSsMmm() below (a fully
+// zero-padded one); see ParseMmSsMmm() for the accepted input forms.
+QString FormatMmSsDotMmm(uint32_t ms) {
+  const uint32_t total_seconds = ms / 1000;
+  const uint32_t millis = ms % 1000;
+  const uint32_t minutes = total_seconds / 60;
+  const uint32_t seconds = total_seconds % 60;
+  return QString::fromStdString(std::format(
+    "{:02d}:{:02d}.{:03d}", minutes, seconds, millis));
+}
+
+// Parses a flexible "MM:SS.mmm" time entry:
+//  - MM: 1+ digits (single-digit minutes allowed, e.g. "3:07").
+//  - SS: 1-2 digits, must satisfy 0<=SS<60.
+//  - The fractional-second part is entirely optional and, when
+//    present, is a decimal fraction of a second: "." followed by
+//    1-3 digits, e.g. ".5" (500ms), ".25" (250ms), ".250" (250ms).
+//    Dropping it (no "." at all, e.g. "3:07") means 0 ms.
+// Returns false, leaving *ms_out untouched, on any syntax or range
+// violation.
+bool ParseMmSsMmm(const QString &text, uint32_t *ms_out) {
+  static const QRegularExpression kPattern(QStringLiteral(
+    "^\\s*(\\d+):(\\d{1,2})(?:\\.(\\d{1,3}))?\\s*$"));
+  const QRegularExpressionMatch match = kPattern.match(text);
+  if (!match.hasMatch()) {
+    return false;
+  }
+  bool mm_ok = false, ss_ok = false;
+  const uint32_t mm = match.captured(1).toUInt(&mm_ok);
+  const uint32_t ss = match.captured(2).toUInt(&ss_ok);
+  if (!mm_ok || !ss_ok || ss >= 60) {
+    return false;
+  }
+  // Right-pad the fractional digits to 3 so ".5" == ".500" == 500ms,
+  // ".25" == ".250" == 250ms, and a missing fraction == 0ms.
+  QString frac = match.captured(3);
+  while (frac.size() < 3) {
+    frac += '0';
+  }
+  bool mmm_ok = false;
+  const uint32_t mmm = frac.toUInt(&mmm_ok);
+  if (!mmm_ok || mmm >= 1000) {
+    return false;
+  }
+  *ms_out = (mm * 60 + ss) * 1000 + mmm;
+  return true;
+}
+
+}  // namespace
 
 MainWindow::MainWindow(GPlay &gplay) :
      QMainWindow(nullptr),
@@ -62,7 +121,8 @@ QWidget* MainWindow::BuildPlayerPage() {
 
   fileButton_ = new QPushButton(tr("(no file)"), page);
   fileButton_->setFlat(true);
-  fileButton_->setStyleSheet("text-align: left; font-style: italic; color: gray;");
+  fileButton_->setStyleSheet(
+    "text-align: left; font-style: italic; color: gray;");
   fileButton_->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
   fileButton_->setEnabled(false); // nothing to show until a file is opened
   connect(
@@ -121,40 +181,52 @@ QWidget* MainWindow::BuildPlayerPage() {
   progressLayout->addWidget(progress_label);
   progressLayout->addStretch();
 
-  // TODO: start without, activate slider only after loaded midi file
-  rangeSlider_ = new RangeSlider(page);
+  // Slider + labels are grouped in one widget so they can be shown
+  // or hidden together: there is nothing meaningful to select until
+  // a proper midi file is loaded, so the group starts hidden.
+  rangeGroup_ = new QWidget(page);
+  QVBoxLayout *rangeGroupLayout = new QVBoxLayout(rangeGroup_);
+  rangeGroupLayout->setContentsMargins(0, 0, 0, 0);
+
+  rangeSlider_ = new RangeSlider(rangeGroup_);
   rangeSlider_->setEnabled(true);
   constexpr uint32_t kPlaceholderMaxMs = 5 * 60 * 1000; // 5:00.000
   rangeSlider_->SetRange(0, kPlaceholderMaxMs);
   rangeSlider_->SetValues(0, kPlaceholderMaxMs);
 
   QHBoxLayout *rangeLabelsLayout = new QHBoxLayout();
-  rangeStartLabel_ = new QLabel(
-    QString::fromStdString(std::format(
-      "Start: {}", milliseconds_to_string(rangeSlider_->LowValue()))),
-    page);
-  rangeEndLabel_ = new QLabel(
-    QString::fromStdString(std::format(
-      "End: {}", milliseconds_to_string(rangeSlider_->HighValue()))),
-    page);
+  // Label-buttons (normal raised push-button look, to hint they're
+  // clickable): clicking either pops up a "MM:SS.mmm" text-input
+  // dialog to set that end of the range to an exact value.
+  rangeStartLabel_ = new QPushButton(rangeGroup_);
+  rangeStartLabel_->setToolTip(tr("Click to enter an exact time"));
+  rangeEndLabel_ = new QPushButton(rangeGroup_);
+  rangeEndLabel_->setToolTip(tr("Click to enter an exact time"));
+  UpdateRangeStartLabel(rangeSlider_->LowValue());
+  UpdateRangeEndLabel(rangeSlider_->HighValue());
+  connect(
+    rangeStartLabel_, &QPushButton::clicked,
+    this, &MainWindow::editRangeStart);
+  connect(
+    rangeEndLabel_, &QPushButton::clicked,
+    this, &MainWindow::editRangeEnd);
   rangeLabelsLayout->addWidget(rangeStartLabel_);
   rangeLabelsLayout->addStretch();
   rangeLabelsLayout->addWidget(rangeEndLabel_);
 
+  rangeGroupLayout->addWidget(rangeSlider_);
+  rangeGroupLayout->addLayout(rangeLabelsLayout);
+  rangeGroup_->setVisible(false); // hidden until a midi file loads
+
   connect(
       rangeSlider_, &RangeSlider::lowValueChanged, this,
-      [this](uint32_t ms) {
-    rangeStartLabel_->setText(QString::fromStdString(
-      std::format("Start: {}", milliseconds_to_string(ms))));
-  });
+      [this](uint32_t ms) { UpdateRangeStartLabel(ms); });
   connect(
       rangeSlider_, &RangeSlider::highValueChanged, this,
-      [this](uint32_t ms) {
-    rangeEndLabel_->setText(QString::fromStdString(
-      std::format("End: {}", milliseconds_to_string(ms))));
-  });
-  // Note: RangeSlider::rangeEdited (emitted once a handle is released)
-  // is intentionally left unconnected here — hook it up to whatever
+      [this](uint32_t ms) { UpdateRangeEndLabel(ms); });
+  // Note: RangeSlider::rangeEdited (emitted once a handle is released,
+  // or once a text-input edit is committed via CommitEdit()) is
+  // intentionally left unconnected here — hook it up to whatever
   // playback/sub-segment logic is appropriate.
 
   gplay_.SetProgressCallback([progress_label](
@@ -171,8 +243,7 @@ QWidget* MainWindow::BuildPlayerPage() {
   mainLayout->addStretch();    // Pushes everything down
   mainLayout->addLayout(buttonLayout);
   mainLayout->addLayout(progressLayout);
-  mainLayout->addWidget(rangeSlider_);
-  mainLayout->addLayout(rangeLabelsLayout);    // Pushes everything up
+  mainLayout->addWidget(rangeGroup_);
   mainLayout->addStretch();    // Pushes everything up
 
   ConnectButtonsActions();
@@ -229,6 +300,15 @@ void MainWindow::openFile() {
     if (err.empty()) {
       fileButton_->setText(QFileInfo(fileName).fileName());
       fileButton_->setEnabled(true);
+      // Task 2: only reveal the range slider once a proper midi
+      // file has actually been loaded; reset it to the (still
+      // placeholder, pending a real duration from GPlay) full range.
+      constexpr uint32_t kPlaceholderMaxMs = 5 * 60 * 1000;
+      rangeSlider_->SetRange(0, kPlaceholderMaxMs);
+      rangeSlider_->SetValues(0, kPlaceholderMaxMs);
+      UpdateRangeStartLabel(rangeSlider_->LowValue());
+      UpdateRangeEndLabel(rangeSlider_->HighValue());
+      rangeGroup_->setVisible(true);
     }
   }
 }
@@ -244,6 +324,78 @@ void MainWindow::showFilePathDialog() {
   const QString path = lastOpenedPath.isEmpty() ?
     tr("(no file opened)") : lastOpenedPath;
   QMessageBox::information(this, tr("File Path"), path);
+}
+
+void MainWindow::UpdateRangeStartLabel(uint32_t ms) {
+  rangeStartLabel_->setText(QString::fromStdString(
+    std::format("Start: {}", milliseconds_to_string(ms))));
+}
+
+void MainWindow::UpdateRangeEndLabel(uint32_t ms) {
+  rangeEndLabel_->setText(QString::fromStdString(
+    std::format("End: {}", milliseconds_to_string(ms))));
+}
+
+void MainWindow::editRangeStart() {
+  EditRangeValue(/*is_start=*/true);
+}
+
+void MainWindow::editRangeEnd() {
+  EditRangeValue(/*is_start=*/false);
+}
+
+void MainWindow::EditRangeValue(bool is_start) {
+  const uint32_t current = is_start ?
+    rangeSlider_->LowValue() : rangeSlider_->HighValue();
+
+  QDialog dialog(this);
+  dialog.setWindowTitle(is_start ? tr("Edit Start") : tr("Edit End"));
+
+  QVBoxLayout *layout = new QVBoxLayout(&dialog);
+  QLabel *hint = new QLabel(
+    tr("Enter time as MM:SS.mmm (e.g. 3:07, 3:07.5, 3:07.250)"),
+    &dialog);
+  layout->addWidget(hint);
+
+  QLineEdit *edit = new QLineEdit(FormatMmSsDotMmm(current), &dialog);
+  // Loose live-typing filter (digits and dot only); the actual
+  // MM:SS.mmm syntax + range check happens on OK, in ParseMmSsMmm().
+  static const QRegularExpression kAllowedChars(
+    QStringLiteral("^[0-9:.]*$"));
+  edit->setValidator(
+    new QRegularExpressionValidator(kAllowedChars, edit));
+  layout->addWidget(edit);
+
+  QLabel *error_label = new QLabel(&dialog);
+  error_label->setStyleSheet("color: red;");
+  layout->addWidget(error_label);
+
+  QDialogButtonBox *buttons = new QDialogButtonBox(
+    QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dialog);
+  layout->addWidget(buttons);
+  connect(buttons, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
+  connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
+
+  edit->setFocus();
+  edit->selectAll();
+
+  uint32_t ms = 0;
+  while (dialog.exec() == QDialog::Accepted) {
+    if (ParseMmSsMmm(edit->text(), &ms)) {
+      if (is_start) {
+        rangeSlider_->SetLowValue(ms);
+      } else {
+        rangeSlider_->SetHighValue(ms);
+      }
+      // A text-input edit is a committed change, same as a mouse
+      // release after a drag.
+      rangeSlider_->CommitEdit();
+      return;
+    }
+    error_label->setText(tr(
+      "Invalid format. Use MM:SS.mmm (fraction optional), "
+      "0<=SS<60."));
+  }
 }
 
 void MainWindow::confirmQuit() {

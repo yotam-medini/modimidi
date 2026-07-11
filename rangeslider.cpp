@@ -37,11 +37,17 @@ void RangeSlider::SetValues(uint32_t low, uint32_t high) {
 void RangeSlider::SetLowValue(uint32_t value) {
   low_ = std::clamp(value, minimum_, high_);
   update();
+  emit lowValueChanged(low_);
 }
 
 void RangeSlider::SetHighValue(uint32_t value) {
   high_ = std::clamp(value, low_, maximum_);
   update();
+  emit highValueChanged(high_);
+}
+
+void RangeSlider::CommitEdit() {
+  emit rangeEdited(low_, high_);
 }
 
 int RangeSlider::HandleRadius() const {
