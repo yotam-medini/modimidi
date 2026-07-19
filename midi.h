@@ -410,6 +410,7 @@ class Midi {
   std::vector<uint8_t> GetChannels() const;
   std::vector<uint8_t> GetPrograms() const;
   channels_range_t GetChannelsRange() const;
+  uint32_t GetTotalMilliSeconds() const;
   std::string info(const std::string& indent="") const;
 
  private:

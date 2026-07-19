@@ -56,6 +56,7 @@ if(BUILD_CLI)
 set(SOURCE_FILES
     main.cpp
     dump.cpp
+    dyntiming.cpp
     midi.cpp
     options.cpp
     play.cpp
@@ -105,6 +106,7 @@ if(BUILD_GUI OR ANDROID)
     set(CMAKE_AUTOMOC ON)
     set(UI_SOURCE_FILES
         debug.cpp
+        dyntiming.cpp
         gplay.cpp
         mainwin.cpp
         midi.cpp
@@ -115,6 +117,7 @@ if(BUILD_GUI OR ANDROID)
         synthseq.cpp
         ui.cpp
         util.cpp
+        dyntiming.h
         mainwin.h
         rangeslider.h
     )

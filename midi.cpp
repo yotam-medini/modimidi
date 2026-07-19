@@ -247,6 +247,19 @@ Midi::channels_range_t Midi::GetChannelsRange() const {
   return channels_range;
 }
 
+uint32_t Midi::GetTotalMilliSeconds() const {
+  uint32_t total_ticks = 0;
+  for (const auto &track: tracks_) {
+    uint32_t ticks = 0;
+    for (auto const &e: track.events_) {
+      ticks += e->delta_time_;
+    }
+    total_ticks = std::max(total_ticks, ticks);
+  }
+  uint32_t ms = total_ticks;
+  return ms;
+}
+
 std::string Midi::info(const std::string& indent) const {
   const std::string sub_indent{indent + std::string("  ")};
   std::string s = std::format("{}Format={} ntrks={}, Ticks Per (1/4)={}\n",
