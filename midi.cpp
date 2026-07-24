@@ -248,15 +248,64 @@ Midi::channels_range_t Midi::GetChannelsRange() const {
 }
 
 uint32_t Midi::GetTotalMilliSeconds() const {
-  uint32_t total_ticks = 0;
-  for (const auto &track: tracks_) {
-    uint32_t ticks = 0;
-    for (auto const &e: track.events_) {
-      ticks += e->delta_time_;
+  class UEvent {
+   public:
+    UEvent(uint32_t ta=0, size_t ti=0, size_t tei=0) :
+      time_abs_{ta}, track_index_{ti}, track_event_index_{tei} {
     }
-    total_ticks = std::max(total_ticks, ticks);
+    uint32_t time_abs_{0};
+    size_t track_index_{0};
+    size_t track_event_index_{0};
+  };
+  auto get_ev = [this](size_t ti, size_t tei) -> const Event* {
+    return tracks_[ti].events_[tei].get();
+  };
+
+  auto ue_lt = [this, get_ev](const UEvent &ue0, const UEvent &ue1) -> bool {
+    bool lt = ue0.track_event_index_ < ue1.track_event_index_;
+    if (ue0.time_abs_ != ue1.time_abs_) {
+      lt = ue0.time_abs_ < ue1.time_abs_;
+    } else {
+      auto pe0 = get_ev(ue0.track_index_, ue0.track_event_index_);
+      auto pe1 = get_ev(ue1.track_index_, ue1.track_event_index_);
+      auto const e0_is_tempo = dynamic_cast<const TempoEvent*>(pe0) != nullptr;
+      auto const e1_is_tempo = dynamic_cast<const TempoEvent*>(pe1) != nullptr;
+      if (e0_is_tempo != e1_is_tempo) {
+        lt = e1_is_tempo;
+      } else if (ue0.track_index_ != ue1.track_index_) {
+        lt = ue0.track_index_ < ue1.track_index_;
+      }
+    }
+    return lt;
+  };
+
+  std::vector<UEvent> ues;
+  for (size_t ti = 0; ti < tracks_.size(); ++ti) {
+    auto const &tevents = tracks_[ti].events_;
+    uint32_t abs_time = 0;
+    for (size_t tei = 0; tei < tevents.size(); ++tei) {
+      abs_time += tevents[tei]->delta_time_;
+      ues.push_back(UEvent(abs_time, ti, tei));
+    }
   }
-  uint32_t ms = total_ticks;
+  std::sort(ues.begin(), ues.end(), ue_lt);
+
+  uint32_t current_tick = 0;
+  const uint64_t tpp = ticks_per_quarter_note_;
+  uint64_t current_us = 0;
+  uint64_t tempo = 500000;
+  for (const UEvent &ue: ues) {
+    const Event *pe = get_ev(ue.track_index_, ue.track_event_index_);
+    auto delta_ticks = ue.time_abs_ - current_tick;
+    current_tick = ue.time_abs_;
+    uint64_t delta_us = (uint64_t{delta_ticks} * tempo) / tpp;
+    current_us += delta_us;
+    auto const ev_tempo = dynamic_cast<const TempoEvent*>(pe);
+    if (ev_tempo) {
+      tempo = ev_tempo->tttttt_;
+    }
+  }
+  uint32_t ms = (current_us + (1000 - 1)) / 1000;
   return ms;
 }
 
