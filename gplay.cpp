@@ -103,6 +103,9 @@ class GPlay::Impl {
     }
     return err;
   }
+  uint32_t GetMidiTotalMilliSeconds() const {
+    return parsed_midi_->GetTotalMilliSeconds();
+  }
   void SetProgressCallback(progress_callback_t progress_cb) {
     play_params_.progress_callback_ = progress_cb;
   }
@@ -171,6 +174,10 @@ GPlay::~GPlay() {
 
 std::string GPlay::OpenMidi(std::vector<uint8_t> data) {
   return impl_->OpenMidi(std::move(data));
+}
+
+uint32_t GPlay::GetMidiTotalMilliSeconds() const {
+  return impl_->GetMidiTotalMilliSeconds();
 }
 
 void GPlay::SetProgressCallback(progress_callback_t progress_cb) {

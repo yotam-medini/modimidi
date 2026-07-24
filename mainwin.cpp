@@ -324,9 +324,9 @@ void MainWindow::openFile() {
       // Task 2: only reveal the range slider once a proper midi
       // file has actually been loaded; reset it to the (still
       // placeholder, pending a real duration from GPlay) full range.
-      constexpr uint32_t kPlaceholderMaxMs = 5 * 60 * 1000;
-      rangeSlider_->SetRange(0, kPlaceholderMaxMs);
-      rangeSlider_->SetValues(0, kPlaceholderMaxMs);
+      auto const midi_ms = gplay_.GetMidiTotalMilliSeconds();
+      rangeSlider_->SetRange(0, midi_ms);
+      rangeSlider_->SetValues(0, midi_ms);
       UpdateRangeStartLabel(rangeSlider_->LowValue());
       UpdateRangeEndLabel(rangeSlider_->HighValue());
       rangeGroup_->setVisible(true);
