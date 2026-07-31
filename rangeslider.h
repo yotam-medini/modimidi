@@ -34,6 +34,9 @@ class RangeSlider : public QWidget {
   // mirror the "committed edit" signal a mouse release would emit.
   void CommitEdit();
 
+  void SetCurrentPosition(uint32_t ms);
+
+
   uint32_t Minimum() const { return minimum_; }
   uint32_t Maximum() const { return maximum_; }
   uint32_t LowValue() const { return low_; }
@@ -78,6 +81,9 @@ class RangeSlider : public QWidget {
   uint32_t maximum_{0};
   uint32_t low_{0};
   uint32_t high_{0};
+
+  bool has_current_position_{false};
+  uint32_t current_position_{0};
 
   Handle pressed_handle_{Handle::None};
   Handle hover_handle_{Handle::None};

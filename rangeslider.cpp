@@ -50,6 +50,12 @@ void RangeSlider::CommitEdit() {
   emit rangeEdited(low_, high_);
 }
 
+void RangeSlider::SetCurrentPosition(uint32_t ms) {
+  has_current_position_ = true;
+  current_position_ = std::clamp(ms, minimum_, maximum_);
+  update();
+}
+
 int RangeSlider::HandleRadius() const {
   // Roughly half a line of text tall, with a sensible floor so it
   // stays grabbable even with tiny fonts.
@@ -209,6 +215,14 @@ void RangeSlider::paintEvent(QPaintEvent *) {
     isEnabled() ? QColor(66, 133, 244) : QColor(190, 205, 230));
   painter.drawRoundedRect(
     selected_rect, groove_height / 2, groove_height / 2);
+
+  // Current playback-position marker, if any.
+  if (has_current_position_ && isEnabled()) {
+    const int pos_x = ValueToX(current_position_);
+    painter.setPen(QPen(QColor(220, 40, 40), 2));
+    painter.drawLine(
+      pos_x, mid_y - handle_radius - 2, pos_x, mid_y + handle_radius + 2);
+  }
 
   auto draw_handle = [&](int x, bool active) {
     painter.setPen(QPen(QColor(60, 60, 60), 1));

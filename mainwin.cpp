@@ -250,13 +250,14 @@ QWidget* MainWindow::BuildPlayerPage() {
   // intentionally left unconnected here — hook it up to whatever
   // playback/sub-segment logic is appropriate.
 
-  gplay_.SetProgressCallback([progress_label](
+  gplay_.SetProgressCallback([progress_label, rangeSlider=rangeSlider_](
       uint32_t done_ms,
       uint32_t final_ms,
       const std::string& mmss_done,
       const std::string& mmss_final) {
     auto const s = std::format("Progress: {} / {}", mmss_done, mmss_final);
     progress_label->setText(QString::fromStdString(s));
+    rangeSlider->SetCurrentPosition(done_ms);
   });
   gplay_.SetStateCallback([this](State state) { OnStateChange(state); });
 
