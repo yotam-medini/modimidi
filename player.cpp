@@ -256,6 +256,7 @@ class Player::Impl {
   size_t next_send_index_{0};
   uint32_t now0_{0};
   uint32_t date_add_ms_{0};
+  uint32_t total_ms_{0};
   unsigned pause_time_{0};
   bool in_pause_{false};
   std::atomic<bool> final_handled_{false};
@@ -330,6 +331,7 @@ void Player::Impl::SetAbsEvents() {
     const IndexEvent &ie = index_events_[i];
     uint32_t time_shifted = safe_subtract(ie.time_, first_note_time);
     uint32_t date_ms = dyn_timing.AbsTicksToMs(time_shifted);
+    total_ms_ = date_ms; 
     done = date_ms > end_ms_;
     if (!done) {
       const midi::Event *e = tracks[ie.track_].events_[ie.tei_].get();
@@ -739,21 +741,20 @@ if (call < 10) { std::cerr <<
  std::format("call={}, time_shift={} time={}, now0_={}, date_add_ms_={}\n",
  call, time_shift, time, now0_, date_add_ms_); }
   if ((next_send_index_ > 0) && time >= date_add_ms_) {
-    const uint32_t last_ms = abs_events_.back()->time_ms_original_;
     uint32_t dt = time_shift - date_add_ms_;
     float dt_div_f = dt / pp_.tempo_div_factor_; // save div in PlayParams ?
     uint32_t dt_div = static_cast<uint32_t>(dt_div_f);
     uint32_t btime = dt_div + begin_ms_;
 if (call < 10) {
  std::cerr << std::format(
- "call={} dt={}, dt_div_f={}, dt_div={}, btime={}, begin_ms_={}, last_ms={}\n",
-   call, dt, dt_div_f, dt_div, btime, begin_ms_, last_ms); }
-    if ((begin_ms_ <= btime) && (btime <= last_ms)) {
+ "call={} dt={}, dt_div_f={}, dt_div={}, btime={}, begin_ms_={}, total_ms_={}\n",
+   call, dt, dt_div_f, dt_div, btime, begin_ms_, total_ms_); }
+    if ((begin_ms_ <= btime) && (btime <= total_ms_)) {
       uint32_t done_ms = btime;
       auto mmss_done = milliseconds_to_string(done_ms);
-      auto mmss_final = milliseconds_to_string(last_ms);
+      auto mmss_final = milliseconds_to_string(total_ms_);
       if (pp_.progress_callback_) {
-        pp_.progress_callback_(done_ms, last_ms, mmss_done, mmss_final);
+        pp_.progress_callback_(done_ms, total_ms_, mmss_done, mmss_final);
       }
       // std::cout << std::format("\rProgress: {} / {}", mmss_done, mmss_final);
       std::cout.flush();
