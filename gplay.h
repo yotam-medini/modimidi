@@ -22,6 +22,8 @@ class GPlay {
   void SkipForward();
   void SkipBackward();
   State GetState() const;
+  void SetBegin(uint32_t ms);
+  void SetEnd(uint32_t ms);
  private:
   State state_{State::None};
   class Impl;

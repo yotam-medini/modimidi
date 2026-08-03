@@ -40,8 +40,8 @@ class MainWindow : public QMainWindow {
   // to the RangeSlider on success.
   void EditRangeValue(bool is_start);
 
-  void UpdateRangeStartLabel(uint32_t ms);
-  void UpdateRangeEndLabel(uint32_t ms);
+  void UpdateRangeStart(uint32_t ms);
+  void UpdateRangeEnd(uint32_t ms);
 
   QWidget *BuildPlayerPage();
   QWidget *BuildModifyPage();

@@ -149,6 +149,14 @@ class GPlay::Impl {
   }
   State GetState() const { return state_; }
 
+  void SetBegin(uint32_t ms) {
+    play_params_.begin_ms_ = ms;
+  }
+
+  void SetEnd(uint32_t ms) {
+    play_params_.end_ms_ = ms;
+  }
+
  private:
   void SetState(State state) {
     state_ = state;
@@ -210,4 +218,12 @@ State GPlay::GetState() const {
 
 void GPlay::SetStateCallback(OnStateChange_t on_state_change) {
   impl_->SetStateCallback(on_state_change);
+}
+
+void GPlay::SetBegin(uint32_t ms) {
+  impl_->SetBegin(ms);
+}
+
+void GPlay::SetEnd(uint32_t ms) {
+  impl_->SetEnd(ms);
 }

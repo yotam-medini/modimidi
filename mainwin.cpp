@@ -223,8 +223,8 @@ QWidget* MainWindow::BuildPlayerPage() {
   rangeStartLabel_->setToolTip(tr("Click to enter an exact time"));
   rangeEndLabel_ = new QPushButton(rangeGroup_);
   rangeEndLabel_->setToolTip(tr("Click to enter an exact time"));
-  UpdateRangeStartLabel(rangeSlider_->LowValue());
-  UpdateRangeEndLabel(rangeSlider_->HighValue());
+  UpdateRangeStart(rangeSlider_->LowValue());
+  UpdateRangeEnd(rangeSlider_->HighValue());
   connect(
     rangeStartLabel_, &QPushButton::clicked,
     this, &MainWindow::editRangeStart);
@@ -241,10 +241,10 @@ QWidget* MainWindow::BuildPlayerPage() {
 
   connect(
       rangeSlider_, &RangeSlider::lowValueChanged, this,
-      [this](uint32_t ms) { UpdateRangeStartLabel(ms); });
+      [this](uint32_t ms) { UpdateRangeStart(ms); });
   connect(
       rangeSlider_, &RangeSlider::highValueChanged, this,
-      [this](uint32_t ms) { UpdateRangeEndLabel(ms); });
+      [this](uint32_t ms) { UpdateRangeEnd(ms); });
   // Note: RangeSlider::rangeEdited (emitted once a handle is released,
   // or once a text-input edit is committed via CommitEdit()) is
   // intentionally left unconnected here — hook it up to whatever
@@ -255,7 +255,7 @@ QWidget* MainWindow::BuildPlayerPage() {
       uint32_t final_ms,
       const std::string& mmss_done,
       const std::string& mmss_final) {
-    auto const s = std::format("Progress: {} / {}", mmss_done, mmss_final);
+    auto const s = std::format("{} / {}", mmss_done, mmss_final);
     progress_label->setText(QString::fromStdString(s));
     rangeSlider->SetCurrentPosition(done_ms);
   });
@@ -328,8 +328,8 @@ void MainWindow::openFile() {
       auto const midi_ms = gplay_.GetMidiTotalMilliSeconds();
       rangeSlider_->SetRange(0, midi_ms);
       rangeSlider_->SetValues(0, midi_ms);
-      UpdateRangeStartLabel(rangeSlider_->LowValue());
-      UpdateRangeEndLabel(rangeSlider_->HighValue());
+      UpdateRangeStart(rangeSlider_->LowValue());
+      UpdateRangeEnd(rangeSlider_->HighValue());
       rangeGroup_->setVisible(true);
     }
   }
@@ -348,14 +348,16 @@ void MainWindow::showFilePathDialog() {
   QMessageBox::information(this, tr("File Path"), path);
 }
 
-void MainWindow::UpdateRangeStartLabel(uint32_t ms) {
+void MainWindow::UpdateRangeStart(uint32_t ms) {
   rangeStartLabel_->setText(QString::fromStdString(
     std::format("Start: {}", milliseconds_to_string(ms))));
+  gplay_.SetBegin(ms);
 }
 
-void MainWindow::UpdateRangeEndLabel(uint32_t ms) {
+void MainWindow::UpdateRangeEnd(uint32_t ms) {
   rangeEndLabel_->setText(QString::fromStdString(
     std::format("End: {}", milliseconds_to_string(ms))));
+  gplay_.SetEnd(ms);
 }
 
 void MainWindow::editRangeStart() {
