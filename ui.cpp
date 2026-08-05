@@ -3,6 +3,7 @@
 
 #include <QApplication>
 #include <QDebug>
+#include <QIcon>
 #include <QMainWindow>
 
 #include "gplay.h"
@@ -18,8 +19,15 @@ class UI::Impl {
     window_.setWindowTitle("ModiMidi");
     if (is_android) {
       window_.showMaximized();
+      // Android's launcher icon comes from android/res/mipmap-*/
+      // (see AndroidManifest.xml's android:icon);n
     } else {
       window_.resize(400, 300);
+      // ":/icon.png" is icon.png (lily.d/, generated from icon.ly)
+      // embedded as a Qt resource by CMakeLists.txt.
+      const QIcon icon(":/icon.png");
+      app_.setWindowIcon(icon);
+      window_.setWindowIcon(icon);
     }
   }
 

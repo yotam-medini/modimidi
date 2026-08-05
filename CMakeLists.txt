@@ -121,6 +121,33 @@ if(BUILD_GUI OR ANDROID)
         mainwin.h
         rangeslider.h
     )
+
+    # Both gmodimidi and Android (ModiMidi) need the same icon.png.
+    set(ICON_PNG "${CMAKE_SOURCE_DIR}/lily.d/icon.png")
+    set(ANDROID_ICON_DIR
+        "${CMAKE_SOURCE_DIR}/android/res/mipmap-xxxhdpi")
+    set(ANDROID_ICON_PNG "${ANDROID_ICON_DIR}/icon.png")
+
+    add_custom_command(
+        OUTPUT ${ICON_PNG}
+        COMMAND make -C "${CMAKE_SOURCE_DIR}/lily.d" icon.png
+        DEPENDS
+            "${CMAKE_SOURCE_DIR}/lily.d/icon.ly"
+            "${CMAKE_SOURCE_DIR}/lily.d/Makefile"
+        COMMENT "lily.d: generating icon.png (lilypond + imagemagick)"
+    )
+
+    add_custom_command(
+        OUTPUT ${ANDROID_ICON_PNG}
+        COMMAND ${CMAKE_COMMAND} -E make_directory ${ANDROID_ICON_DIR}
+        COMMAND ${CMAKE_COMMAND} -E copy ${ICON_PNG} ${ANDROID_ICON_PNG}
+        DEPENDS ${ICON_PNG}
+        COMMENT "Exporting icon.png to android/res/mipmap-xxxhdpi/"
+    )
+
+    add_custom_target(app_icon ALL
+        DEPENDS ${ICON_PNG} ${ANDROID_ICON_PNG}
+    )
 endif()
 
 if(BUILD_GUI)
@@ -130,6 +157,17 @@ if(BUILD_GUI)
     )
     add_executable(gmodimidi ${GSOURCE_FILES})
     target_compile_features(gmodimidi PUBLIC cxx_std_20)
+
+    # Embed icon.png into the binary as ":/icon.png", so the desktop
+    set_source_files_properties("${ICON_PNG}" PROPERTIES
+        QT_RESOURCE_ALIAS "icon.png"
+    )
+    qt_add_resources(gmodimidi "app_icon_qrc"
+        PREFIX "/"
+        FILES "${ICON_PNG}"
+    )
+    add_dependencies(gmodimidi app_icon)
+
     target_link_libraries(gmodimidi
         ${Boost_LIBRARIES}
         Qt::Core
@@ -197,6 +235,11 @@ if(ANDROID)
         ${SF2NAME}
     )
     qt_add_executable(ModiMidi ${ASOURCE_FILES})
+
+    # Packaging (androiddeployqt, run by `ninja apk`) picks up files
+    # under android/res as-is, so the exported icon.png must exist
+    # before that runs.
+    add_dependencies(ModiMidi app_icon)
 
     set_source_files_properties("${GEN_SF2PATH}" PROPERTIES 
         QT_RESOURCE_ALIAS "${SF2NAME}"
