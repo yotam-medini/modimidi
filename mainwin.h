@@ -48,6 +48,8 @@ class MainWindow : public QMainWindow {
   QWidget *BuildInfoPage();
   QWidget *BuildAboutPage();
 
+  void BuildRangeControl(QWidget *page, QLabel *progress_label);
+
   GPlay &gplay_;
 
   QPushButton* fileButton_{nullptr};

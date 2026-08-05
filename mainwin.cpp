@@ -202,63 +202,7 @@ QWidget* MainWindow::BuildPlayerPage() {
   progressLayout->addWidget(progress_label);
   progressLayout->addStretch();
 
-  // Slider + labels are grouped in one widget so they can be shown
-  // or hidden together: there is nothing meaningful to select until
-  // a proper midi file is loaded, so the group starts hidden.
-  rangeGroup_ = new QWidget(page);
-  QVBoxLayout *rangeGroupLayout = new QVBoxLayout(rangeGroup_);
-  rangeGroupLayout->setContentsMargins(0, 0, 0, 0);
-
-  rangeSlider_ = new RangeSlider(rangeGroup_);
-  rangeSlider_->setEnabled(true);
-  constexpr uint32_t kPlaceholderMaxMs = 5 * 60 * 1000; // 5:00.000
-  rangeSlider_->SetRange(0, kPlaceholderMaxMs);
-  rangeSlider_->SetValues(0, kPlaceholderMaxMs);
-
-  QHBoxLayout *rangeLabelsLayout = new QHBoxLayout();
-  // Label-buttons (normal raised push-button look, to hint they're
-  // clickable): clicking either pops up a "MM:SS.mmm" text-input
-  // dialog to set that end of the range to an exact value.
-  rangeStartLabel_ = new QPushButton(rangeGroup_);
-  rangeStartLabel_->setToolTip(tr("Click to enter an exact time"));
-  rangeEndLabel_ = new QPushButton(rangeGroup_);
-  rangeEndLabel_->setToolTip(tr("Click to enter an exact time"));
-  UpdateRangeStart(rangeSlider_->LowValue());
-  UpdateRangeEnd(rangeSlider_->HighValue());
-  connect(
-    rangeStartLabel_, &QPushButton::clicked,
-    this, &MainWindow::editRangeStart);
-  connect(
-    rangeEndLabel_, &QPushButton::clicked,
-    this, &MainWindow::editRangeEnd);
-  rangeLabelsLayout->addWidget(rangeStartLabel_);
-  rangeLabelsLayout->addStretch();
-  rangeLabelsLayout->addWidget(rangeEndLabel_);
-
-  rangeGroupLayout->addWidget(rangeSlider_);
-  rangeGroupLayout->addLayout(rangeLabelsLayout);
-  rangeGroup_->setVisible(false); // hidden until a midi file loads
-
-  connect(
-      rangeSlider_, &RangeSlider::lowValueChanged, this,
-      [this](uint32_t ms) { UpdateRangeStart(ms); });
-  connect(
-      rangeSlider_, &RangeSlider::highValueChanged, this,
-      [this](uint32_t ms) { UpdateRangeEnd(ms); });
-  // Note: RangeSlider::rangeEdited (emitted once a handle is released,
-  // or once a text-input edit is committed via CommitEdit()) is
-  // intentionally left unconnected here — hook it up to whatever
-  // playback/sub-segment logic is appropriate.
-
-  gplay_.SetProgressCallback([progress_label, rangeSlider=rangeSlider_](
-      uint32_t done_ms,
-      uint32_t final_ms,
-      const std::string& mmss_done,
-      const std::string& mmss_final) {
-    auto const s = std::format("{} / {}", mmss_done, mmss_final);
-    progress_label->setText(QString::fromStdString(s));
-    rangeSlider->SetCurrentPosition(done_ms);
-  });
+  BuildRangeControl(page, progress_label);
   gplay_.SetStateCallback([this](State state) { OnStateChange(state); });
 
   // Add "Springs" to center the horizontal row vertically
@@ -527,4 +471,64 @@ void MainWindow::ConnectButtonsActions() {
       buttons_[i]->setAutoRaise(is_clickable);
     });
   }
+}
+
+void MainWindow::BuildRangeControl(QWidget *page, QLabel *progress_label) {
+  // Slider + labels are grouped in one widget so they can be shown
+  // or hidden together: there is nothing meaningful to select until
+  // a proper midi file is loaded, so the group starts hidden.
+  rangeGroup_ = new QWidget(); ////  page !!!!!!!!!!!!!!!!!!!!!!!!
+  QVBoxLayout *rangeGroupLayout = new QVBoxLayout(rangeGroup_);
+  rangeGroupLayout->setContentsMargins(0, 0, 0, 0);
+
+  rangeSlider_ = new RangeSlider(rangeGroup_);
+  rangeSlider_->setEnabled(true);
+  constexpr uint32_t kPlaceholderMaxMs = 5 * 60 * 1000; // 5:00.000
+  rangeSlider_->SetRange(0, kPlaceholderMaxMs);
+  rangeSlider_->SetValues(0, kPlaceholderMaxMs);
+
+  QHBoxLayout *rangeLabelsLayout = new QHBoxLayout();
+  // Label-buttons (normal raised push-button look, to hint they're
+  // clickable): clicking either pops up a "MM:SS.mmm" text-input
+  // dialog to set that end of the range to an exact value.
+  rangeStartLabel_ = new QPushButton(rangeGroup_);
+  rangeStartLabel_->setToolTip(tr("Click to enter an exact time"));
+  rangeEndLabel_ = new QPushButton(rangeGroup_);
+  rangeEndLabel_->setToolTip(tr("Click to enter an exact time"));
+  UpdateRangeStart(rangeSlider_->LowValue());
+  UpdateRangeEnd(rangeSlider_->HighValue());
+  connect(
+    rangeStartLabel_, &QPushButton::clicked,
+    this, &MainWindow::editRangeStart);
+  connect(
+    rangeEndLabel_, &QPushButton::clicked,
+    this, &MainWindow::editRangeEnd);
+  rangeLabelsLayout->addWidget(rangeStartLabel_);
+  rangeLabelsLayout->addStretch();
+  rangeLabelsLayout->addWidget(rangeEndLabel_);
+
+  rangeGroupLayout->addWidget(rangeSlider_);
+  rangeGroupLayout->addLayout(rangeLabelsLayout);
+  rangeGroup_->setVisible(false); // hidden until a midi file loads
+
+  connect(
+      rangeSlider_, &RangeSlider::lowValueChanged, this,
+      [this](uint32_t ms) { UpdateRangeStart(ms); });
+  connect(
+      rangeSlider_, &RangeSlider::highValueChanged, this,
+      [this](uint32_t ms) { UpdateRangeEnd(ms); });
+  // Note: RangeSlider::rangeEdited (emitted once a handle is released,
+  // or once a text-input edit is committed via CommitEdit()) is
+  // intentionally left unconnected here — hook it up to whatever
+  // playback/sub-segment logic is appropriate.
+
+  gplay_.SetProgressCallback([progress_label, rangeSlider=rangeSlider_](
+      uint32_t done_ms,
+      uint32_t final_ms,
+      const std::string& mmss_done,
+      const std::string& mmss_final) {
+    auto const s = std::format("{} / {}", mmss_done, mmss_final);
+    progress_label->setText(QString::fromStdString(s));
+    rangeSlider->SetCurrentPosition(done_ms);
+  });
 }
