@@ -1,6 +1,7 @@
 #include "speedtune.h"
 #include <format>
 #include <QLabel>
+#include <QPalette>
 #include <QSlider>
 #include <QHBoxLayout>
 #include <QVBoxLayout>
@@ -8,12 +9,18 @@
 
 namespace {
 
+void SetTransparentGroove(QSlider *slider) {
+  QPalette pal = slider->palette();
+  pal.setColor(QPalette::Highlight, Qt::transparent); // or your desired color
+  slider->setPalette(pal);
+}
+
 QSlider *CreateSpeedSlider(QWidget *page) {
   QSlider *slider = new QSlider(Qt::Horizontal);
   slider->setMinimum(-0x100);
   slider->setMaximum(+0x100);
   slider->setValue(0);
-  // slider->setTickPosition(QSlider::TicksAbove);
+  SetTransparentGroove(slider);
   return slider;
 }
 
@@ -24,6 +31,7 @@ QSlider *CreateTuneSlider(QWidget *page) {
   slider->setValue(0);
   slider->setTickInterval(1);
   slider->setTickPosition(QSlider::TicksAbove);
+  SetTransparentGroove(slider);
   return slider;
 }
 
