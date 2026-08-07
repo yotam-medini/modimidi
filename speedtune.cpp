@@ -1,11 +1,13 @@
 #include "speedtune.h"
 #include <cmath>
 #include <format>
+#include <QFrame>
 #include <QLabel>
 #include <QPalette>
 #include <QSlider>
 #include <QHBoxLayout>
 #include <QVBoxLayout>
+#include "buttonedit.h"
 #include "qutil.h"
 
 namespace {
@@ -54,8 +56,13 @@ QHBoxLayout* CreateSpeedTuneSection(QWidget *page) {
   QVBoxLayout *speed_layout = new QVBoxLayout();
   QVBoxLayout *tune_layout = new QVBoxLayout();
   QSlider *speed_slider = CreateSpeedSlider(page);
-  QLabel *speed_label = new QLabel("Speed: x 1.0", page);
+  // QLabel *speed_label = new QLabel("Speed: x 1.0", page);
+  auto *speed_label = new ButtonEditable("Speed: x 1.0", page);
+
+  // QHBoxLayout *speed_header = new QHBoxLayout();
   speed_layout->addWidget(speed_label);
+  
+
   speed_layout->addWidget(speed_slider);
   QLabel *tune_label = new QLabel("Half Tone Shift: 0", page);
   QSlider *tune_slider = CreateTuneSlider(page);
@@ -80,7 +87,13 @@ QHBoxLayout* CreateSpeedTuneSection(QWidget *page) {
 
   tune_layout->addWidget(tune_label);
   tune_layout->addWidget(tune_slider);
+
+  QFrame* vLine = new QFrame();
+  vLine->setFrameShape(QFrame::VLine);
+  vLine->setFrameShadow(QFrame::Sunken);
+  
   speed_tune_layout->addLayout(speed_layout);
+  speed_tune_layout->addWidget(vLine);
   speed_tune_layout->addLayout(tune_layout);
   return speed_tune_layout;
 }

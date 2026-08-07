@@ -105,6 +105,7 @@ if(BUILD_GUI OR ANDROID)
     # qt_policy(SET QTP0002 NEW) # commented out for local test build
     set(CMAKE_AUTOMOC ON)
     set(UI_SOURCE_FILES
+        buttonedit.cpp
         debug.cpp
         dyntiming.cpp
         gplay.cpp
@@ -116,6 +117,8 @@ if(BUILD_GUI OR ANDROID)
         rawterm.cpp # how to avoid ?
         speedtune.cpp
         synthseq.cpp
+        buttonedit.h
+        debug.h
         ui.cpp
         util.cpp
         dyntiming.h
