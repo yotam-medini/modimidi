@@ -3,6 +3,7 @@
 #include <format>
 #include <QFrame>
 #include <QLabel>
+#include <QObject>
 #include <QPalette>
 #include <QSlider>
 #include <QHBoxLayout>
@@ -56,9 +57,12 @@ QHBoxLayout* CreateSpeedTuneSection(QWidget *page) {
   QVBoxLayout *speed_layout = new QVBoxLayout();
   QVBoxLayout *tune_layout = new QVBoxLayout();
 
-  auto *speed_label = new ButtonEditable("Speed: x 1.0", page);
+  auto *speed_label = new ButtonEditable("Speed: ⨉ 1.0", page);
   auto *speed_reset = new QPushButton("Reset", page);
   QSlider *speed_slider = CreateSpeedSlider(page);
+  QObject::connect(speed_reset, &QPushButton::clicked, [speed_slider]() {
+    speed_slider->setValue(0);
+  });
 
   QHBoxLayout *speed_header = new QHBoxLayout();
   speed_header->addWidget(speed_label);
@@ -69,6 +73,9 @@ QHBoxLayout* CreateSpeedTuneSection(QWidget *page) {
   QLabel *tune_label = new QLabel("Half Tone Shift: 0", page);
   auto *tune_reset = new QPushButton("Reset", page);
   QSlider *tune_slider = CreateTuneSlider(page);
+  QObject::connect(tune_reset, &QPushButton::clicked, [tune_slider]() {
+    tune_slider->setValue(0);
+  });
 
   QHBoxLayout *tune_header = new QHBoxLayout();
   tune_header->addWidget(tune_label);
@@ -79,14 +86,14 @@ QHBoxLayout* CreateSpeedTuneSection(QWidget *page) {
   QObject::connect(speed_slider, &QSlider::valueChanged, [speed_label](int value) {
     const auto x_speed = SpeedScaleToValue(value);
     qDebug() << qFormat("Speed Current Value: {} -> {}", value, x_speed);
-    speed_label->setText(qFormat("Speed: x {:5.3}", x_speed));
+    speed_label->setText(qFormat("Speed: ⨉ {:5.3}", x_speed));
   });
 
   QObject::connect(speed_slider, &QSlider::sliderReleased, [speed_label, speed_slider]() {
     const auto value = speed_slider->value();
     const auto x_speed = SpeedScaleToValue(value);
     qDebug() << qFormat("released: speed val: {} -> {}", value, x_speed);
-    speed_label->setText(qFormat("Speed: x {:5.3f}", x_speed));
+    speed_label->setText(qFormat("Speed: ⨉ {:5.3f}", x_speed));
   });
 
   QObject::connect(tune_slider, &QSlider::valueChanged, [tune_label](int value) {
