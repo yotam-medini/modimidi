@@ -114,12 +114,14 @@ if(BUILD_GUI OR ANDROID)
         qutil.cpp
         rangeslider.cpp
         rawterm.cpp # how to avoid ?
+        speedtune.cpp
         synthseq.cpp
         ui.cpp
         util.cpp
         dyntiming.h
         mainwin.h
         rangeslider.h
+        speedtune.h
     )
 
     # Both gmodimidi and Android (ModiMidi) need the same icon.png.

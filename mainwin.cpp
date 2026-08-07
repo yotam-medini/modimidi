@@ -35,6 +35,7 @@
 #include "gplay.h"
 #include "qutil.h"
 #include "rangeslider.h"
+#include "speedtune.h"
 #include "util.h"
 
 namespace {
@@ -205,11 +206,14 @@ QWidget* MainWindow::BuildPlayerPage() {
   BuildRangeControl(page, progress_label);
   gplay_.SetStateCallback([this](State state) { OnStateChange(state); });
 
+  QHBoxLayout *speed_tune_layout = CreateSpeedTuneSection(page);
+
   // Add "Springs" to center the horizontal row vertically
   mainLayout->addStretch();    // Pushes everything down
   mainLayout->addLayout(buttonLayout);
   mainLayout->addLayout(progressLayout);
   mainLayout->addWidget(rangeGroup_);
+  mainLayout->addLayout(speed_tune_layout);
   mainLayout->addStretch();    // Pushes everything up
 
   ConnectButtonsActions();
