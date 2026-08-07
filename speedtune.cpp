@@ -55,17 +55,26 @@ QHBoxLayout* CreateSpeedTuneSection(QWidget *page) {
   QHBoxLayout *speed_tune_layout = new QHBoxLayout();
   QVBoxLayout *speed_layout = new QVBoxLayout();
   QVBoxLayout *tune_layout = new QVBoxLayout();
-  QSlider *speed_slider = CreateSpeedSlider(page);
-  // QLabel *speed_label = new QLabel("Speed: x 1.0", page);
+
   auto *speed_label = new ButtonEditable("Speed: x 1.0", page);
+  auto *speed_reset = new QPushButton("Reset", page);
+  QSlider *speed_slider = CreateSpeedSlider(page);
 
-  // QHBoxLayout *speed_header = new QHBoxLayout();
-  speed_layout->addWidget(speed_label);
-  
-
+  QHBoxLayout *speed_header = new QHBoxLayout();
+  speed_header->addWidget(speed_label);
+  speed_header->addWidget(speed_reset);
+  speed_layout->addLayout(speed_header);
   speed_layout->addWidget(speed_slider);
+
   QLabel *tune_label = new QLabel("Half Tone Shift: 0", page);
+  auto *tune_reset = new QPushButton("Reset", page);
   QSlider *tune_slider = CreateTuneSlider(page);
+
+  QHBoxLayout *tune_header = new QHBoxLayout();
+  tune_header->addWidget(tune_label);
+  tune_header->addWidget(tune_reset);
+  tune_layout->addLayout(tune_header);
+  tune_layout->addWidget(tune_slider);
 
   QObject::connect(speed_slider, &QSlider::valueChanged, [speed_label](int value) {
     const auto x_speed = SpeedScaleToValue(value);
@@ -84,9 +93,6 @@ QHBoxLayout* CreateSpeedTuneSection(QWidget *page) {
     tune_label->setText(qFormat("Half Tone Shift: {}", value));
     qDebug() << "Current Value:" << value; 
   });
-
-  tune_layout->addWidget(tune_label);
-  tune_layout->addWidget(tune_slider);
 
   QFrame* vLine = new QFrame();
   vLine->setFrameShape(QFrame::VLine);
