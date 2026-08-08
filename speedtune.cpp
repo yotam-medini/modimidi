@@ -1,6 +1,7 @@
 #include "speedtune.h"
 #include <cmath>
 #include <format>
+#include <QDoubleValidator>
 #include <QFrame>
 #include <QLabel>
 #include <QObject>
@@ -57,9 +58,17 @@ QHBoxLayout* CreateSpeedTuneSection(QWidget *page) {
   QVBoxLayout *speed_layout = new QVBoxLayout();
   QVBoxLayout *tune_layout = new QVBoxLayout();
 
-  auto *speed_label = new ButtonEditable("Speed: ⨉ 1.0", page);
-  auto *speed_reset = new QPushButton("Reset", page);
+  auto validator = new QDoubleValidator(1./4., 4.0, 3);
   QSlider *speed_slider = CreateSpeedSlider(page);
+  auto *speed_label = new ButtonEditable("Speed: ✕ 1.0", page,
+    "Set speed factor within [1/4, 4]",
+    []() -> std::string { return "1.23"; },
+    validator,
+    [](const std::string& s) -> std::string {
+      qDebug() << qFormat("{}:{} s={}", __FILE__, __LINE__, s);
+      return "";
+    });
+  auto *speed_reset = new QPushButton("Reset", page);
   QObject::connect(speed_reset, &QPushButton::clicked, [speed_slider]() {
     speed_slider->setValue(0);
   });
@@ -86,14 +95,14 @@ QHBoxLayout* CreateSpeedTuneSection(QWidget *page) {
   QObject::connect(speed_slider, &QSlider::valueChanged, [speed_label](int value) {
     const auto x_speed = SpeedScaleToValue(value);
     qDebug() << qFormat("Speed Current Value: {} -> {}", value, x_speed);
-    speed_label->setText(qFormat("Speed: ⨉ {:5.3}", x_speed));
+    speed_label->setText(qFormat("Speed: ✕ {:5.3}", x_speed));
   });
 
   QObject::connect(speed_slider, &QSlider::sliderReleased, [speed_label, speed_slider]() {
     const auto value = speed_slider->value();
     const auto x_speed = SpeedScaleToValue(value);
     qDebug() << qFormat("released: speed val: {} -> {}", value, x_speed);
-    speed_label->setText(qFormat("Speed: ⨉ {:5.3f}", x_speed));
+    speed_label->setText(qFormat("Speed: ✕ {:5.3f}", x_speed));
   });
 
   QObject::connect(tune_slider, &QSlider::valueChanged, [tune_label](int value) {
