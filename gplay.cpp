@@ -1,5 +1,6 @@
 #include "gplay.h"
 #include <cstdint>
+#include <limits>
 #include <format>
 #include <iostream>
 #include <thread>
@@ -156,6 +157,17 @@ class GPlay::Impl {
   void SetEnd(uint32_t ms) {
     play_params_.end_ms_ = ms;
   }
+  void SetTempoFactor(float x) {
+    if (x > std::numeric_limits<float>::epsilon()) {
+      play_params_.tempo_div_factor_ = 1./x;
+    }
+  };
+  float GetTempoFactor() const {
+    return 1./play_params_.tempo_div_factor_;
+  }
+  void SetKeyShift(int8_t ks) {
+    play_params_.key_shift_ = ks;
+  }
 
  private:
   void SetState(State state) {
@@ -226,4 +238,16 @@ void GPlay::SetBegin(uint32_t ms) {
 
 void GPlay::SetEnd(uint32_t ms) {
   impl_->SetEnd(ms);
+}
+
+void GPlay::SetTempoFactor(float x) {
+  impl_->SetTempoFactor(x);
+}
+
+float GPlay::GetTempoFactor() const {
+  return impl_->GetTempoFactor();
+}
+
+void GPlay::SetKeyShift(int8_t ks) {
+  impl_->SetKeyShift(ks);
 }

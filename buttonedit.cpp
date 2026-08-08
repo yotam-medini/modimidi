@@ -16,12 +16,14 @@ ButtonEditable::ButtonEditable(
     const std::string &initial_button_value,
     QWidget *parent,
     const std::string &dialog_title,
+    const std::string &dialog_prompt,
     get_str_t get_edit_value,
     QValidator *validator,
     parser_t parse) :
       QPushButton{QString::fromStdString(initial_button_value), parent},
       initial_button_value_{initial_button_value},
       dialog_title_{dialog_title},
+      dialog_prompt_{dialog_prompt},
       validator_{validator},
       get_edit_value_{get_edit_value},
       parse_{parse} {
@@ -34,13 +36,15 @@ void ButtonEditable::Edit() {
   QDialog dialog(this);
   dialog.setWindowTitle(QString::fromStdString(dialog_title_));
 
-  QVBoxLayout *layout = new QVBoxLayout(&dialog);
-  QLineEdit *edit = new QLineEdit(
+  auto layout = new QVBoxLayout(&dialog);
+  auto prompt = new QLabel{QString::fromStdString(dialog_prompt_), &dialog};
+  auto edit = new QLineEdit(
     QString::fromStdString(get_edit_value_()), &dialog);
   edit->setValidator(validator_);
+  layout->addWidget(prompt);
   layout->addWidget(edit);
 
-  QLabel *error_label = new QLabel(&dialog);
+  auto error_label = new QLabel(&dialog);
   error_label->setStyleSheet("color: red;");
   layout->addWidget(error_label);
 

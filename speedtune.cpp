@@ -61,6 +61,7 @@ QHBoxLayout* CreateSpeedTuneSection(QWidget *page) {
   auto validator = new QDoubleValidator(1./4., 4.0, 3);
   QSlider *speed_slider = CreateSpeedSlider(page);
   auto *speed_label = new ButtonEditable("Speed: ✕ 1.0", page,
+    "Speed factor",
     "Set speed factor within [1/4, 4]",
     []() -> std::string { return "1.23"; },
     validator,

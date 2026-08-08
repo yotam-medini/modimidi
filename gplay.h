@@ -24,6 +24,10 @@ class GPlay {
   State GetState() const;
   void SetBegin(uint32_t ms);
   void SetEnd(uint32_t ms);
+  void SetTempoFactor(float x);
+  float GetTempoFactor() const;
+  void SetKeyShift(int8_t ks);
+
  private:
   State state_{State::None};
   class Impl;
