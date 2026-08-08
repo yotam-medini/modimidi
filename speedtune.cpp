@@ -10,6 +10,7 @@
 #include <QHBoxLayout>
 #include <QVBoxLayout>
 #include "buttonedit.h"
+#include "gplay.h"
 #include "qutil.h"
 
 namespace {
@@ -53,7 +54,7 @@ QSlider *CreateTuneSlider(QWidget *page) {
 
 } // anonymous
 
-QHBoxLayout* CreateSpeedTuneSection(QWidget *page) {
+QHBoxLayout* CreateSpeedTuneSection(QWidget *page, GPlay &gplay) {
   QHBoxLayout *speed_tune_layout = new QHBoxLayout();
   QVBoxLayout *speed_layout = new QVBoxLayout();
   QVBoxLayout *tune_layout = new QVBoxLayout();
@@ -99,17 +100,21 @@ QHBoxLayout* CreateSpeedTuneSection(QWidget *page) {
     speed_label->setText(qFormat("Speed: ✕ {:5.3}", x_speed));
   });
 
-  QObject::connect(speed_slider, &QSlider::sliderReleased, [speed_label, speed_slider]() {
-    const auto value = speed_slider->value();
-    const auto x_speed = SpeedScaleToValue(value);
-    qDebug() << qFormat("released: speed val: {} -> {}", value, x_speed);
-    speed_label->setText(qFormat("Speed: ✕ {:5.3f}", x_speed));
-  });
+  QObject::connect(speed_slider, &QSlider::sliderReleased,
+    [speed_label, speed_slider, &gplay]() {
+      const auto value = speed_slider->value();
+      const auto x_speed = SpeedScaleToValue(value);
+      qDebug() << qFormat("released: speed val: {} -> {}", value, x_speed);
+      speed_label->setText(qFormat("Speed: ✕ {:5.3f}", x_speed));
+      gplay.SetTempoFactor(x_speed);
+    });
 
-  QObject::connect(tune_slider, &QSlider::valueChanged, [tune_label](int value) {
-    tune_label->setText(qFormat("Half Tone Shift: {}", value));
-    qDebug() << "Current Value:" << value; 
-  });
+  QObject::connect(tune_slider, &QSlider::valueChanged,
+    [tune_label, &gplay](int value) {
+      tune_label->setText(qFormat("Half Tone Shift: {}", value));
+      qDebug() << "Current Value:" << value;
+      gplay.SetKeyShift(value);
+    });
 
   QFrame* vLine = new QFrame();
   vLine->setFrameShape(QFrame::VLine);

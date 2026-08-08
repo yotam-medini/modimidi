@@ -2,5 +2,6 @@
 
 class QHBoxLayout;
 class QWidget;
+class GPlay;
 
-QHBoxLayout* CreateSpeedTuneSection(QWidget *page);
+QHBoxLayout* CreateSpeedTuneSection(QWidget *page, GPlay &gplay);
