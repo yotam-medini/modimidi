@@ -1,4 +1,5 @@
 #include "speedtune.h"
+#include <charconv>
 #include <cmath>
 #include <format>
 #include <QDoubleValidator>
@@ -64,15 +65,36 @@ QHBoxLayout* CreateSpeedTuneSection(QWidget *page, GPlay &gplay) {
   auto *speed_label = new ButtonEditable("Speed: ✕ 1.0", page,
     "Speed factor",
     "Set speed factor within [1/4, 4]",
-    []() -> std::string { return "1.23"; },
+    [&gplay]() -> std::string {
+      return std::format("{:.3f}", gplay.GetTempoFactor());
+    },
     validator,
-    [](const std::string& s) -> std::string {
+    [speed_slider, &gplay](
+        const std::string& s,
+        std::string &text_to_set) -> std::string {
       qDebug() << qFormat("{}:{} s={}", __FILE__, __LINE__, s);
-      return "";
+      float x_speed;
+      auto result = std::from_chars(s.data(), s.data() + s.size(), x_speed);
+      std::string err_msg;
+      if (result.ec == std::errc{}) {
+         qDebug() << qFormat("from_chars: x_speed={}", x_speed);
+         if (x_speed < 1./4. || 4. < x_speed) {
+           err_msg = std::format("{} not within [1/4, 4]", x_speed);
+         } else {
+           gplay.SetTempoFactor(x_speed);
+           const auto Log4_x_speed = std::log(x_speed) / std::log(4.);
+           speed_slider->setValue(SPEED_SCALE * Log4_x_speed);
+           text_to_set = std::format("Speed: ✕ {:5.3}", x_speed);
+         }
+      } else {
+         err_msg = std::make_error_code(result.ec).message();
+      }
+      return err_msg;
     });
   auto *speed_reset = new QPushButton("Reset", page);
-  QObject::connect(speed_reset, &QPushButton::clicked, [speed_slider]() {
+  QObject::connect(speed_reset, &QPushButton::clicked, [speed_slider, &gplay]() {
     speed_slider->setValue(0);
+    gplay.SetTempoFactor(1.0);
   });
 
   QHBoxLayout *speed_header = new QHBoxLayout();
@@ -84,8 +106,9 @@ QHBoxLayout* CreateSpeedTuneSection(QWidget *page, GPlay &gplay) {
   QLabel *tune_label = new QLabel("Half Tone Shift: 0", page);
   auto *tune_reset = new QPushButton("Reset", page);
   QSlider *tune_slider = CreateTuneSlider(page);
-  QObject::connect(tune_reset, &QPushButton::clicked, [tune_slider]() {
+  QObject::connect(tune_reset, &QPushButton::clicked, [tune_slider, &gplay]() {
     tune_slider->setValue(0);
+    gplay.SetKeyShift(0);
   });
 
   QHBoxLayout *tune_header = new QHBoxLayout();

@@ -8,14 +8,15 @@ class QWidget;
 
 class ButtonEditable : public QPushButton {
  public:
-  using parser_t = std::function<std::string(const std::string)>;
+  using parser_t =
+    std::function<std::string(const std::string&,std::string&)>;
   using get_str_t = std::function<std::string()>;
   ButtonEditable(
     const std::string &initial_button_value,
     QWidget *parent,
     const std::string &dialog_title,
     const std::string &dialog_prompt,
-    get_str_t get_edit_value,
+    get_str_t oget_edit_value,
     QValidator *validator,
     parser_t parse);
  private:

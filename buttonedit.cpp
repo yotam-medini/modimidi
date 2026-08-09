@@ -58,11 +58,23 @@ void ButtonEditable::Edit() {
   edit->selectAll();
 
   bool done = false;
+  int exec_rc = -1;
   std::string parse_error{"dummy-non-empty"};
-  while ((dialog.exec() == QDialog::Accepted) && !parse_error.empty()) {
+  qDebug() << std::format("Accepted={}", int(QDialog::Accepted));
+  while ((!parse_error.empty()) 
+      && ((exec_rc = dialog.exec()) == QDialog::Accepted)) {
+    qDebug() << std::format("{}:{} exec_rc={}, parse_error={}",
+      __FILE__, __LINE__, exec_rc, parse_error);
     const auto qs = edit->text();
     const auto s = qs.toStdString();
-    parse_error = parse_(s);
+    std::string text_to_set;
+    parse_error = parse_(s, text_to_set);
+    qDebug() << std::format("{}:{} exec_rc={}, parse_error={}",
+      __FILE__, __LINE__, exec_rc, parse_error);
     error_label->setText(QString::fromStdString(parse_error));
+    if (parse_error.empty()) {
+      setText(QString::fromStdString(text_to_set));
+    }
   }
+  qDebug() << std::format("{}:{} exec_rc={}", __FILE__, __LINE__, exec_rc);
 }
