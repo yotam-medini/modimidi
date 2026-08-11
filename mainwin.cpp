@@ -31,6 +31,7 @@
 #include <QValidator>
 #include <QVBoxLayout>
 
+#include "buttonedit.h"
 #include "debug.h"
 #include "gplay.h"
 #include "qutil.h"
@@ -40,17 +41,8 @@
 
 namespace {
 
-// Formats ms as "MM:SS.mmm" (2-digit minutes/seconds, 3-digit
-// millis), for pre-filling the range-edit text-input dialog. This
-// happens to be one valid input for ParseMmSsMmm() below (a fully
-// zero-padded one); see ParseMmSsMmm() for the accepted input forms.
 QString FormatMmSsDotMmm(uint32_t ms) {
-  const uint32_t total_seconds = ms / 1000;
-  const uint32_t millis = ms % 1000;
-  const uint32_t minutes = total_seconds / 60;
-  const uint32_t seconds = total_seconds % 60;
-  return QString::fromStdString(std::format(
-    "{:02d}:{:02d}.{:03d}", minutes, seconds, millis));
+  return QString::fromStdString(milliseconds_to_string(ms));
 }
 
 // Parses a flexible "MM:SS.mmm" time entry:
@@ -62,10 +54,9 @@ QString FormatMmSsDotMmm(uint32_t ms) {
 //    Dropping it (no "." at all, e.g. "3:07") means 0 ms.
 // Returns false, leaving *ms_out untouched, on any syntax or range
 // violation.
-bool ParseMmSsMmm(const QString &text, uint32_t *ms_out) {
+bool ParseMmSsMmm(const std::string &s, uint32_t *ms_out) {
   static const std::regex kPattern(
     R"(^\s*(\d+):(\d{1,2})(?:\.(\d{1,3}))?\s*$)");
-  const std::string s = text.toStdString();
   std::smatch match;
   if (!std::regex_match(s, match, kPattern)) {
     return false;
@@ -94,6 +85,10 @@ bool ParseMmSsMmm(const QString &text, uint32_t *ms_out) {
   return true;
 }
 
+bool ParseMmSsMmm(const QString &text, uint32_t *ms_out) {
+  return ParseMmSsMmm(text.toStdString(), ms_out);
+}
+
 // Loose live-typing filter for the time-input QLineEdit: accepts
 // only digits, ':' and '.' while the user types. The actual
 // MM:SS.mmm syntax + range check happens on OK, via ParseMmSsMmm()
@@ -102,6 +97,9 @@ bool ParseMmSsMmm(const QString &text, uint32_t *ms_out) {
 class TimeCharsValidator : public QValidator {
  public:
   explicit TimeCharsValidator(QObject *parent) : QValidator(parent) {}
+  ~TimeCharsValidator() {
+    std::cout << std::format("{}:{} {}\n", __FILE__, __LINE__, __func__);
+  }
 
   State validate(QString &input, int &) const override {
     static const std::regex kAllowed(R"(^[0-9:.]*$)");
@@ -297,9 +295,11 @@ void MainWindow::showFilePathDialog() {
 }
 
 void MainWindow::UpdateRangeStart(uint32_t ms) {
+#if 1
   rangeStartLabel_->setText(QString::fromStdString(
     std::format("Start: {}", milliseconds_to_string(ms))));
   gplay_.SetBegin(ms);
+#endif
 }
 
 void MainWindow::UpdateRangeEnd(uint32_t ms) {
@@ -495,15 +495,48 @@ void MainWindow::BuildRangeControl(QWidget *page, QLabel *progress_label) {
   // Label-buttons (normal raised push-button look, to hint they're
   // clickable): clicking either pops up a "MM:SS.mmm" text-input
   // dialog to set that end of the range to an exact value.
-  rangeStartLabel_ = new QPushButton(rangeGroup_);
-  rangeStartLabel_->setToolTip(tr("Click to enter an exact time"));
+  // rangeStartLabel_ = new QPushButton(rangeGroup_);
+  auto t_validator = new TimeCharsValidator(this);
+  rangeStartLabel_ = new ButtonEditable{
+    std::format("Start: {}", milliseconds_to_string(gplay_.GetBegin())),
+    rangeGroup_,
+    "Set Start",
+    "Set Start time MMM:SS.mmm",
+    [this]() -> std::string {
+      return milliseconds_to_string(gplay_.GetBegin());
+    },
+    t_validator,
+    [this](const std::string& s, std::string &text_to_set) -> std::string {
+      std::string err_msg;
+      uint32_t ms;
+      if (ParseMmSsMmm(s, &ms)) {
+         auto const t_end = gplay_.GetEnd();
+        if (ms >= t_end) {
+          err_msg = std::format("{} must be before {}",
+            s, milliseconds_to_string(t_end));
+        } else {
+          rangeSlider_->SetLowValue(ms);
+          gplay_.SetBegin(ms);
+          text_to_set =
+            std::format("Start: {}", milliseconds_to_string(gplay_.GetBegin()));
+        }
+      } else {
+        err_msg = "Invalid format. Use MM:SS.mmm (fraction optional), "
+          "0<=SS<60.";
+      }
+      return err_msg;
+    }
+  };
+  // rangeStartLabel_->setToolTip(tr("Click to enter an exact time"));
   rangeEndLabel_ = new QPushButton(rangeGroup_);
   rangeEndLabel_->setToolTip(tr("Click to enter an exact time"));
   UpdateRangeStart(rangeSlider_->LowValue());
   UpdateRangeEnd(rangeSlider_->HighValue());
+#if 0
   connect(
     rangeStartLabel_, &QPushButton::clicked,
     this, &MainWindow::editRangeStart);
+#endif
   connect(
     rangeEndLabel_, &QPushButton::clicked,
     this, &MainWindow::editRangeEnd);

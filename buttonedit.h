@@ -16,7 +16,7 @@ class ButtonEditable : public QPushButton {
     QWidget *parent,
     const std::string &dialog_title,
     const std::string &dialog_prompt,
-    get_str_t oget_edit_value,
+    get_str_t get_edit_value,
     QValidator *validator,
     parser_t parse);
  private:

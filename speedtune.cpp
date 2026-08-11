@@ -70,8 +70,7 @@ QHBoxLayout* CreateSpeedTuneSection(QWidget *page, GPlay &gplay) {
     },
     validator,
     [speed_slider, &gplay](
-        const std::string& s,
-        std::string &text_to_set) -> std::string {
+        const std::string& s, std::string &text_to_set) -> std::string {
       qDebug() << qFormat("{}:{} s={}", __FILE__, __LINE__, s);
       float x_speed;
       auto result = std::from_chars(s.data(), s.data() + s.size(), x_speed);

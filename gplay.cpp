@@ -154,9 +154,18 @@ class GPlay::Impl {
     play_params_.begin_ms_ = ms;
   }
 
+  uint32_t GetBegin() const {
+    return play_params_.begin_ms_;
+  }
+
   void SetEnd(uint32_t ms) {
     play_params_.end_ms_ = ms;
   }
+
+  uint32_t GetEnd() const {
+    return play_params_.end_ms_;
+  }
+
   void SetTempoFactor(float x) {
     if (x > std::numeric_limits<float>::epsilon()) {
       play_params_.tempo_div_factor_ = 1./x;
@@ -236,8 +245,16 @@ void GPlay::SetBegin(uint32_t ms) {
   impl_->SetBegin(ms);
 }
 
+uint32_t GPlay::GetBegin() const {
+  return impl_->GetBegin();
+}
+
 void GPlay::SetEnd(uint32_t ms) {
   impl_->SetEnd(ms);
+}
+
+uint32_t GPlay::GetEnd() const {
+  return impl_->GetEnd();
 }
 
 void GPlay::SetTempoFactor(float x) {

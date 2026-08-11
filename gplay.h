@@ -23,7 +23,9 @@ class GPlay {
   void SkipBackward();
   State GetState() const;
   void SetBegin(uint32_t ms);
+  uint32_t GetBegin() const;
   void SetEnd(uint32_t ms);
+  uint32_t GetEnd() const;
   void SetTempoFactor(float x);
   float GetTempoFactor() const;
   void SetKeyShift(int8_t ks);
