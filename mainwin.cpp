@@ -41,8 +41,15 @@
 
 namespace {
 
+const char* StartEnd[2] = {"Start", "End"};
+
+std::string FormatStartEnd(int i, uint32_t ms) {
+  return std::format("{}: {}", StartEnd[i], milliseconds_to_string(ms));
+}
+
 QString FormatMmSsDotMmm(uint32_t ms) {
   return QString::fromStdString(milliseconds_to_string(ms));
+
 }
 
 // Parses a flexible "MM:SS.mmm" time entry:
@@ -274,8 +281,9 @@ void MainWindow::openFile() {
       auto const midi_ms = gplay_.GetMidiTotalMilliSeconds();
       rangeSlider_->SetRange(0, midi_ms);
       rangeSlider_->SetValues(0, midi_ms);
-      UpdateRangeStart(rangeSlider_->LowValue());
-      UpdateRangeEnd(rangeSlider_->HighValue());
+      for (int i: {0,1}) {
+        UpdateRange(i, rangeSlider_->LowHighValue(i));
+      }
       rangeGroup_->setVisible(true);
     }
   }
@@ -294,12 +302,16 @@ void MainWindow::showFilePathDialog() {
   QMessageBox::information(this, tr("File Path"), path);
 }
 
+void MainWindow::UpdateRange(int i, uint32_t ms) {
+  rangeStartEndLabel_[i]->setText(QString::fromStdString(FormatStartEnd(i, ms)));
+  gplay_.SetBeginEnd(i, ms);
+}
+
+#if 0
 void MainWindow::UpdateRangeStart(uint32_t ms) {
-#if 1
   rangeStartLabel_->setText(QString::fromStdString(
     std::format("Start: {}", milliseconds_to_string(ms))));
   gplay_.SetBegin(ms);
-#endif
 }
 
 void MainWindow::UpdateRangeEnd(uint32_t ms) {
@@ -307,6 +319,7 @@ void MainWindow::UpdateRangeEnd(uint32_t ms) {
     std::format("End: {}", milliseconds_to_string(ms))));
   gplay_.SetEnd(ms);
 }
+#endif
 
 void MainWindow::editRangeStart() {
   EditRangeValue(/*is_start=*/true);
@@ -497,52 +510,55 @@ void MainWindow::BuildRangeControl(QWidget *page, QLabel *progress_label) {
   // dialog to set that end of the range to an exact value.
   // rangeStartLabel_ = new QPushButton(rangeGroup_);
   auto t_validator = new TimeCharsValidator(this);
-  rangeStartLabel_ = new ButtonEditable{
-    std::format("Start: {}", milliseconds_to_string(gplay_.GetBegin())),
-    rangeGroup_,
-    "Set Start",
-    "Set Start time MMM:SS.mmm",
-    [this]() -> std::string {
-      return milliseconds_to_string(gplay_.GetBegin());
-    },
-    t_validator,
-    [this](const std::string& s, std::string &text_to_set) -> std::string {
+  for (int i: {0, 1}) {
+    const char *cs_StartEnd = StartEnd[i];
+    auto parse = [this, i](const std::string& s, std::string &text_to_set)
+        -> std::string {
       std::string err_msg;
       uint32_t ms;
       if (ParseMmSsMmm(s, &ms)) {
-         auto const t_end = gplay_.GetEnd();
-        if (ms >= t_end) {
-          err_msg = std::format("{} must be before {}",
-            s, milliseconds_to_string(t_end));
+        auto const t_other = gplay_.GetBeginEnd(1 - i);
+        if (i == 0 ? ms >= t_other : ms <= t_other) {
+          static constexpr std::array<const char*, 2> ba_opts 
+            = {"before", "after"};
+          err_msg = std::format("{} must be {} {}",
+            s, ba_opts[i], milliseconds_to_string(t_other));
         } else {
-          rangeSlider_->SetLowValue(ms);
-          gplay_.SetBegin(ms);
-          text_to_set =
-            std::format("Start: {}", milliseconds_to_string(gplay_.GetBegin()));
+          rangeSlider_->SetLowHighValue(i, ms);
+          gplay_.SetBeginEnd(i, ms);
+          text_to_set = FormatStartEnd(i, ms);
         }
       } else {
         err_msg = "Invalid format. Use MM:SS.mmm (fraction optional), "
           "0<=SS<60.";
       }
       return err_msg;
-    }
+    };
+    rangeStartEndLabel_[i] = new ButtonEditable{
+      std::format("{}: {}",
+        cs_StartEnd, milliseconds_to_string(gplay_.GetBegin())),
+      rangeGroup_,
+      std::format("Set {}", cs_StartEnd),
+      std::format("Set {} time MMM:SS.mmm", cs_StartEnd),
+      [this, i]() -> std::string {
+        return milliseconds_to_string(gplay_.GetBeginEnd(i));
+      },
+      t_validator,
+      parse
+    };
+    UpdateRange(i, rangeSlider_->LowHighValue(i));
   };
-  // rangeStartLabel_->setToolTip(tr("Click to enter an exact time"));
-  rangeEndLabel_ = new QPushButton(rangeGroup_);
-  rangeEndLabel_->setToolTip(tr("Click to enter an exact time"));
-  UpdateRangeStart(rangeSlider_->LowValue());
-  UpdateRangeEnd(rangeSlider_->HighValue());
 #if 0
   connect(
     rangeStartLabel_, &QPushButton::clicked,
     this, &MainWindow::editRangeStart);
-#endif
   connect(
     rangeEndLabel_, &QPushButton::clicked,
     this, &MainWindow::editRangeEnd);
-  rangeLabelsLayout->addWidget(rangeStartLabel_);
+#endif
+  rangeLabelsLayout->addWidget(rangeStartEndLabel_[0]);
   rangeLabelsLayout->addStretch();
-  rangeLabelsLayout->addWidget(rangeEndLabel_);
+  rangeLabelsLayout->addWidget(rangeStartEndLabel_[1]);
 
   rangeGroupLayout->addWidget(rangeSlider_);
   rangeGroupLayout->addLayout(rangeLabelsLayout);
@@ -550,10 +566,10 @@ void MainWindow::BuildRangeControl(QWidget *page, QLabel *progress_label) {
 
   connect(
       rangeSlider_, &RangeSlider::lowValueChanged, this,
-      [this](uint32_t ms) { UpdateRangeStart(ms); });
+      [this](uint32_t ms) { UpdateRange(0, ms); });
   connect(
       rangeSlider_, &RangeSlider::highValueChanged, this,
-      [this](uint32_t ms) { UpdateRangeEnd(ms); });
+      [this](uint32_t ms) { UpdateRange(1, ms); });
   // Note: RangeSlider::rangeEdited (emitted once a handle is released,
   // or once a text-input edit is committed via CommitEdit()) is
   // intentionally left unconnected here — hook it up to whatever

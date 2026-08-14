@@ -241,6 +241,14 @@ void GPlay::SetStateCallback(OnStateChange_t on_state_change) {
   impl_->SetStateCallback(on_state_change);
 }
 
+void GPlay::SetBeginEnd(int i, uint32_t ms) {
+  if (i == 0) {
+    impl_->SetBegin(ms);
+  } else {
+    impl_->SetEnd(ms);
+  }
+}
+
 void GPlay::SetBegin(uint32_t ms) {
   impl_->SetBegin(ms);
 }

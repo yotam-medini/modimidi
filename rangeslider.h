@@ -25,6 +25,7 @@ class RangeSlider : public QWidget {
   // handle, same as dragging does) and emit lowValueChanged /
   // highValueChanged, so external editors (e.g. a text-input dialog)
   // stay in sync with the slider the same way a drag would.
+  void SetLowHighValue(int i, uint32_t value);
   void SetLowValue(uint32_t value);
   void SetHighValue(uint32_t value);
 
@@ -39,6 +40,7 @@ class RangeSlider : public QWidget {
 
   uint32_t Minimum() const { return minimum_; }
   uint32_t Maximum() const { return maximum_; }
+  uint32_t LowHighValue(int i) const { return i == 0 ? low_ : high_; }
   uint32_t LowValue() const { return low_; }
   uint32_t HighValue() const { return high_; }
 

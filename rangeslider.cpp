@@ -1,6 +1,7 @@
 #include "rangeslider.h"
 
 #include <algorithm>
+#include <array>
 #include <cstdlib>
 
 #include <QFontMetrics>
@@ -32,6 +33,15 @@ void RangeSlider::SetValues(uint32_t low, uint32_t high) {
   low_ = std::clamp(low, minimum_, maximum_);
   high_ = std::clamp(high, minimum_, maximum_);
   update();
+}
+
+void RangeSlider::SetLowHighValue(int i, uint32_t value) {
+  // assuming 0 <= i < 2
+  static constexpr auto setlh = std::array{
+    &RangeSlider::SetLowValue,
+    &RangeSlider::SetHighValue
+  };
+  (this->*setlh[i])(value);
 }
 
 void RangeSlider::SetLowValue(uint32_t value) {

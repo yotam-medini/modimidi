@@ -22,6 +22,10 @@ class GPlay {
   void SkipForward();
   void SkipBackward();
   State GetState() const;
+  void SetBeginEnd(int i, uint32_t ms);
+  uint32_t GetBeginEnd(int i) const {
+    return i == 0 ? GetBegin() : GetEnd();
+  }
   void SetBegin(uint32_t ms);
   uint32_t GetBegin() const;
   void SetEnd(uint32_t ms);

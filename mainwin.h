@@ -12,6 +12,8 @@ class QPushButton;
 class QToolButton;
 class RangeSlider;
 
+class ButtonEditable;
+
 class MainWindow : public QMainWindow {
   Q_OBJECT
 
@@ -40,9 +42,11 @@ class MainWindow : public QMainWindow {
   // to the RangeSlider on success.
   void EditRangeValue(bool is_start);
 
+  void UpdateRange(int i, uint32_t ms);
+#if 0
   void UpdateRangeStart(uint32_t ms);
   void UpdateRangeEnd(uint32_t ms);
-
+#endif
   QWidget *BuildPlayerPage();
   QWidget *BuildModifyPage();
   QWidget *BuildInfoPage();
@@ -66,8 +70,9 @@ class MainWindow : public QMainWindow {
   RangeSlider* rangeSlider_{nullptr};
   // "Start: MM:SS.mmm" / "End: MM:SS.mmm"; clicking either pops up a
   // MM:SS:mmm text-input dialog to set that value exactly.
-  QPushButton* rangeStartLabel_{nullptr};
-  QPushButton* rangeEndLabel_{nullptr};
+  ButtonEditable *rangeStartEndLabel_[2];
+  // QPushButton* rangeStartLabel_{nullptr};
+  // QPushButton* rangeEndLabel_{nullptr};
 
   std::array<QAction*, Op::N_ButtonOps> actions_;
   std::array<QToolButton*, Op::N_ButtonOps> buttons_;
