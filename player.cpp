@@ -734,21 +734,12 @@ void Player::Impl::InteractiveCallback(
 }
 
 void Player::Impl::ProgressHandle(unsigned int time) {
-static int s_call = 0;
-int call = ++s_call;
   uint32_t time_shift = time; //  - now0_;
-if (call < 10) { std::cerr << 
- std::format("call={}, time_shift={} time={}, now0_={}, date_add_ms_={}\n",
- call, time_shift, time, now0_, date_add_ms_); }
   if ((next_send_index_ > 0) && time >= date_add_ms_) {
     uint32_t dt = time_shift - date_add_ms_;
     float dt_div_f = dt / pp_.tempo_div_factor_; // save div in PlayParams ?
     uint32_t dt_div = static_cast<uint32_t>(dt_div_f);
     uint32_t btime = dt_div + begin_ms_;
-if (call < 10) {
- std::cerr << std::format(
- "call={} dt={}, dt_div_f={}, dt_div={}, btime={}, begin_ms_={}, total_ms_={}\n",
-   call, dt, dt_div_f, dt_div, btime, begin_ms_, total_ms_); }
     if ((begin_ms_ <= btime) && (btime <= total_ms_)) {
       uint32_t done_ms = btime;
       auto mmss_done = milliseconds_to_string(done_ms);

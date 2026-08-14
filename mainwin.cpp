@@ -307,20 +307,6 @@ void MainWindow::UpdateRange(int i, uint32_t ms) {
   gplay_.SetBeginEnd(i, ms);
 }
 
-#if 0
-void MainWindow::UpdateRangeStart(uint32_t ms) {
-  rangeStartLabel_->setText(QString::fromStdString(
-    std::format("Start: {}", milliseconds_to_string(ms))));
-  gplay_.SetBegin(ms);
-}
-
-void MainWindow::UpdateRangeEnd(uint32_t ms) {
-  rangeEndLabel_->setText(QString::fromStdString(
-    std::format("End: {}", milliseconds_to_string(ms))));
-  gplay_.SetEnd(ms);
-}
-#endif
-
 void MainWindow::editRangeStart() {
   EditRangeValue(/*is_start=*/true);
 }
@@ -548,14 +534,6 @@ void MainWindow::BuildRangeControl(QWidget *page, QLabel *progress_label) {
     };
     UpdateRange(i, rangeSlider_->LowHighValue(i));
   };
-#if 0
-  connect(
-    rangeStartLabel_, &QPushButton::clicked,
-    this, &MainWindow::editRangeStart);
-  connect(
-    rangeEndLabel_, &QPushButton::clicked,
-    this, &MainWindow::editRangeEnd);
-#endif
   rangeLabelsLayout->addWidget(rangeStartEndLabel_[0]);
   rangeLabelsLayout->addStretch();
   rangeLabelsLayout->addWidget(rangeStartEndLabel_[1]);
