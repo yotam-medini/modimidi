@@ -1,4 +1,5 @@
 #include "util.h"
+#include <array>
 #include <format>
 
 std::string milliseconds_to_string(uint32_t ms) {
@@ -10,3 +11,13 @@ std::string milliseconds_to_string(uint32_t ms) {
   return s;
 }
 
+std::string MidiNoteToString(uint8_t n) {
+  static constexpr std::array<const char*, 12> dozen_notes =
+    {"C", "C♯", "D", "D♯", "E", "F", "F♯", "G", "G♯", "A", "A♯", "B"};
+  std::string s;
+  if (n >= 12) {
+    n -= 12;
+    s = std::format("{}{}", dozen_notes[n % 12], n / 12);
+  }
+  return s;
+}

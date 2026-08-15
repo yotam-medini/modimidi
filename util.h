@@ -5,3 +5,4 @@
 #include <string>
 
 extern std::string milliseconds_to_string(uint32_t ms);
+extern std::string MidiNoteToString(uint8_t n);

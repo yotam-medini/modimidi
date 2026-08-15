@@ -6,6 +6,7 @@
 #include <fstream>
 #include <set>
 #include <utility>
+#include "util.h"
 
 namespace fs = std::filesystem;
 
@@ -196,9 +197,13 @@ std::string Track::info(const std::string& indent) const {
     std::array<uint8_t, 2> vel_range = GetVelocityRange();
     s = std::format("{}{}Channels:", s, indent);
     for (uint8_t c: channels) { s = std::format("{} {}", s, int(c)); }
-    s = std::format("{}\n{}{} notes, keys: [{}, {}], velocity: [{}, {}]",
+    const auto note_low = MidiNoteToString(key_range[0]);
+    const auto note_high = MidiNoteToString(key_range[1]);
+    s = std::format(
+      "{}\n{}{} notes, keys: [{}, {}]=[{}, {}], velocity: [{}, {}]",
       s, indent, n_notes,
-      key_range[0], key_range[1], vel_range[0], vel_range[1]);
+      key_range[0], key_range[1], note_low, note_high,
+      vel_range[0], vel_range[1]);
   }
   if (control_change_count > 0) {
     s = std::format("{}\n{}{} ControlChange events",
