@@ -150,8 +150,7 @@ class _OptionsImpl {
   _OptionsImpl(int argc, char **argv) :
     desc_{std::format(
       "modimidi {} - Play midi file with optional modifications",
-      version).c_str()}
-    {
+      version).c_str()} {
     AddOptions();
     // last argument - the midi file
     pos_desc_.add("midifile", 1);
@@ -160,7 +159,9 @@ class _OptionsImpl {
         .positional(pos_desc_)
         .run(),
       vm_);
-    po::notify(vm_);
+    if (!Help()) {
+      po::notify(vm_);
+    }
   }
   bool Help() const { return vm_.count("help"); }
   bool Version() const { return vm_["version"].as<bool>(); }
@@ -272,8 +273,9 @@ void _OptionsImpl::AddOptions() {
     ("help,h", "produce help message")
     ("version", po::bool_switch()->default_value(false),
        "print version and exit")
-    ("midifile", po::value<std::string>(),
-       "Positional argument. Path of the midi file to be played")
+    ("midifile,f", po::value<std::string>(),
+       "Path of the MIDI file to be played "
+       "(positional: last argument, or --midifile <path>)")
     ("begin,b", 
       po::value<OptionMilliSec>()->default_value(OptionMilliSec{true, 0}),
       "start time [minutes]:seconds[.millisecs]")
