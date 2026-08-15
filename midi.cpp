@@ -153,12 +153,22 @@ std::array<uint8_t, 2> Track::GetVelocityRange() const {
 std::string Track::info(const std::string& indent) const {
   std::string s;
   size_t n_notes = 0;
+  uint32_t control_change_count = 0;
+  uint32_t program_change_count = 0;
+  uint32_t port_count = 0;
+  uint32_t tempo_count = 0;
   for (const auto &e: events_) {
     const MetaEvent *meta_event = dynamic_cast<const MetaEvent*>(e.get());
     const MidiEvent *midi_event = dynamic_cast<const MidiEvent*>(e.get());
     if (meta_event) {
-      if ((!dynamic_cast<const LyricEvent*>(meta_event)) &&
-          (!dynamic_cast<const EndOfTrackEvent*>(meta_event))) {
+      if ((dynamic_cast<const LyricEvent*>(meta_event)) ||
+          (dynamic_cast<const EndOfTrackEvent*>(meta_event))) {
+        ;
+      } else if (dynamic_cast<const PortEvent*>(meta_event)) {
+        ++port_count;
+      } else if (dynamic_cast<const TempoEvent*>(meta_event)) {
+        ++tempo_count;
+      } else  {
         s = std::format("{}{}{}\n", s, indent, meta_event->str());
       }
     } else if (midi_event) {
@@ -167,23 +177,46 @@ std::string Track::info(const std::string& indent) const {
         if (note_on->velocity_ > 0) {
           ++n_notes;
         }
-      } else if (!dynamic_cast<const NoteOffEvent*>(midi_event)) {
+      } else if (dynamic_cast<const NoteOffEvent*>(midi_event)) {
+        ;
+      } else if (dynamic_cast<const ControlChangeEvent*>(midi_event)) {
+        ++control_change_count;
+      } else if (dynamic_cast<const ProgramChangeEvent*>(midi_event)) {
+        ++program_change_count;
+      } else {
         s = std::format("{}{}{}\n", s, indent, midi_event->str());
       }
     }
   }
   if (n_notes == 0) {
-    s = std::format("{}{}No notes\n", s, indent);
+    s = std::format("{}{}No notes", s, indent);
   } else {
     std::vector<uint8_t> channels = GetChannels();
     std::array<uint8_t, 2> key_range = GetKeyRange();
     std::array<uint8_t, 2> vel_range = GetVelocityRange();
     s = std::format("{}{}Channels:", s, indent);
     for (uint8_t c: channels) { s = std::format("{} {}", s, int(c)); }
-    s = std::format("{}\n{}{} notes, keys: [{}, {}], velocity: [{}, {}]\n",
+    s = std::format("{}\n{}{} notes, keys: [{}, {}], velocity: [{}, {}]",
       s, indent, n_notes,
       key_range[0], key_range[1], vel_range[0], vel_range[1]);
   }
+  if (control_change_count > 0) {
+    s = std::format("{}\n{}{} ControlChange events",
+      s, indent, control_change_count);
+  }
+  if (program_change_count > 0) {
+    s = std::format("{}\n{}{} ProgramChange events",
+      s, indent, program_change_count);
+  }
+  if (port_count > 0) {
+    s = std::format("{}\n{}{} Port events",
+      s, indent, port_count);
+  }
+  if (tempo_count > 0) {
+    s = std::format("{}\n{}{} Tempo events",
+      s, indent, tempo_count);
+  }
+  s += '\n';
   return s;
 }
 
