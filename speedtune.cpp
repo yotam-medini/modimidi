@@ -20,8 +20,8 @@ constexpr int SPEED_SCALE = 0x100;
 
 double SpeedScaleToValue(int scaled_value) {
   constexpr double div_SPEED_SCALE = 1.0 / static_cast<double>(SPEED_SCALE);
+  static const double log2 = std::log(2.0);
   const double p = static_cast<double>(scaled_value) * (2.0 * div_SPEED_SCALE);
-  constexpr auto log2 = std::log(2.0);
   // 2^p = (e^(log 2))^p = e^((log 2) p);
   const auto v = std::exp(log2 * p);
   return v;
@@ -72,10 +72,12 @@ QHBoxLayout* CreateSpeedTuneSection(QWidget *page, GPlay &gplay) {
     [speed_slider, &gplay](
         const std::string& s, std::string &text_to_set) -> std::string {
       qDebug() << qFormat("{}:{} s={}", __FILE__, __LINE__, s);
-      float x_speed;
-      auto result = std::from_chars(s.data(), s.data() + s.size(), x_speed);
+      // std::from_chars<float> not supported in Android NDK.
+      const auto cs = s.c_str();
+      char *eo_strtof = nullptr;
+      float x_speed = std::strtof(cs, &eo_strtof);
       std::string err_msg;
-      if (result.ec == std::errc{}) {
+      if (eo_strtof == cs + s.size()) {
          qDebug() << qFormat("from_chars: x_speed={}", x_speed);
          if (x_speed < 1./4. || 4. < x_speed) {
            err_msg = std::format("{} not within [1/4, 4]", x_speed);
@@ -86,7 +88,7 @@ QHBoxLayout* CreateSpeedTuneSection(QWidget *page, GPlay &gplay) {
            text_to_set = std::format("Speed: ✕ {:5.3}", x_speed);
          }
       } else {
-         err_msg = std::make_error_code(result.ec).message();
+         err_msg = std::format("Failed to parse {}", s);
       }
       return err_msg;
     });
