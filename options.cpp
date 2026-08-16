@@ -85,48 +85,52 @@ std::ostream& operator<<(std::ostream& os, const OptionMilliSec& opt) {
   return os;
 }
 
-struct U8ToRange {
-  U8ToRange(uint8_t key=0, uint8_t low=0xff, uint8_t high=0) :
+struct I8ToRange {
+  I8ToRange(int8_t key=0, uint8_t low=0xff, uint8_t high=0) :
     key_{key_}, range_{low, high} {}
   bool Valid() const { return range_[0] <= range_[1]; }
-  uint8_t key_;
+  int8_t key_;
   std::array<uint8_t, 2> range_{0xff, 0};
 };
 
-std::istream& operator>>(std::istream& is, U8ToRange& u2r) {
+std::istream& operator>>(std::istream& is, I8ToRange& u2r) {
   std::string s;
   is >> s;
   u2r.key_ = 0;
   u2r.range_ = {0xff, 0};
   size_t colon = s.find(':');
   if (colon == std::string::npos) {
-    std::cerr << std::format("U8ToRange missing colon in {}", s);
+    std::cerr << std::format("I8ToRange missing colon in {}", s);
   } else {
-    uint8_t u8;
-    auto pec = std::from_chars(s.data(), s.data() + colon, u8);
+    std::from_chars_result pec{};
+    int8_t i8 = -1; // default
+    if (!s.starts_with("*:")) {
+      pec = std::from_chars(s.data(), s.data() + colon, i8);
+    }
     if (pec.ec != std::errc()) {
-      std::cerr << std::format("U8ToRange: Bad key in {}\n", s);
+      std::cerr << std::format("I8ToRange: Bad key in {}\n", s);
     } else {
-      u2r.key_ = u8;
+      u2r.key_ = i8;
+      uint8_t u8;
       std::string tail = s.substr(colon + 1);
       size_t comma = tail.find(',');
       if (comma == std::string::npos) {
         pec = std::from_chars(tail.data(), tail.data() + tail.size(), u8);
         if (pec.ec != std::errc()) {
-          std::cerr << std::format("U8ToRange: Bad range in {}\n", s);
+          std::cerr << std::format("I8ToRange: Bad range in {}\n", s);
         } else {
           u2r.range_ = {u8, u8};
         }
       } else {
         pec = std::from_chars(tail.data(), tail.data() + comma, u8);
         if (pec.ec != std::errc()) {
-          std::cerr << std::format("U8ToRange: Bad low in {}\n", s);
+          std::cerr << std::format("I8ToRange: Bad low in {}\n", s);
         } else {
           u2r.range_[0] = u8;
           pec = std::from_chars(
             tail.data() + comma + 1, tail.data() + tail.size(), u8);
           if (pec.ec != std::errc()) {
-            std::cerr << std::format("U8ToRange: Bad high in {}\n", s);
+            std::cerr << std::format("I8ToRange: Bad high in {}\n", s);
             u2r.range_[0] = 0xff;
           } else {
             u2r.range_[1] = u8;
@@ -138,7 +142,7 @@ std::istream& operator>>(std::istream& is, U8ToRange& u2r) {
   return is;
 }
 
-std::ostream& operator<<(std::ostream& os, const U8ToRange& u2r) {
+std::ostream& operator<<(std::ostream& os, const I8ToRange& u2r) {
   os << std::format("{}{}:{},{}",
     (u2r.Valid() ? "" : "(Invalid)"), u2r.key_, u2r.range_[0], u2r.range_[1]);
   return os;
@@ -250,8 +254,8 @@ class _OptionsImpl {
   k2range_t GetKeysVelocityMap(const char *name) const {
     k2range_t k2vel;
     if (vm_.count(name) > 0) {
-      const auto keys_ranges = vm_[name].as<std::vector<U8ToRange>>();
-      for (const U8ToRange &utr: keys_ranges) {
+      const auto keys_ranges = vm_[name].as<std::vector<I8ToRange>>();
+      for (const I8ToRange &utr: keys_ranges) {
         if (utr.Valid()) {
           if (k2vel.find(utr.key_) != k2vel.end()) {
             std::cerr << std::format("Warning: {} multiply defined in {}",
@@ -299,10 +303,10 @@ void _OptionsImpl::AddOptions() {
        po::value<unsigned>()->default_value(440),
        "Tuning - frequency of A4 (central La)")
     ("tmap",
-       po::value<std::vector<U8ToRange>>()->multitoken(),
+       po::value<std::vector<I8ToRange>>()->multitoken(),
        "Tracks velocity mappings <track>:<low>[,<high>]")
     ("cmap",
-       po::value<std::vector<U8ToRange>>()->multitoken(),
+       po::value<std::vector<I8ToRange>>()->multitoken(),
        "Channels velocity mappings <track>:<low>[,<high>]")
     ("soundfont,s",
        po::value<std::string>()->default_value(

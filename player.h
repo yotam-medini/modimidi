@@ -16,7 +16,7 @@ namespace player {
 class PlayerParams {
  public:
   using range_t = std::array<uint8_t, 2>;
-  using k2range_t = std::unordered_map<uint8_t, range_t>;
+  using k2range_t = std::unordered_map<int8_t, range_t>;
   uint32_t begin_ms_{0};
   uint32_t end_ms_{UINT32_MAX};
   float tempo_div_factor_{1.0};

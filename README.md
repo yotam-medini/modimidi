@@ -8,7 +8,7 @@ Additional - work in progress:
   and **NDK** r27d.
 
 ## Version
-The current version is 0.2.0
+The current version is 0.2.1
 
 # Example
 
@@ -91,7 +91,7 @@ which is provided by the ``fluid-soundfont-gm`` package.
 |   ``-K``,``--adjust-key`` *n*  |                    | [<font color="green">0</font>] Tranpose by $n$ semitone |
 |   ``--tuning`` *frequency*     |                    | [<font color="green">415</font>] Tuning *frequency* of A4 (central La) |
 |   ``tmap`` *arg*               |                    | (Repeatable) Tracks velocity mappings <*track*>:<*low*>[,<*high*>] |
-|   ``cmap`` *arg*               |                    | (Repeatable) Channel velocity mappings <*track*>:<*low*>[,<*high*>] |
+|   ``cmap`` *arg*               |                    | (Repeatable) Channel velocity mappings <*channel*>:<*low*>[,<*high*>] |
 |   ``s``,``--soundfont`` *path* |                    | [<font color="green">/usr/share/sounds/sf2/FluidR3_GM.sf2</font>]  |
 |                &nbsp;          |    &nbsp;          | Path to sound font |
 |   ``--info``                   |                    | print general information of the midi file |
@@ -115,3 +115,4 @@ which is provided by the ``fluid-soundfont-gm`` package.
 ### Notes
 * The *time* value format is [*minutes*]:*seconds*[.*millisecs*]
 * Both ``--tmap`` and ``--cmap`` can be given. If both applied to an event, then ``--cmap`` takes precedence.
+  Use *track* or *channel* with * character for default mapping.

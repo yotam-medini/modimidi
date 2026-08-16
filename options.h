@@ -11,7 +11,7 @@ class _OptionsImpl;
 class Options {
  public:
   using range_t = std::array<uint8_t, 2>;
-  using k2range_t = std::unordered_map<uint8_t, range_t>;
+  using k2range_t = std::unordered_map<int8_t, range_t>;
   Options(int argc, char **argv);
   ~Options();
   std::string Description() const;

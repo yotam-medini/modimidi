@@ -6,6 +6,7 @@
 #include <format>
 #include <iostream>
 #include <numeric>
+#include <optional>
 #include <queue>
 
 #include <cmath>
@@ -439,12 +440,17 @@ void Player::Impl::SetVelocitiesMap() {
   auto const &tmap = pp_.tracks_velocity_map_;
   if (!tmap.empty()) {
     if (pp_.debug_ & 0x1) {std::cerr<<std::format("#(tmap)={}\n", tmap.size());}
-    auto const channels_range = pm_.GetChannelsRange();
+    std::optional<range_t> default_range;
+    auto iter = tmap.find(-1);
+    if (iter != tmap.end()) {
+      default_range = iter->second;
+    }
     for (size_t ti = 0, nt = pm_.GetNumTracks(); ti < nt; ++ti) {
       auto iter = tmap.find(ti);
-      if (iter != tmap.end()) {
+      if ((iter != tmap.end()) || default_range.has_value()) {
         const range_t orig_range = pm_.GetTracks()[ti].GetVelocityRange();
-        const range_t &target_range = iter->second;
+        const range_t &target_range = (iter != tmap.end()
+          ? iter->second : default_range.value());
         tracks_velocity_map_.insert({ti, Affine{orig_range, target_range}});
       }
     }
@@ -452,11 +458,17 @@ void Player::Impl::SetVelocitiesMap() {
   auto const &cmap = pp_.channels_velocity_map_;
   if (!cmap.empty()) {
     if (pp_.debug_ & 0x1) {std::cerr<<std::format("#(cmap)={}\n", cmap.size());}
+    std::optional<range_t> default_range;
+    auto iter = cmap.find(-1);
+    if (iter != cmap.end()) {
+      default_range = iter->second;
+    }
     auto const channels_range = pm_.GetChannelsRange();
     for (auto const &[channel, orig_range]: channels_range) {
       auto iter = cmap.find(channel);
-      if (iter != cmap.end()) {
-        const range_t &target_range = iter->second;
+      if ((iter != cmap.end()) || default_range.has_value()) {
+        const range_t &target_range = (iter != cmap.end()
+          ? iter->second : default_range.value());
         channels_velocity_map_.insert(
           {channel, Affine{orig_range, target_range}});
       }
