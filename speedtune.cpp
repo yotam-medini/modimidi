@@ -104,7 +104,7 @@ QHBoxLayout* CreateSpeedTuneSection(QWidget *page, GPlay &gplay) {
   speed_layout->addLayout(speed_header);
   speed_layout->addWidget(speed_slider);
 
-  QLabel *tune_label = new QLabel("Half Tone Shift: 0", page);
+  QLabel *tune_label = new QLabel("Half Tone Shift: ±0", page);
   auto *tune_reset = new QPushButton("Reset", page);
   QSlider *tune_slider = CreateTuneSlider(page);
   QObject::connect(tune_reset, &QPushButton::clicked, [tune_slider, &gplay]() {
@@ -120,7 +120,6 @@ QHBoxLayout* CreateSpeedTuneSection(QWidget *page, GPlay &gplay) {
 
   QObject::connect(speed_slider, &QSlider::valueChanged, [speed_label](int value) {
     const auto x_speed = SpeedScaleToValue(value);
-    qDebug() << qFormat("Speed Current Value: {} -> {}", value, x_speed);
     speed_label->setText(qFormat("Speed: ✕ {:5.3}", x_speed));
   });
 
@@ -135,8 +134,8 @@ QHBoxLayout* CreateSpeedTuneSection(QWidget *page, GPlay &gplay) {
 
   QObject::connect(tune_slider, &QSlider::valueChanged,
     [tune_label, &gplay](int value) {
-      tune_label->setText(qFormat("Half Tone Shift: {}", value));
-      qDebug() << "Current Value:" << value;
+      const auto pm = (value == 0 ? "±" : (value > 0 ? "+" : "-"));
+      tune_label->setText(qFormat("Half Tone Shift: {}{}", pm, value));
       gplay.SetKeyShift(value);
     });
 

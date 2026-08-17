@@ -37,6 +37,7 @@
 #include "qutil.h"
 #include "rangeslider.h"
 #include "speedtune.h"
+#include "sqrbutton.h"
 #include "util.h"
 
 namespace {
@@ -130,7 +131,7 @@ MainWindow::MainWindow(GPlay &gplay) :
   tabs_ = new QTabWidget(this);
   tabs_->setTabPosition(QTabWidget::South); // bottom tabs – Android friendly
   tabs_->addTab(BuildPlayerPage(), tr("Player"));
-  tabs_->addTab(BuildModifyPage(), tr("Modify"));
+  tabs_->addTab(BuildModifyPage(), tr("Mixer"));
   tabs_->addTab(BuildInfoPage(),   tr("Info"));
   tabs_->addTab(BuildAboutPage(),  tr("About"));
   setCentralWidget(tabs_);
@@ -178,7 +179,7 @@ QWidget* MainWindow::BuildPlayerPage() {
   auto init_button = [this, page](
       size_t i, QStyle::StandardPixmap icon) -> void {
     auto a = actions_[i];
-    auto b = buttons_[i] = new QToolButton(page);
+    auto b = buttons_[i] = new SquareToolButton(page, 1, 6);
     a->setIcon(style()->standardIcon(icon));
     b->setToolButtonStyle(Qt::ToolButtonIconOnly);
     b->setDefaultAction(a);

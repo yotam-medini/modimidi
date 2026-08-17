@@ -116,6 +116,7 @@ if(BUILD_GUI OR ANDROID)
         rangeslider.cpp
         rawterm.cpp # how to avoid ?
         speedtune.cpp
+        sqrbutton.cpp
         synthseq.cpp
         buttonedit.h
         debug.h
@@ -125,6 +126,7 @@ if(BUILD_GUI OR ANDROID)
         mainwin.h
         rangeslider.h
         speedtune.h
+        sqrbutton.h
     )
 
     # Both gmodimidi and Android (ModiMidi) need the same icon.png.
