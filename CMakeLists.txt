@@ -105,6 +105,7 @@ if(BUILD_GUI OR ANDROID)
     # qt_policy(SET QTP0002 NEW) # commented out for local test build
     set(CMAKE_AUTOMOC ON)
     set(UI_SOURCE_FILES
+        about.cpp
         buttonedit.cpp
         debug.cpp
         dyntiming.cpp
@@ -119,6 +120,7 @@ if(BUILD_GUI OR ANDROID)
         sqrbutton.cpp
         synthseq.cpp
         buttonedit.h
+        about.h
         debug.h
         ui.cpp
         util.cpp
@@ -164,6 +166,13 @@ if(BUILD_GUI)
     )
     add_executable(gmodimidi ${GSOURCE_FILES})
     target_compile_features(gmodimidi PUBLIC cxx_std_20)
+
+    # MOC/UIC/RCC scoped to gmodimidi only — not applied to CLI targets
+    set_target_properties(gmodimidi PROPERTIES
+        AUTOMOC ON
+        AUTOUIC ON
+        AUTORCC ON
+    )
 
     # Embed icon.png into the binary as ":/icon.png", so the desktop
     set_source_files_properties("${ICON_PNG}" PROPERTIES

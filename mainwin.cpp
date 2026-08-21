@@ -31,6 +31,7 @@
 #include <QValidator>
 #include <QVBoxLayout>
 
+#include "about.h"
 #include "buttonedit.h"
 #include "debug.h"
 #include "gplay.h"
@@ -199,6 +200,7 @@ QWidget* MainWindow::BuildPlayerPage() {
   // Add "Springs" (stretch) to center the buttons horizontally
   buttonLayout->addStretch(1);
   for (auto b : buttons_) {
+    b->updateGeometry();
     buttonLayout->addWidget(b, 1);
   }
   buttonLayout->addStretch(1);
@@ -240,9 +242,7 @@ QWidget* MainWindow::BuildInfoPage() {
 }
 
 QWidget* MainWindow::BuildAboutPage() {
-  QWidget* page = new QWidget;
-
-  return page;
+  return CreateAboutPage(this);
 }
 
 void MainWindow::openFile() {
