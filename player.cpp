@@ -185,6 +185,11 @@ class Player::Impl {
   static constexpr uint32_t SKIP_MS = 5000;
   using range_t = std::array<uint8_t, 2>;
   using key2affine_t = std::unordered_map<uint8_t, Affine>;
+
+  CallBackData cbd_periodic_{CallBackData::CallBack::Periodic, this};
+  CallBackData cbd_final_{CallBackData::CallBack::Final, this};
+  CallBackData cbd_interactive_{CallBackData::CallBack::Interactive, this};
+
   void SetIndexEvents();
   uint32_t GetFirstNoteTime();
   void SetAbsEvents();
@@ -411,16 +416,13 @@ void Player::Impl::Retune() {
 void Player::Impl::Play() {
   std::unique_lock lock(play_mtx_);
   if (pp_.debug_ & 0x2) { std::cout << "play: mutex locked\n"; }
-  CallBackData cbd_periodic{CallBackData::CallBack::Periodic, this};
   seq_ids_[SeqIdPeriodic] = fluid_sequencer_register_client(
-    ss_.sequencer_, "periodic", DispatchCallback, &cbd_periodic);
-  CallBackData cbd_final{CallBackData::CallBack::Final, this};
+    ss_.sequencer_, "periodic", DispatchCallback, &cbd_periodic_);
   seq_ids_[SeqIdFinal] = fluid_sequencer_register_client(
-    ss_.sequencer_, "final", DispatchCallback, &cbd_final);
-  CallBackData cbd_interactive{CallBackData::CallBack::Interactive, this};
+    ss_.sequencer_, "final", DispatchCallback, &cbd_final_);
   if (pp_.interactive_) {
     seq_ids_[SeqIdInterActive] = fluid_sequencer_register_client(
-      ss_.sequencer_, "interactive", DispatchCallback, &cbd_interactive);
+      ss_.sequencer_, "interactive", DispatchCallback, &cbd_interactive_);
   }
   SchedulePeriodicAt(0);
   if (pp_.interactive_) {
