@@ -48,6 +48,8 @@ SynthSequencer::~SynthSequencer() {
 }
 
 void SynthSequencer::DeleteFluidObjects() {
+  // Unregister and destroy the sequencer first, so no more events are
+  // dispatched to the synth before we tear down the audio thread.
   if (synth_seq_id_ != -1) {
     if (debug_ & 0x1) { std::cerr<<"call fluid_sequencer_unregister_client\n"; }
     fluid_sequencer_unregister_client(sequencer_, synth_seq_id_);
@@ -58,11 +60,14 @@ void SynthSequencer::DeleteFluidObjects() {
     delete_fluid_sequencer(sequencer_);
     sequencer_ = nullptr;
   }
+  // Stop the audio driver (joins the audio thread calling fluid_synth_write_s16)
+  // before touching the synth, to avoid the thread accessing freed memory.
   if (audio_driver_) {
     if (debug_ & 0x1) { std::cerr << "call delete_fluid_audio_driver\n"; }
     delete_fluid_audio_driver(audio_driver_);
     audio_driver_ = nullptr;
   }
+  // Audio thread is gone; safe to unload soundfont and destroy synth.
   if (sfont_id_ != -1) {
     if (debug_ & 0x1) { std::cerr << "call fluid_synth_sfunload\n"; }
     fluid_synth_sfunload(synth_, sfont_id_, 0);
