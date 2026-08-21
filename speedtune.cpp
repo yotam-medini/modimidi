@@ -1,14 +1,15 @@
 #include "speedtune.h"
-#include <charconv>
 #include <cmath>
 #include <format>
 #include <QDoubleValidator>
 #include <QFrame>
+#include <QHBoxLayout>
 #include <QLabel>
 #include <QObject>
 #include <QPalette>
+#include <QProxyStyle>
+#include <QSize>
 #include <QSlider>
-#include <QHBoxLayout>
 #include <QVBoxLayout>
 #include "buttonedit.h"
 #include "gplay.h"
@@ -33,12 +34,39 @@ void SetTransparentGroove(QSlider *slider) {
   slider->setPalette(pal);
 }
 
+
+class LargeHandleStyle : public QProxyStyle {
+ public:
+  LargeHandleStyle(QWidget *page) : page_{page} {}
+  int pixelMetric(
+      PixelMetric metric,
+      const QStyleOption *option = nullptr,
+      const QWidget *widget = nullptr) const override {
+    int ret = 0;
+    switch (metric) {
+     case PM_SliderThickness:
+      {
+        const QSize psize = page_->size();
+        ret = std::max(18, std::min(psize.width(), psize.height())/12);
+      }
+      break;
+     default:
+       ret = QProxyStyle::pixelMetric(metric, option, widget);
+    }
+    return ret;
+  }
+ private:
+  QWidget* page_;
+};
+
+// Apply to your slider instance:
 QSlider *CreateSpeedSlider(QWidget *page) {
   QSlider *slider = new QSlider(Qt::Horizontal);
   slider->setMinimum(-SPEED_SCALE);
   slider->setMaximum(SPEED_SCALE);
   slider->setValue(0);
   SetTransparentGroove(slider);
+  slider->setStyle(new LargeHandleStyle(page));
   return slider;
 }
 
@@ -48,8 +76,9 @@ QSlider *CreateTuneSlider(QWidget *page) {
   slider->setMaximum(6);
   slider->setValue(0);
   slider->setTickInterval(1);
-  slider->setTickPosition(QSlider::TicksAbove);
+  slider->setTickPosition(QSlider::TicksBelow);
   SetTransparentGroove(slider);
+  slider->setStyle(new LargeHandleStyle(page));
   return slider;
 }
 
@@ -78,7 +107,7 @@ QHBoxLayout* CreateSpeedTuneSection(QWidget *page, GPlay &gplay) {
       float x_speed = std::strtof(cs, &eo_strtof);
       std::string err_msg;
       if (eo_strtof == cs + s.size()) {
-         qDebug() << qFormat("from_chars: x_speed={}", x_speed);
+         qDebug() << qFormat("x_speed={}", x_speed);
          if (x_speed < 1./4. || 4. < x_speed) {
            err_msg = std::format("{} not within [1/4, 4]", x_speed);
          } else {
@@ -118,9 +147,10 @@ QHBoxLayout* CreateSpeedTuneSection(QWidget *page, GPlay &gplay) {
   tune_layout->addLayout(tune_header);
   tune_layout->addWidget(tune_slider);
 
-  QObject::connect(speed_slider, &QSlider::valueChanged, [speed_label](int value) {
-    const auto x_speed = SpeedScaleToValue(value);
-    speed_label->setText(qFormat("Speed: ✕ {:5.3}", x_speed));
+  QObject::connect(speed_slider, &QSlider::valueChanged, 
+    [speed_label](int value) {
+      const auto x_speed = SpeedScaleToValue(value);
+      speed_label->setText(qFormat("Speed: ✕ {:5.3}", x_speed));
   });
 
   QObject::connect(speed_slider, &QSlider::sliderReleased,
