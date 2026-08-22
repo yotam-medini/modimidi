@@ -35,6 +35,7 @@
 #include "about.h"
 #include "buttonedit.h"
 #include "debug.h"
+#include "mixer.h"
 #include "gplay.h"
 #include "qutil.h"
 #include "rangeslider.h"
@@ -133,7 +134,7 @@ MainWindow::MainWindow(GPlay &gplay) :
   tabs_ = new QTabWidget(this);
   tabs_->setTabPosition(QTabWidget::South); // bottom tabs – Android friendly
   tabs_->addTab(BuildPlayerPage(), tr("Player"));
-  tabs_->addTab(BuildModifyPage(), tr("Mixer"));
+  tabs_->addTab(BuildMixerPage(), tr("Mixer"));
   tabs_->addTab(BuildInfoPage(),   tr("Info"));
   tabs_->addTab(BuildAboutPage(),  tr("About"));
   setCentralWidget(tabs_);
@@ -230,9 +231,9 @@ QWidget* MainWindow::BuildPlayerPage() {
   return page;
 }
 
-QWidget* MainWindow::BuildModifyPage() {
+QWidget* MainWindow::BuildMixerPage() {
   QWidget* page = new QWidget;
-
+  mixer_ = new Mixer{page, gplay_};
   return page;
 }
 

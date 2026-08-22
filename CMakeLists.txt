@@ -112,6 +112,7 @@ if(BUILD_GUI OR ANDROID)
         gplay.cpp
         mainwin.cpp
         midi.cpp
+        mixer.cpp
         player.cpp
         qutil.cpp
         rangeslider.cpp
@@ -126,6 +127,7 @@ if(BUILD_GUI OR ANDROID)
         util.cpp
         dyntiming.h
         mainwin.h
+        mixer.h
         rangeslider.h
         speedtune.h
         sqrbutton.h

@@ -14,6 +14,7 @@ class QToolButton;
 class RangeSlider;
 
 class ButtonEditable;
+class Mixer;
 
 class MainWindow : public QMainWindow {
   Q_OBJECT
@@ -45,7 +46,7 @@ class MainWindow : public QMainWindow {
 
   void UpdateRange(int i, uint32_t ms);
   QWidget *BuildPlayerPage();
-  QWidget *BuildModifyPage();
+  QWidget *BuildMixerPage();
   QWidget *BuildInfoPage();
   QWidget *BuildAboutPage();
 
@@ -76,5 +77,6 @@ class MainWindow : public QMainWindow {
 
   QTabWidget* tabs_{nullptr};
 
-  QTextEdit *info_text_;
+  Mixer *mixer_{nullptr};
+  QTextEdit *info_text_{nullptr};
 };
