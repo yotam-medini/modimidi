@@ -84,14 +84,18 @@ QSlider *CreateTuneSlider(QWidget *page) {
 
 } // anonymous
 
-QHBoxLayout* CreateSpeedTuneSection(QWidget *page, GPlay &gplay) {
+QHBoxLayout* CreateSpeedTuneSection(
+    QWidget *page,
+    GPlay &gplay,
+    QWidget *&speedtune_container) {
+  auto container = speedtune_container = new QWidget(page);
   QHBoxLayout *speed_tune_layout = new QHBoxLayout();
   QVBoxLayout *speed_layout = new QVBoxLayout();
   QVBoxLayout *tune_layout = new QVBoxLayout();
 
   auto validator = new QDoubleValidator(1./4., 4.0, 3);
-  QSlider *speed_slider = CreateSpeedSlider(page);
-  auto *speed_label = new ButtonEditable("Speed: ✕ 1.0", page,
+  QSlider *speed_slider = CreateSpeedSlider(container);
+  auto *speed_label = new ButtonEditable("Speed: ✕ 1.0", container,
     "Speed factor",
     "Set speed factor within [1/4, 4]",
     [&gplay]() -> std::string {
@@ -121,7 +125,7 @@ QHBoxLayout* CreateSpeedTuneSection(QWidget *page, GPlay &gplay) {
       }
       return err_msg;
     });
-  auto *speed_reset = new QPushButton("Reset", page);
+  auto *speed_reset = new QPushButton("Reset", container);
   QObject::connect(speed_reset, &QPushButton::clicked, [speed_slider, &gplay]() {
     speed_slider->setValue(0);
     gplay.SetTempoFactor(1.0);
@@ -133,9 +137,9 @@ QHBoxLayout* CreateSpeedTuneSection(QWidget *page, GPlay &gplay) {
   speed_layout->addLayout(speed_header);
   speed_layout->addWidget(speed_slider);
 
-  QLabel *tune_label = new QLabel("Half Tone Shift: ±0", page);
-  auto *tune_reset = new QPushButton("Reset", page);
-  QSlider *tune_slider = CreateTuneSlider(page);
+  QLabel *tune_label = new QLabel("Half Tone Shift: ±0", container);
+  auto *tune_reset = new QPushButton("Reset", container);
+  QSlider *tune_slider = CreateTuneSlider(container);
   QObject::connect(tune_reset, &QPushButton::clicked, [tune_slider, &gplay]() {
     tune_slider->setValue(0);
     gplay.SetKeyShift(0);

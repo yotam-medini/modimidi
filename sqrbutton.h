@@ -2,17 +2,20 @@
 #include <QToolButton>
 
 class SquareToolButton : public QToolButton {
-public:
+ public:
   SquareToolButton(
     QWidget *parent = nullptr,
     unsigned frac_num = 1,
     unsigned frac_denom = 4);
   QSize sizeHint() const override;
 
-protected:
+ protected:
   void resizeEvent(QResizeEvent *event) override;
+  QSize minimumSizeHint() const override {
+    return sizeHint();
+  }
 
-private:
+ private:
   unsigned frac_num_;
   unsigned frac_denom_;
 };

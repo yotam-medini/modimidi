@@ -29,13 +29,16 @@ qDebug() << qFormat("sizeHint: size=({},{})",
 }
 
 void SquareToolButton::resizeEvent(QResizeEvent *event) {
+#if 0
   int size = std::min(event->size().width(), event->size().height());
-  
+ 
 qDebug() << qFormat("resizeEvent size={}", size);
   if (width() != size || height() != size) {
     blockSignals(true);
     setFixedSize(size, size);
     blockSignals(false);
   }
+#endif
+
   QToolButton::resizeEvent(event);
 }

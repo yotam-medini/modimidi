@@ -215,7 +215,8 @@ QWidget* MainWindow::BuildPlayerPage() {
   BuildRangeControl(page, progress_label);
   gplay_.SetStateCallback([this](State state) { OnStateChange(state); });
 
-  QHBoxLayout *speed_tune_layout = CreateSpeedTuneSection(page, gplay_);
+  QHBoxLayout *speed_tune_layout =
+    CreateSpeedTuneSection(page, gplay_, speedtune_container_);
 
   // Add "Springs" to center the horizontal row vertically
   mainLayout->addStretch();    // Pushes everything down
@@ -295,6 +296,7 @@ void MainWindow::openFile() {
         UpdateRange(i, rangeSlider_->LowHighValue(i));
       }
       rangeGroup_->setVisible(true);
+      speedtune_container_->setEnabled(true);
       info_text_->setDocumentTitle(base_name);
       info_text_->setPlainText(QString::fromStdString(gplay_.GetMidiInfo()));
     }
@@ -438,11 +440,13 @@ void MainWindow::OnStateChange(State state) {
     for (size_t i = 0; i < Op::N_ButtonOps; ++i) {
       actions_[i]->setEnabled(i == Op::Play);
     }
+    speedtune_container_->setEnabled(true);
     break;
    case State::Play: // all but play
     for (size_t i = 0; i < Op::N_ButtonOps; ++i) {
       actions_[i]->setEnabled(i != Op::Play);
     }
+    speedtune_container_->setEnabled(false);
     break;
    case State::Pause: // leave as is (State::Play)
     break;

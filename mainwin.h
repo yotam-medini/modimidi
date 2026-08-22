@@ -72,6 +72,8 @@ class MainWindow : public QMainWindow {
   std::array<QAction*, Op::N_ButtonOps> actions_;
   std::array<QToolButton*, Op::N_ButtonOps> buttons_;
 
+  QWidget *speedtune_container_{nullptr};
+
   QTabWidget* tabs_{nullptr};
 
   QTextEdit *info_text_;
