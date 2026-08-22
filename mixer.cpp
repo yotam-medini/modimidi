@@ -1,9 +1,16 @@
 #include "mixer.h"
 #include <QFont>
 #include <QFrame>
+#include <QHBoxLayout>
 #include <QWidget>
 #include <QLabel>
+#include <QPushButton>
+#include <QTableWidget>
 #include <QVBoxLayout>
+
+#include "gplay.h"
+#include "midi.h"
+#include "qutil.h"
 
 
 class Mixer::Impl {
@@ -12,43 +19,63 @@ class Mixer::Impl {
     gplay_{gplay} {
     CreateUI(page);
   }
+  void ResetByMidi();
  private:
+  enum { E_Tracks, E_Channels, E_N };
+  QFrame* CreateFrame(QWidget *page, unsigned i);
   void CreateUI(QWidget *page);
   GPlay &gplay_;
+  QPushButton *reset_buttons_[E_N]{nullptr, nullptr};
+  QTableWidget *tables_[E_N]{nullptr, nullptr};
 };
 
 void Mixer::Impl::CreateUI(QWidget *page) {
   QVBoxLayout *main_layout = new QVBoxLayout(page);
-  QFont font;
+  main_layout->addWidget(CreateFrame(page, E_Tracks));
+  main_layout->addWidget(CreateFrame(page, E_Channels));
+}
 
-  auto tracks_frame = new QFrame(page);
-  tracks_frame->setFrameShape(QFrame::Box);
-  QVBoxLayout *tracks_layout = new QVBoxLayout(tracks_frame);
-  auto tracks_title = new QLabel("Tracks Mixer", tracks_frame);
-  tracks_title->setAlignment(Qt::AlignHCenter);
-  font = tracks_title->font();
-  font.setPointSize(2*font.pointSize());
+QFrame* Mixer::Impl::CreateFrame(QWidget *page, unsigned i) {
+  const char *entity_name = (i == E_Tracks ? "Track" : "Channel");
+  auto frame = new QFrame(page);
+  frame->setFrameShape(QFrame::Box);
+  QVBoxLayout *layout = new QVBoxLayout(frame);
+  const auto title_name = qFormat("{} Mixer", entity_name);
+  auto title = new QLabel(title_name, frame);
+  title->setAlignment(Qt::AlignHCenter);
+  QFont font = title->font();
+  font.setPointSize((3*font.pointSize())/2);
   font.setBold(true);
-  tracks_title->setFont(font);
-  tracks_layout->addWidget(tracks_title);
+  title->setFont(font);
+  reset_buttons_[i] = new QPushButton("Reset", frame);
+  QHBoxLayout *tr_layout = new QHBoxLayout(frame);
+  tr_layout->addWidget(title, 2);
+  tr_layout->addWidget(reset_buttons_[i], 1);
 
-  auto channels_frame = new QFrame(page);
-  channels_frame->setFrameShape(QFrame::Box);
-  QVBoxLayout *channels_layout = new QVBoxLayout(channels_frame);
-  auto channels_title = new QLabel("Channels Mixer", channels_frame);
-  channels_title->setAlignment(Qt::AlignHCenter);
-  font = channels_title->font();
-  font.setPointSize(2*font.pointSize());
-  font.setBold(true);
-  channels_title->setFont(font);
-  channels_layout->addWidget(channels_title);
+  QTableWidget *table = new QTableWidget(frame);
+  table->setColumnCount(2);
+  table->setHorizontalHeaderLabels({entity_name, "Volume Control"});
+  table->setHorizontalScrollBarPolicy(Qt::ScrollBarAsNeeded);
+  table->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
 
-  main_layout->addWidget(tracks_frame);
-  main_layout->addWidget(channels_frame);
+  layout->addLayout(tr_layout);
+  layout->addWidget(table);
+  
+  return frame;
+}
+
+void Mixer::Impl::ResetByMidi() {
+  const midi::Midi *parsed_midi = gplay_.GetMidi();
+  if (parsed_midi) {
+    auto n_tracks = parsed_midi->GetNumTracks();
+    qDebug() << qFormat("{} n_tracks={}", __func__, n_tracks);
+  }
 }
 
 Mixer::Mixer(QWidget *page, GPlay &gplay) :
   impl_{std::make_unique<Impl>(page, gplay)} {
 }
 
-
+void Mixer::ResetByMidi() {
+  impl_->ResetByMidi();
+}

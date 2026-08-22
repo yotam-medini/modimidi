@@ -297,6 +297,7 @@ void MainWindow::openFile() {
       }
       rangeGroup_->setVisible(true);
       speedtune_container_->setEnabled(true);
+      mixer_->ResetByMidi();
       info_text_->setDocumentTitle(base_name);
       info_text_->setPlainText(QString::fromStdString(gplay_.GetMidiInfo()));
     }

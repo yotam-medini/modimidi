@@ -8,6 +8,10 @@
 #include "progress_cb.h"
 #include "state.h"
 
+namespace midi {
+class Midi;
+} // namespace midi
+
 class GPlay {
  public:
   GPlay(bool is_android);
@@ -34,6 +38,7 @@ class GPlay {
   float GetTempoFactor() const;
   void SetKeyShift(int8_t ks);
 
+  const midi::Midi *GetMidi() const;
   std::string GetMidiInfo() const;
 
  private:
