@@ -9,6 +9,7 @@ class GPlay;
 class QAction;
 class QLabel;
 class QPushButton;
+class QTextEdit;
 class QToolButton;
 class RangeSlider;
 
@@ -72,4 +73,6 @@ class MainWindow : public QMainWindow {
   std::array<QToolButton*, Op::N_ButtonOps> buttons_;
 
   QTabWidget* tabs_{nullptr};
+
+  QTextEdit *info_text_;
 };

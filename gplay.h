@@ -34,6 +34,8 @@ class GPlay {
   float GetTempoFactor() const;
   void SetKeyShift(int8_t ks);
 
+  std::string GetMidiInfo() const;
+
  private:
   State state_{State::None};
   class Impl;

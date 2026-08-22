@@ -178,6 +178,10 @@ class GPlay::Impl {
     play_params_.key_shift_ = ks;
   }
 
+  std::string GetMidiInfo() const {
+    return parsed_midi_->info();
+  }
+
  private:
   void SetState(State state) {
     state_ = state;
@@ -275,4 +279,8 @@ float GPlay::GetTempoFactor() const {
 
 void GPlay::SetKeyShift(int8_t ks) {
   impl_->SetKeyShift(ks);
+}
+
+std::string GPlay::GetMidiInfo() const {
+  return impl_->GetMidiInfo();
 }

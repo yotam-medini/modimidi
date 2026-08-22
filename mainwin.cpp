@@ -26,6 +26,7 @@
 #include <QString>
 #include <QStyle>
 #include <QTabWidget>
+#include <QTextEdit>
 #include <QToolBar>
 #include <QToolButton>
 #include <QValidator>
@@ -237,7 +238,14 @@ QWidget* MainWindow::BuildModifyPage() {
 
 QWidget* MainWindow::BuildInfoPage() {
   QWidget* page = new QWidget;
-
+  QVBoxLayout *layout = new QVBoxLayout(page);
+  info_text_ = new QTextEdit(page);
+  info_text_->setReadOnly(true);
+  info_text_->setWordWrapMode(QTextOption::NoWrap);
+  info_text_->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
+  info_text_->setHorizontalScrollBarPolicy(Qt::ScrollBarAsNeeded);
+  info_text_->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+  layout->addWidget(info_text_);
   return page;
 }
 
@@ -274,7 +282,8 @@ void MainWindow::openFile() {
     }
     actions_[Op::Play]->setEnabled(err.empty());
     if (err.empty()) {
-      fileButton_->setText(QFileInfo(fileName).fileName());
+      const auto base_name = QFileInfo(fileName).fileName();
+      fileButton_->setText(base_name);
       fileButton_->setEnabled(true);
       // Task 2: only reveal the range slider once a proper midi
       // file has actually been loaded; reset it to the (still
@@ -286,6 +295,8 @@ void MainWindow::openFile() {
         UpdateRange(i, rangeSlider_->LowHighValue(i));
       }
       rangeGroup_->setVisible(true);
+      info_text_->setDocumentTitle(base_name);
+      info_text_->setPlainText(QString::fromStdString(gplay_.GetMidiInfo()));
     }
   }
 }
@@ -439,6 +450,9 @@ void MainWindow::OnStateChange(State state) {
     qDebug() << std::format("{}:{} {} unexpected state={}",
       __FILE__, __LINE__, __func__, static_cast<int>(state));
     break;
+  }
+  for (auto b : buttons_) {
+    b->updateGeometry();
   }
 }
 

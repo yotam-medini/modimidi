@@ -1,6 +1,7 @@
 #include "sqrbutton.h"
 #include <algorithm>
 #include <QResizeEvent>
+#include "qutil.h"
 
 SquareToolButton::SquareToolButton(
     QWidget *parent,
@@ -13,17 +14,24 @@ SquareToolButton::SquareToolButton(
 
 QSize SquareToolButton::sizeHint() const {
   QWidget *parent = parentWidget();
-  if (!parent) return QToolButton::sizeHint();
-
-  int parent_size = std::min(parent->width(), parent->height());
-  int size = static_cast<int>((parent_size * frac_num_)/frac_denom_);
-  size = std::max(size, 24);
-  return QSize(size, size);
+  QSize size_hint;
+  if (parent) {
+    int parent_size = std::min(parent->width(), parent->height());
+    int size = static_cast<int>((parent_size * frac_num_)/frac_denom_);
+    size = std::max(size, 24);
+    size_hint = QSize(size, size);
+  } else {
+    size_hint = QToolButton::sizeHint();
+  }
+qDebug() << qFormat("sizeHint: size=({},{})",
+ size_hint.width(), size_hint.height());
+  return size_hint;
 }
 
 void SquareToolButton::resizeEvent(QResizeEvent *event) {
   int size = std::min(event->size().width(), event->size().height());
   
+qDebug() << qFormat("resizeEvent size={}", size);
   if (width() != size || height() != size) {
     blockSignals(true);
     setFixedSize(size, size);
