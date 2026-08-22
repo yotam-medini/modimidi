@@ -215,15 +215,14 @@ QWidget* MainWindow::BuildPlayerPage() {
   BuildRangeControl(page, progress_label);
   gplay_.SetStateCallback([this](State state) { OnStateChange(state); });
 
-  QHBoxLayout *speed_tune_layout =
-    CreateSpeedTuneSection(page, gplay_, speedtune_container_);
+  speedtune_container_ = CreateSpeedTuneSection(page, gplay_);
 
   // Add "Springs" to center the horizontal row vertically
   mainLayout->addStretch();    // Pushes everything down
   mainLayout->addLayout(buttonLayout);
   mainLayout->addLayout(progressLayout);
   mainLayout->addWidget(rangeGroup_);
-  mainLayout->addLayout(speed_tune_layout);
+  mainLayout->addWidget(speedtune_container_);
   mainLayout->addStretch();    // Pushes everything up
 
   ConnectButtonsActions();

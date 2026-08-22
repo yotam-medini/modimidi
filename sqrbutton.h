@@ -8,12 +8,10 @@ class SquareToolButton : public QToolButton {
     unsigned frac_num = 1,
     unsigned frac_denom = 4);
   QSize sizeHint() const override;
+  QSize minimumSizeHint() const override { return sizeHint(); }
 
  protected:
-  void resizeEvent(QResizeEvent *event) override;
-  QSize minimumSizeHint() const override {
-    return sizeHint();
-  }
+  // void resizeEvent(QResizeEvent *event) override;
 
  private:
   unsigned frac_num_;

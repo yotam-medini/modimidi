@@ -84,12 +84,9 @@ QSlider *CreateTuneSlider(QWidget *page) {
 
 } // anonymous
 
-QHBoxLayout* CreateSpeedTuneSection(
-    QWidget *page,
-    GPlay &gplay,
-    QWidget *&speedtune_container) {
-  auto container = speedtune_container = new QWidget(page);
-  QHBoxLayout *speed_tune_layout = new QHBoxLayout();
+QWidget* CreateSpeedTuneSection(QWidget *page, GPlay &gplay) {
+  auto container = new QWidget(page);
+  QHBoxLayout *speed_tune_layout = new QHBoxLayout(container);
   QVBoxLayout *speed_layout = new QVBoxLayout();
   QVBoxLayout *tune_layout = new QVBoxLayout();
 
@@ -173,13 +170,13 @@ QHBoxLayout* CreateSpeedTuneSection(
       gplay.SetKeyShift(value);
     });
 
-  QFrame* vLine = new QFrame();
+  QFrame* vLine = new QFrame(container);
   vLine->setFrameShape(QFrame::VLine);
   vLine->setFrameShadow(QFrame::Sunken);
-  
+
   speed_tune_layout->addLayout(speed_layout);
   speed_tune_layout->addWidget(vLine);
   speed_tune_layout->addLayout(tune_layout);
-  return speed_tune_layout;
+  return container;
 }
 
