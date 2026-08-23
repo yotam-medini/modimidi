@@ -28,6 +28,7 @@ class Mixer::Impl {
   GPlay &gplay_;
   QPushButton *reset_buttons_[E_N]{nullptr, nullptr};
   QTableWidget *tables_[E_N]{nullptr, nullptr};
+  midi::Midi::channels_range_t channels_range_;
 };
 
 void Mixer::Impl::CreateUI(QWidget *page) {
@@ -75,6 +76,7 @@ void Mixer::Impl::ResetByMidi() {
     auto table = tables_[E_Tracks];
     table->setHorizontalHeaderLabels({"Track", "Volume Control"});
     const auto &tracks_ = parsed_midi->GetTracks();
+    table->setColumnCount(2);
     table->setRowCount(tracks_.size());
     for (unsigned i = 0; i < n_tracks; ++i) {
       const auto &track = tracks_[i];
@@ -92,7 +94,20 @@ void Mixer::Impl::ResetByMidi() {
     table->resizeRowsToContents();
     table->resizeColumnsToContents();
 
-    // table = tables_[E_Channels];
+    channels_range_ = parsed_midi->GetChannelsRange();
+    table = tables_[E_Channels];
+    table->setHorizontalHeaderLabels({"Channel", "Volume Control"});
+    table->setColumnCount(2);
+    table->setRowCount(channels_range_.size());
+    int row;
+    for (const auto &item: channels_range_) {
+      const auto &range = item.second;
+      const auto s = qFormat("{:2d} [{}, {}]", item.first, range[0], range[1]);
+      table->setCellWidget(row++, 0, new QLabel(s, table));
+    }
+    table->verticalHeader()->setVisible(false);
+    table->resizeRowsToContents();
+    table->resizeColumnsToContents();
   }
 }
 
