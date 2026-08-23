@@ -2,6 +2,7 @@
 #include <QFont>
 #include <QFrame>
 #include <QHBoxLayout>
+#include <QHeaderView>
 #include <QWidget>
 #include <QLabel>
 #include <QPushButton>
@@ -52,7 +53,7 @@ QFrame* Mixer::Impl::CreateFrame(QWidget *page, unsigned i) {
   tr_layout->addWidget(title, 2);
   tr_layout->addWidget(reset_buttons_[i], 1);
 
-  QTableWidget *table = new QTableWidget(frame);
+  QTableWidget *table = tables_[i] = new QTableWidget(frame);
   table->setColumnCount(2);
   table->setHorizontalHeaderLabels({entity_name, "Volume Control"});
   table->setHorizontalScrollBarPolicy(Qt::ScrollBarAsNeeded);
@@ -60,15 +61,38 @@ QFrame* Mixer::Impl::CreateFrame(QWidget *page, unsigned i) {
 
   layout->addLayout(tr_layout);
   layout->addWidget(table);
-  
+
   return frame;
 }
 
 void Mixer::Impl::ResetByMidi() {
+  tables_[E_Tracks]->clear();
+  tables_[E_Channels]->clear();
   const midi::Midi *parsed_midi = gplay_.GetMidi();
   if (parsed_midi) {
-    auto n_tracks = parsed_midi->GetNumTracks();
+    unsigned n_tracks = parsed_midi->GetNumTracks();
     qDebug() << qFormat("{} n_tracks={}", __func__, n_tracks);
+    auto table = tables_[E_Tracks];
+    table->setHorizontalHeaderLabels({"Track", "Volume Control"});
+    const auto &tracks_ = parsed_midi->GetTracks();
+    table->setRowCount(tracks_.size());
+    for (unsigned i = 0; i < n_tracks; ++i) {
+      const auto &track = tracks_[i];
+      auto cell = new QWidget(table);
+      auto layout = new QVBoxLayout(cell);
+      auto name_label = new QLabel(track.GetName().c_str(), cell);
+      auto details = qFormat("{} Volume: {}",
+        track.GetNotesRange(), track.GetVolumeRange());
+      auto details_label = new QLabel(details, cell);
+      layout->addWidget(name_label);
+      layout->addWidget(details_label);
+      table->setCellWidget(i, 0, cell);
+    }
+    table->verticalHeader()->setVisible(false);
+    table->resizeRowsToContents();
+    table->resizeColumnsToContents();
+
+    // table = tables_[E_Channels];
   }
 }
 

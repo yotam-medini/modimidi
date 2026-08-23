@@ -152,6 +152,7 @@ std::array<uint8_t, 2> Track::GetVelocityRange() const {
 }
 
 std::string Track::info(const std::string& indent) const {
+  info_called_ = true;
   std::string s;
   size_t n_notes = 0;
   uint32_t control_change_count = 0;
@@ -172,6 +173,10 @@ std::string Track::info(const std::string& indent) const {
       } else  {
         s = std::format("{}{}{}\n", s, indent, meta_event->str());
       }
+      auto stne = dynamic_cast<const SequenceTrackNameEvent*>(meta_event);
+      if (stne) {
+        name_ = stne->s_;
+      }
     } else if (midi_event) {
       const NoteOnEvent *note_on = dynamic_cast<const NoteOnEvent*>(midi_event);
       if (note_on) {
@@ -190,6 +195,7 @@ std::string Track::info(const std::string& indent) const {
     }
   }
   if (n_notes == 0) {
+    notes_range_ = "No notes";
     s = std::format("{}{}No notes", s, indent);
   } else {
     std::vector<uint8_t> channels = GetChannels();
@@ -199,11 +205,12 @@ std::string Track::info(const std::string& indent) const {
     for (uint8_t c: channels) { s = std::format("{} {}", s, int(c)); }
     const auto note_low = MidiNoteToString(key_range[0]);
     const auto note_high = MidiNoteToString(key_range[1]);
+    notes_range_ = std::format("[{}, {}]", note_low, note_high);
+    velocity_range_ = std::format("[{}, {}]", vel_range[0], vel_range[1]);
     s = std::format(
-      "{}\n{}{} notes, keys: [{}, {}]=[{}, {}], velocity: [{}, {}]",
+      "{}\n{}{} notes, keys: [{}, {}]={}, velocity: {}",
       s, indent, n_notes,
-      key_range[0], key_range[1], note_low, note_high,
-      vel_range[0], vel_range[1]);
+      key_range[0], key_range[1], notes_range_, velocity_range_);
   }
   if (control_change_count > 0) {
     s = std::format("{}\n{}{} ControlChange events",
@@ -223,6 +230,27 @@ std::string Track::info(const std::string& indent) const {
   }
   s += '\n';
   return s;
+}
+
+std::string Track::GetName() const {
+  if (!info_called_) {
+    (void)info();
+  }
+  return name_;
+}
+
+std::string Track::GetNotesRange() const {
+  if (!info_called_) {
+    (void)info();
+  }
+  return notes_range_;
+}
+
+std::string Track::GetVolumeRange() const {
+  if (!info_called_) {
+    (void)info();
+  }
+  return velocity_range_;
 }
 
 
@@ -277,7 +305,7 @@ Midi::channels_range_t Midi::GetChannelsRange() const {
         } else {
           range_t &range = iter->second;
           MinBy(range[0], v);
-          MinBy(range[1], v);
+          MaxBy(range[1], v);
         }
       }
     }

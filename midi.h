@@ -389,6 +389,14 @@ class Track {
   std::array<uint8_t, 2> GetKeyRange() const;
   std::array<uint8_t, 2> GetVelocityRange() const;
   std::string info(const std::string &indent="") const;
+  std::string GetName() const;
+  std::string GetNotesRange() const;
+  std::string GetVolumeRange() const;
+ private:
+  mutable bool info_called_{false};
+  mutable std::string name_;
+  mutable std::string notes_range_;
+  mutable std::string velocity_range_;
 };
 
 class Midi {
