@@ -5,7 +5,7 @@
 #include <cstdint>
 #include <memory>
 #include <string>
-#include <unordered_map>
+#include <map>
 #include <vector>
 
 namespace midi {
@@ -403,7 +403,7 @@ class Midi {
  public:
   using vu8_t = std::vector<uint8_t>;
   using range_t = std::array<uint8_t, 2>;
-  using channels_range_t = std::unordered_map<uint8_t, range_t>;
+  using channels_range_t = std::map<uint8_t, range_t>;
   Midi(const std::string &path, uint32_t debug=0);
   Midi(vu8_t data, uint32_t debug=0);
   std::string GetError() const { return error_; }
