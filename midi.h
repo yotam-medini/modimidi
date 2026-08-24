@@ -380,8 +380,19 @@ class PitchWheelEvent : public MidiEvent {
 // End of Midi Events
 ////////////////////////////////////////////////////////////////////////
 
+class Range {
+ public:
+  using range_t = std::array<uint8_t, 2>;
+  range_t notes_range_{0xff, 0xff};
+  range_t velocity_range_{0xff, 0xff}; // undef
+};
+
+std::string RangeToString(const std::array<uint8_t, 2>& r);
+std::string MidiNoteRangeToString(const std::array<uint8_t, 2>& r);
+
 class Track {
  public:
+  using range_t = std::array<uint8_t, 2>;
   std::vector<std::unique_ptr<Event>> events_;
   std::vector<uint8_t> GetChannels() const;
   std::vector<uint8_t> GetPrograms() const;
@@ -389,21 +400,21 @@ class Track {
   std::array<uint8_t, 2> GetKeyRange() const;
   std::array<uint8_t, 2> GetVelocityRange() const;
   std::string info(const std::string &indent="") const;
-  std::string GetName() const;
-  std::string GetNotesRange() const;
-  std::string GetVolumeRange() const;
+  std::string GetName() const { return name_; }
+  void SetName(const std::string &s) { name_ = s; }
+  range_t GetNotesRange() const { return r_.notes_range_; }
+  range_t GetVolumeRange() const { return r_.velocity_range_; }
+  void SetRange(const Range &r) { r_ = r; }
  private:
-  mutable bool info_called_{false};
-  mutable std::string name_;
-  mutable std::string notes_range_;
-  mutable std::string velocity_range_;
+  std::string name_;
+  Range r_;
 };
 
 class Midi {
  public:
   using vu8_t = std::vector<uint8_t>;
   using range_t = std::array<uint8_t, 2>;
-  using channels_range_t = std::map<uint8_t, range_t>;
+  using channels_range_t = std::map<uint8_t, Range>;
   Midi(const std::string &path, uint32_t debug=0);
   Midi(vu8_t data, uint32_t debug=0);
   std::string GetError() const { return error_; }
@@ -415,9 +426,8 @@ class Midi {
   uint8_t GetNegativeSmpteFormat() const { return negative_smpte_format_; }
   uint16_t GetTicksPerFrame() const { return ticks_per_frame_; }
   const std::vector<Track> &GetTracks() const { return tracks_; }
-  std::vector<uint8_t> GetChannels() const;
+  const channels_range_t &GetChannels() const { return channels_; }
   std::vector<uint8_t> GetPrograms() const;
-  channels_range_t GetChannelsRange() const;
   uint32_t GetTotalMilliSeconds() const;
   std::string info(const std::string& indent="") const;
 
@@ -430,6 +440,7 @@ class Midi {
   void ReadOneTrack() { ReadTrack(); }
   void ReadTracks();
   void ReadTrack();
+  void SetChannels();
   std::unique_ptr<Event> GetTrackEvent();
   std::unique_ptr<MetaEvent> GetMetaEvent(uint32_t delta_time);
   std::unique_ptr<MidiEvent> GetMidiEvent(
@@ -457,6 +468,7 @@ class Midi {
   uint16_t ticks_per_frame_{0};
 
   std::vector<Track> tracks_;
+  std::map<uint8_t, Range> channels_;
 
   const uint32_t debug_;
 };

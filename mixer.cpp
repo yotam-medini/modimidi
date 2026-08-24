@@ -84,7 +84,8 @@ void Mixer::Impl::ResetByMidi() {
       auto layout = new QVBoxLayout(cell);
       auto name_label = new QLabel(track.GetName().c_str(), cell);
       auto details = qFormat("{} Volume: {}",
-        track.GetNotesRange(), track.GetVolumeRange());
+        midi::MidiNoteRangeToString(track.GetKeyRange()),
+        midi::RangeToString(track.GetVelocityRange()));
       auto details_label = new QLabel(details, cell);
       layout->addWidget(name_label);
       layout->addWidget(details_label);
@@ -94,7 +95,7 @@ void Mixer::Impl::ResetByMidi() {
     table->resizeRowsToContents();
     table->resizeColumnsToContents();
 
-    channels_range_ = parsed_midi->GetChannelsRange();
+    channels_range_ = parsed_midi->GetChannels();
     table = tables_[E_Channels];
     table->setHorizontalHeaderLabels({"Channel", "Volume Control"});
     table->setColumnCount(2);
@@ -102,7 +103,10 @@ void Mixer::Impl::ResetByMidi() {
     int row;
     for (const auto &item: channels_range_) {
       const auto &range = item.second;
-      const auto s = qFormat("{:2d} [{}, {}]", item.first, range[0], range[1]);
+      auto const details = std::format("{} Volume: {}",
+        midi::MidiNoteRangeToString(range.notes_range_),
+        midi::RangeToString(range.velocity_range_));
+      const auto s = qFormat("{:2d} {}", item.first, details);
       table->setCellWidget(row++, 0, new QLabel(s, table));
     }
     table->verticalHeader()->setVisible(false);

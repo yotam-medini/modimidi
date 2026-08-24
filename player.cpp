@@ -374,7 +374,7 @@ void Player::Impl::Retune() {
   if (programs.empty()) {
     programs.push_back(0);
   }
-  std::vector<uint8_t> channels = pm_.GetChannels();
+  const auto &channels = pm_.GetChannels();
   if (pp_.debug_ & 0x1) {
     std::cout << std::format("Retune {} programs on {} channels to A4={}\n",
       programs.size(), channels.size(), pp_.tuning_);
@@ -401,8 +401,9 @@ void Player::Impl::Retune() {
     if (rc_ != FLUID_OK) {
       std::cerr << std::format("fluid_synth_tune_notes failed {}\n", rc_);
     } else {
-      for (size_t ci = 0; (rc_ == 0) && (ci < channels.size()); ++ci) {
-        uint8_t channel = channels[ci];
+      for (auto iter = channels.begin(); (rc_ == 0) && (iter != channels.end());
+          ++iter) {
+        uint8_t channel = iter->first;
         rc_ = fluid_synth_activate_tuning(ss_.synth_, channel, bank, prog, 1);
         if (rc_ != FLUID_OK) {
           std::cerr << std::format(
@@ -465,14 +466,14 @@ void Player::Impl::SetVelocitiesMap() {
     if (iter != cmap.end()) {
       default_range = iter->second;
     }
-    auto const channels_range = pm_.GetChannelsRange();
+    auto const channels_range = pm_.GetChannels();
     for (auto const &[channel, orig_range]: channels_range) {
       auto iter = cmap.find(channel);
       if ((iter != cmap.end()) || default_range.has_value()) {
         const range_t &target_range = (iter != cmap.end()
           ? iter->second : default_range.value());
         channels_velocity_map_.insert(
-          {channel, Affine{orig_range, target_range}});
+          {channel, Affine{orig_range.velocity_range_, target_range}});
       }
     }
   }
