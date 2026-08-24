@@ -195,16 +195,13 @@ std::string Track::info(const std::string& indent) const {
     std::vector<uint8_t> channels = GetChannels();
     s = std::format("{}{}Channels:", s, indent);
     for (uint8_t c: channels) { s = std::format("{} {}", s, int(c)); }
-    // const auto note_low = MidiNoteToString(key_range[0]);
-    // const auto note_high = MidiNoteToString(key_range[1]);
-    const auto notes_range = MidiNoteRangeToString(r_.notes_range_);
-    // notes_range_ = std::format("[{}, {}]", note_low, note_high);
-    const auto velocity_range = 
-      std::format("[{}, {}]", r_.velocity_range_[0], r_.velocity_range_[1]);
+    const auto notes_range = RangeToString(r_.notes_range_);
+    const auto sym_notes_range = MidiNoteRangeToString(r_.notes_range_);
+    const auto velocity_range = RangeToString(r_.velocity_range_);
     s = std::format(
-      "{}\n{}{} notes, keys: [{}, {}]={}, velocity: {}",
+      "{}\n{}{} notes, keys: {}={}, velocity: {}",
       s, indent, n_notes,
-      r_.notes_range_[0], r_.notes_range_[1], notes_range, velocity_range);
+      notes_range, sym_notes_range, velocity_range);
   }
   if (control_change_count > 0) {
     s = std::format("{}\n{}{} ControlChange events",
@@ -376,11 +373,11 @@ std::string Midi::info(const std::string& indent) const {
   if (!channels_.empty()) {
     s = std::format("{}{}{} channels: {}", s, indent, channels_.size(), "{\n");
     for (const auto &[channel, r]: channels_) {
-      s = std::format("{}{} channel={} keys=[{}, {}]={}, velocity=[{}, {}]\n",
+      s = std::format("{}{} channel={} keys={}={}, velocity={}\n",
         s, indent, channel,
-        r.notes_range_[0], r.notes_range_[1],
+        RangeToString(r.notes_range_),
         MidiNoteRangeToString(r.notes_range_),
-        r.velocity_range_[0], r.velocity_range_[1]);
+        RangeToString(r.velocity_range_));
     }
     s = std::format("{}{}{}", s, indent, "}\n");
   }

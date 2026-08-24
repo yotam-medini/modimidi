@@ -405,6 +405,7 @@ class Track {
   range_t GetNotesRange() const { return r_.notes_range_; }
   range_t GetVolumeRange() const { return r_.velocity_range_; }
   void SetRange(const Range &r) { r_ = r; }
+  bool HasNotes() const { return (r_.notes_range_[0] != 0xff); }
  private:
   std::string name_;
   Range r_;

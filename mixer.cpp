@@ -25,6 +25,8 @@ class Mixer::Impl {
   enum { E_Tracks, E_Channels, E_N };
   QFrame* CreateFrame(QWidget *page, unsigned i);
   void CreateUI(QWidget *page);
+  void SetTracksTable();
+  void SetChannelsTable();
   GPlay &gplay_;
   QPushButton *reset_buttons_[E_N]{nullptr, nullptr};
   QTableWidget *tables_[E_N]{nullptr, nullptr};
@@ -67,40 +69,60 @@ QFrame* Mixer::Impl::CreateFrame(QWidget *page, unsigned i) {
 }
 
 void Mixer::Impl::ResetByMidi() {
+  SetTracksTable();
+  SetChannelsTable();
+}
+
+void Mixer::Impl::SetTracksTable() {
   tables_[E_Tracks]->clear();
-  tables_[E_Channels]->clear();
   const midi::Midi *parsed_midi = gplay_.GetMidi();
   if (parsed_midi) {
-    unsigned n_tracks = parsed_midi->GetNumTracks();
+    const auto &tracks = parsed_midi->GetTracks();
+    const auto n_tracks = tracks.size();
     qDebug() << qFormat("{} n_tracks={}", __func__, n_tracks);
     auto table = tables_[E_Tracks];
     table->setHorizontalHeaderLabels({"Track", "Volume Control"});
     const auto &tracks_ = parsed_midi->GetTracks();
     table->setColumnCount(2);
-    table->setRowCount(tracks_.size());
-    for (unsigned i = 0; i < n_tracks; ++i) {
+    unsigned n_rows = 0;
+    for (const auto &track: tracks) {
+      if (track.HasNotes()) {
+        ++n_rows;
+      }
+    }
+    table->setRowCount(n_rows);
+    unsigned row = 0;
+    for (size_t i = 0; i < n_tracks; ++i) {
       const auto &track = tracks_[i];
-      auto cell = new QWidget(table);
-      auto layout = new QVBoxLayout(cell);
-      auto name_label = new QLabel(track.GetName().c_str(), cell);
-      auto details = qFormat("{} Volume: {}",
-        midi::MidiNoteRangeToString(track.GetKeyRange()),
-        midi::RangeToString(track.GetVelocityRange()));
-      auto details_label = new QLabel(details, cell);
-      layout->addWidget(name_label);
-      layout->addWidget(details_label);
-      table->setCellWidget(i, 0, cell);
+      if (track.HasNotes()) {
+        auto cell = new QWidget(table);
+        auto layout = new QVBoxLayout(cell);
+        auto name_label = new QLabel(track.GetName().c_str(), cell);
+        auto details = qFormat("{} Volume: {}",
+          midi::MidiNoteRangeToString(track.GetKeyRange()),
+          midi::RangeToString(track.GetVelocityRange()));
+        auto details_label = new QLabel(details, cell);
+        layout->addWidget(name_label);
+        layout->addWidget(details_label);
+        table->setCellWidget(row++, 0, cell);
+      }
     }
     table->verticalHeader()->setVisible(false);
     table->resizeRowsToContents();
     table->resizeColumnsToContents();
+  }
+}
 
+void Mixer::Impl::SetChannelsTable() {
+  const midi::Midi *parsed_midi = gplay_.GetMidi();
+  if (parsed_midi) {
+    auto table = tables_[E_Channels];
+    table->clear();
     channels_range_ = parsed_midi->GetChannels();
-    table = tables_[E_Channels];
     table->setHorizontalHeaderLabels({"Channel", "Volume Control"});
     table->setColumnCount(2);
     table->setRowCount(channels_range_.size());
-    int row;
+    int row = 0;
     for (const auto &item: channels_range_) {
       const auto &range = item.second;
       auto const details = std::format("{} Volume: {}",
