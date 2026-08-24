@@ -251,19 +251,6 @@ Midi::Midi(vu8_t data, uint32_t debug) :
   Parse();
 }
 
-#if 0
-std::vector<uint8_t> Midi::GetChannels() const {
-  std::set<uint8_t> channels;
-  for (const Track& track: tracks_) {
-    std::vector<uint8_t> t_channels = track.GetChannels();
-    for (uint8_t c: t_channels) {
-      channels.insert(channels.end(), c);
-    }
-  }
-  return std::vector<uint8_t>(channels.begin(), channels.end()); 
-}
-#endif
-
 std::vector<uint8_t> Midi::GetPrograms() const {
   std::set<uint8_t> programs;
   for (const Track& track: tracks_) {
@@ -274,29 +261,6 @@ std::vector<uint8_t> Midi::GetPrograms() const {
   }
   return std::vector<uint8_t>(programs.begin(), programs.end()); 
 }
-
-#if 0
-Midi::channels_range_t Midi::GetChannelsRange() const {
-  channels_range_t channels_range;
-  for (const Track& track: tracks_) {
-    for (const auto &e: track.events_) {
-      const NoteOnEvent *note_on = dynamic_cast<const NoteOnEvent*>(e.get());
-      uint8_t v;
-      if (note_on && ((v = note_on->velocity_) > 0)) {
-        auto iter = channels_range.find(note_on->channel_);
-        if (iter == channels_range.end()) {
-          channels_range.insert({note_on->channel_, {v, v}});
-        } else {
-          range_t &range = iter->second;
-          MinBy(range[0], v);
-          MaxBy(range[1], v);
-        }
-      }
-    }
-  }
-  return channels_range;
-}
-#endif
 
 uint32_t Midi::GetTotalMilliSeconds() const {
   class UEvent {
