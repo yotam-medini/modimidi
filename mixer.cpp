@@ -1,4 +1,5 @@
 #include "mixer.h"
+#include <algorithm>
 #include <QFont>
 #include <QFrame>
 #include <QHBoxLayout>
@@ -84,12 +85,9 @@ void Mixer::Impl::SetTracksTable() {
     table->setHorizontalHeaderLabels({"Track", "Volume Control"});
     const auto &tracks_ = parsed_midi->GetTracks();
     table->setColumnCount(2);
-    unsigned n_rows = 0;
-    for (const auto &track: tracks) {
-      if (track.HasNotes()) {
-        ++n_rows;
-      }
-    }
+    const unsigned n_rows = std::count_if(
+      tracks.begin(), tracks.end(),
+      [](const midi::Track &t) { return t.HasNotes(); });
     table->setRowCount(n_rows);
     unsigned row = 0;
     for (size_t i = 0; i < n_tracks; ++i) {
