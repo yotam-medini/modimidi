@@ -7,6 +7,7 @@
 #include <QWidget>
 #include <QLabel>
 #include <QPushButton>
+#include <QSplitter>
 #include <QTableWidget>
 #include <QVBoxLayout>
 
@@ -35,9 +36,13 @@ class Mixer::Impl {
 };
 
 void Mixer::Impl::CreateUI(QWidget *page) {
-  QVBoxLayout *main_layout = new QVBoxLayout(page);
-  main_layout->addWidget(CreateFrame(page, E_Tracks));
-  main_layout->addWidget(CreateFrame(page, E_Channels));
+  auto main_layout = new QVBoxLayout(page);
+  auto splitter = new QSplitter(page);
+  splitter->setOrientation(Qt::Vertical);
+  splitter->addWidget(CreateFrame(page, E_Tracks));
+  splitter->addWidget(CreateFrame(page, E_Channels));
+  main_layout->addWidget(splitter);
+  page->setLayout(main_layout);
 }
 
 QFrame* Mixer::Impl::CreateFrame(QWidget *page, unsigned i) {
