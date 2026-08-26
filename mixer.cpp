@@ -30,7 +30,8 @@ class Mixer::Impl {
   void SetTracksTable();
   void SetChannelsTable();
   GPlay &gplay_;
-  QPushButton *reset_buttons_[E_N]{nullptr, nullptr};
+  QPushButton *default_buttons_[E_N]{nullptr, nullptr};
+  QPushButton *silence_buttons_[E_N]{nullptr, nullptr};
   QTableWidget *tables_[E_N]{nullptr, nullptr};
   midi::Midi::channels_range_t channels_range_;
 };
@@ -57,10 +58,12 @@ QFrame* Mixer::Impl::CreateFrame(QWidget *page, unsigned i) {
   font.setPointSize((3*font.pointSize())/2);
   font.setBold(true);
   title->setFont(font);
-  reset_buttons_[i] = new QPushButton("Reset", frame);
+  default_buttons_[i] = new QPushButton("Default", frame);
+  silence_buttons_[i] = new QPushButton("Silence", frame);
   QHBoxLayout *tr_layout = new QHBoxLayout(frame);
   tr_layout->addWidget(title, 2);
-  tr_layout->addWidget(reset_buttons_[i], 1);
+  tr_layout->addWidget(default_buttons_[i], 1);
+  tr_layout->addWidget(silence_buttons_[i], 1);
 
   QTableWidget *table = tables_[i] = new QTableWidget(frame);
   table->setColumnCount(2);
