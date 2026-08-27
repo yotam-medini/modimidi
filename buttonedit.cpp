@@ -27,7 +27,9 @@ ButtonEditable::ButtonEditable(
       validator_{validator},
       get_edit_value_{get_edit_value},
       parse_{parse} {
-  validator_->setParent(this);
+  if (validator_) {
+    validator_->setParent(this);
+  }
   connect(this, &QPushButton::clicked, this, &ButtonEditable::Edit);
 }
 
@@ -40,7 +42,9 @@ void ButtonEditable::Edit() {
   auto prompt = new QLabel{QString::fromStdString(dialog_prompt_), &dialog};
   auto edit = new QLineEdit(
     QString::fromStdString(get_edit_value_()), &dialog);
-  edit->setValidator(validator_);
+  if (validator_) {
+    edit->setValidator(validator_);
+  }
   layout->addWidget(prompt);
   layout->addWidget(edit);
 

@@ -16,6 +16,7 @@
 #include "gplay.h"
 #include "midi.h"
 #include "qutil.h"
+#include "buttonedit.h"
 #include "rangeslider.h"
 
 
@@ -28,6 +29,7 @@ class Mixer::Impl {
   void ResetByMidi();
  private:
   enum { E_Tracks, E_Channels, E_N };
+  using range_t = midi::Midi::range_t;
   QFrame* CreateFrame(QWidget *page, unsigned i);
   void CreateUI(QWidget *page);
   void SetTracksTable();
@@ -169,13 +171,50 @@ QWidget *Mixer::Impl::CreateControlWidget(
                << "for" << e_mixable << i;
   });
 
+#if 0
+  const midi::Midi *parsed_midi = gplay_.GetMidi();
+  std::function<range_t()> get_range = (e_mixable == E_Tracks)
+    ? [parsed_midi, i]() -> range_t {
+        return parsed_midi->GetTracks()[i].GetVolumeRange();
+      }
+    : [parsed_midi, i]() -> std::string {
+        const auto &channels_range = parsed_midi->GetChannels();
+        auto iter = channels_range.find(i);
+        // return (iter != channels_range.end()) ? iter->second() : range_t{0, 0};
+        return iter->second.velocity_range_;
+      };
+  auto get_edit_value = [get_range]() -> std::string {
+     const range_t range = get_range();
+     return std::format("{},{}", range[0], range[1]);
+  }
+  auto button_edit = new ButtonEditable(
+    get_edit_value(), w, "Volume Range", "Set Volume Range\n0⩽low,high<128",
+    get_edit_value,
+    nullptr,
+    [](const std::string &s_in, std::string &s_out) -> std::string {
+      return "foo";
+    }
+  );
+#else
+  auto button_edit = new ButtonEditable(
+    "23,57", w, "Volume Range", "Set Volume Range\n0⩽low,high<128",
+    []() -> std::string { return "23,57"; },
+    nullptr,
+    [](const std::string &s_in, std::string &s_out) -> std::string {
+      return "foo";
+    }
+  );
+#endif
   auto range_slider = new RangeSlider(w);
   range_slider->setEnabled(true);
   range_slider->SetRange(0, 127);
   range_slider->SetValues(0, 127);
+  auto vlayout = new QVBoxLayout(w);
+  vlayout->addWidget(button_edit);
+  vlayout->addWidget(range_slider);
 
   layout->addWidget(combo);
-  layout->addWidget(range_slider);
+  layout->addLayout(vlayout);
   w->setLayout(layout);
   return w;
 }
