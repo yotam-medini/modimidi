@@ -8,6 +8,7 @@
 #include <QMouseEvent>
 #include <QPainter>
 #include <QPen>
+#include "qutil.h"
 
 RangeSlider::RangeSlider(QWidget *parent) : QWidget(parent) {
   setMouseTracking(true);
@@ -80,19 +81,11 @@ int RangeSlider::Margin() const {
   return HandleRadius() + GrooveHeight() / 2;
 }
 
-QSize RangeSlider::sizeHint() const {
-  const QFontMetrics fm = fontMetrics();
-  // Wide enough for a handful of "00:00.000"-ish labels side by side;
-  // tall enough for the handles plus a little breathing room.
-  const int w = fm.horizontalAdvance(QStringLiteral("00:00.000")) * 6;
-  const int h = 2 * HandleRadius() + fm.height() / 2;
-  return QSize(w, h);
-}
-
 QSize RangeSlider::minimumSizeHint() const {
   const QFontMetrics fm = fontMetrics();
   const int w = fm.horizontalAdvance(QStringLiteral("00:00.000")) * 2;
   const int h = 2 * HandleRadius() + fm.height() / 2;
+qDebug() << qFormat("{} {} w={} h={}", __FILE__, __func__, w, h);
   return QSize(w, h);
 }
 

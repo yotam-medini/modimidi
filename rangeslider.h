@@ -44,7 +44,6 @@ class RangeSlider : public QWidget {
   uint32_t LowValue() const { return low_; }
   uint32_t HighValue() const { return high_; }
 
-  QSize sizeHint() const override;
   QSize minimumSizeHint() const override;
 
  signals:

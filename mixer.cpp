@@ -16,6 +16,7 @@
 #include "gplay.h"
 #include "midi.h"
 #include "qutil.h"
+#include "rangeslider.h"
 
 
 class Mixer::Impl {
@@ -168,7 +169,13 @@ QWidget *Mixer::Impl::CreateControlWidget(
                << "for" << e_mixable << i;
   });
 
+  auto range_slider = new RangeSlider(w);
+  range_slider->setEnabled(true);
+  range_slider->SetRange(0, 127);
+  range_slider->SetValues(0, 127);
+
   layout->addWidget(combo);
+  layout->addWidget(range_slider);
   w->setLayout(layout);
   return w;
 }
