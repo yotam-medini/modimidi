@@ -134,7 +134,7 @@ MainWindow::MainWindow(GPlay &gplay) :
   tabs_ = new QTabWidget(this);
   tabs_->setTabPosition(QTabWidget::South); // bottom tabs – Android friendly
   tabs_->addTab(BuildPlayerPage(), tr("Player"));
-  tabs_->addTab(BuildMixerPage(), tr("Mixer"));
+  tabs_->addTab(BuildMixerPage(),  tr("Mixer"));
   tabs_->addTab(BuildInfoPage(),   tr("Info"));
   tabs_->addTab(BuildAboutPage(),  tr("About"));
   setCentralWidget(tabs_);

@@ -1,6 +1,7 @@
 #include "mixer.h"
 #include <algorithm>
-#include <array>
+#include <algorithm>
+#include <charconv>
 #include <QComboBox>
 #include <QFont>
 #include <QFrame>
@@ -8,6 +9,7 @@
 #include <QHeaderView>
 #include <QLabel>
 #include <QPushButton>
+#include <QRegularExpressionValidator>
 #include <QSplitter>
 #include <QTableWidget>
 #include <QVBoxLayout>
@@ -36,6 +38,7 @@ class Mixer::Impl {
   void SetTracksTable();
   void SetChannelsTable();
   QWidget *CreateControlWidget(QWidget *parent, unsigned e_mixable, int i);
+  static std::string ParseLowHigh(const std::string &in, std::string &out);
   GPlay &gplay_;
   QPushButton *default_buttons_[E_MixableCount]{nullptr, nullptr};
   QPushButton *silence_buttons_[E_MixableCount]{nullptr, nullptr};
@@ -183,14 +186,15 @@ QWidget *Mixer::Impl::CreateControlWidget(
      const range_t range = get_range();
      return std::format("{},{}", range[0], range[1]);
   };
+  QRegularExpression rx("\\d{1,3},\\d{1,3}");
+  auto validator = new QRegularExpressionValidator(rx);
   auto button_edit = new ButtonEditable(
     get_edit_value(), w, "Volume Range", "Set Volume Range\n0⩽low,high<128",
     get_edit_value,
-    nullptr,
-    [](const std::string &s_in, std::string &s_out) -> std::string {
-      return "foo";
-    }
+    validator,
+    &ParseLowHigh
   );
+  button_edit->setEnabled(false);
 
   const auto default_range = get_range();
   qDebug() << qFormat("default_range={},{}", default_range[0], default_range[1]);
@@ -198,44 +202,77 @@ QWidget *Mixer::Impl::CreateControlWidget(
   range_slider->setEnabled(true);
   range_slider->SetRange(0, 127);
   range_slider->SetValues(default_range[0], default_range[1]);
+  range_slider->setEnabled(false);
 
   auto vlayout = new QVBoxLayout(w);
   vlayout->addWidget(button_edit);
   vlayout->addWidget(range_slider);
 
   connect(combo, QOverload<int>::of(&QComboBox::currentIndexChanged),
-    [this, e_mixable, i, combo, range_slider, button_edit, get_range](int index) {
+    [this, e_mixable, i, combo, range_slider, button_edit, get_range]
+        (int index) {
       qDebug() << "Selected" << combo->currentText() 
         << " currentInex=" << combo->currentIndex()
                << "for" << e_mixable << i;
-    auto range = get_range();
-    switch (combo->currentIndex()) {
-     case E_ComboDefault:
-      button_edit->setEnabled(false);
-      range_slider->setEnabled(false);
-      break;
-     case E_ComboSilence:
-      button_edit->setEnabled(false);
-      range_slider->setEnabled(false);
-      range = range_t{0, 0};
-      break;
-     case E_ComboCustom:
-      button_edit->setEnabled(true);
-      range_slider->setEnabled(true);
-      break;
-     default:
-      qDebug() << qFormat("{}:{} unexpected index={}",
-        __FILE__, __LINE__, combo->currentIndex());
+      auto range = get_range();
+      switch (combo->currentIndex()) {
+       case E_ComboDefault:
+        button_edit->setEnabled(false);
+        range_slider->setEnabled(false);
+        break;
+       case E_ComboSilence:
+        button_edit->setEnabled(false);
+        range_slider->setEnabled(false);
+        range = range_t{0, 0};
+        break;
+       case E_ComboCustom:
+        button_edit->setEnabled(true);
+        range_slider->setEnabled(true);
+        break;
+       default:
+        qDebug() << qFormat("{}:{} unexpected index={}",
+          __FILE__, __LINE__, combo->currentIndex());
+      }
+      range_slider->SetValues(range[0], range[1]);
+      button_edit->setText(qFormat("{},{}", range[0], range[1]));
     }
-    range_slider->SetValues(range[0], range[1]);
-    button_edit->setText(qFormat("{},{}", range[0], range[1]));
-  });
-
+  );
 
   layout->addWidget(combo);
   layout->addLayout(vlayout);
   w->setLayout(layout);
   return w;
+}
+
+std::string Mixer::Impl::ParseLowHigh(const std::string &in, std::string &out) {
+  std::string error;
+  auto comma_pos = in.find(',');
+  if (comma_pos == std::string::npos) {
+    error = "Missing comma";
+  } else {
+    uint8_t low = 0xff, high = 0xff;
+    auto data = in.data();
+    auto result = std::from_chars(data, data + comma_pos, low);
+    if (result.ec != std::errc()) {
+      error = std::format("Failed to parse low: {}", in.substr(0, comma_pos));
+    } else {
+      result = std::from_chars(data + comma_pos + 1, data + in.size(), high);
+      if (result.ec != std::errc()) {
+        error = std::format("Failed to parse high: {}",
+          in.substr(comma_pos + 1));
+      }
+    }
+    if (error.empty()) {
+      if (low > high) {
+        error = std::format("low={} must ⩽ high={}", low, high);
+      } else if (high >= 128) {
+        error = std::format("high={} must be < 128", high);
+      } else {
+        out = in;
+      }
+    }
+  }
+  return error;
 }
 
 Mixer::Mixer(QWidget *page, GPlay &gplay) :
