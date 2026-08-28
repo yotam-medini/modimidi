@@ -28,7 +28,8 @@ class Mixer::Impl {
   }
   void ResetByMidi();
  private:
-  enum { E_Tracks, E_Channels, E_N };
+  enum { E_Tracks, E_Channels, E_MixableCount };
+  enum { E_ComboDefault, E_ComboSilence, E_ComboCustom, E_ComboCount };
   using range_t = midi::Midi::range_t;
   QFrame* CreateFrame(QWidget *page, unsigned i);
   void CreateUI(QWidget *page);
@@ -36,9 +37,9 @@ class Mixer::Impl {
   void SetChannelsTable();
   QWidget *CreateControlWidget(QWidget *parent, unsigned e_mixable, int i);
   GPlay &gplay_;
-  QPushButton *default_buttons_[E_N]{nullptr, nullptr};
-  QPushButton *silence_buttons_[E_N]{nullptr, nullptr};
-  QTableWidget *tables_[E_N]{nullptr, nullptr};
+  QPushButton *default_buttons_[E_MixableCount]{nullptr, nullptr};
+  QPushButton *silence_buttons_[E_MixableCount]{nullptr, nullptr};
+  QTableWidget *tables_[E_MixableCount]{nullptr, nullptr};
   midi::Midi::channels_range_t channels_range_;
 };
 
@@ -161,32 +162,27 @@ QWidget *Mixer::Impl::CreateControlWidget(
   auto layout = new QHBoxLayout(w);
 
   QComboBox* combo = new QComboBox(w);
-  combo->addItem("Default");
-  combo->addItem("Silence");
-  combo->addItem("Custom");
+  combo->addItem("Default", static_cast<int>(E_ComboDefault));
+  combo->addItem("Silence", static_cast<int>(E_ComboSilence));
+  combo->addItem("Custom", static_cast<int>(E_ComboCustom));
 
-  connect(combo, QOverload<int>::of(&QComboBox::currentIndexChanged),
-    [this, e_mixable, i, combo](int index) {
-      qDebug() << "Selected" << combo->currentText() 
-               << "for" << e_mixable << i;
-  });
-
-#if 0
   const midi::Midi *parsed_midi = gplay_.GetMidi();
-  std::function<range_t()> get_range = (e_mixable == E_Tracks)
-    ? [parsed_midi, i]() -> range_t {
-        return parsed_midi->GetTracks()[i].GetVolumeRange();
-      }
-    : [parsed_midi, i]() -> std::string {
-        const auto &channels_range = parsed_midi->GetChannels();
-        auto iter = channels_range.find(i);
-        // return (iter != channels_range.end()) ? iter->second() : range_t{0, 0};
-        return iter->second.velocity_range_;
-      };
+  std::function<range_t()> get_range;
+  if (e_mixable == E_Tracks) {
+    get_range = [parsed_midi, i]() -> range_t {
+      return parsed_midi->GetTracks()[i].GetVolumeRange();
+    };
+  } else {
+    get_range = [parsed_midi, i]() -> range_t {
+      const auto &channels_range = parsed_midi->GetChannels();
+      auto iter = channels_range.find(i);
+      return iter->second.velocity_range_;
+    };
+  }
   auto get_edit_value = [get_range]() -> std::string {
      const range_t range = get_range();
      return std::format("{},{}", range[0], range[1]);
-  }
+  };
   auto button_edit = new ButtonEditable(
     get_edit_value(), w, "Volume Range", "Set Volume Range\n0⩽low,high<128",
     get_edit_value,
@@ -195,23 +191,46 @@ QWidget *Mixer::Impl::CreateControlWidget(
       return "foo";
     }
   );
-#else
-  auto button_edit = new ButtonEditable(
-    "23,57", w, "Volume Range", "Set Volume Range\n0⩽low,high<128",
-    []() -> std::string { return "23,57"; },
-    nullptr,
-    [](const std::string &s_in, std::string &s_out) -> std::string {
-      return "foo";
-    }
-  );
-#endif
+
+  const auto default_range = get_range();
+  qDebug() << qFormat("default_range={},{}", default_range[0], default_range[1]);
   auto range_slider = new RangeSlider(w);
   range_slider->setEnabled(true);
   range_slider->SetRange(0, 127);
-  range_slider->SetValues(0, 127);
+  range_slider->SetValues(default_range[0], default_range[1]);
+
   auto vlayout = new QVBoxLayout(w);
   vlayout->addWidget(button_edit);
   vlayout->addWidget(range_slider);
+
+  connect(combo, QOverload<int>::of(&QComboBox::currentIndexChanged),
+    [this, e_mixable, i, combo, range_slider, button_edit, get_range](int index) {
+      qDebug() << "Selected" << combo->currentText() 
+        << " currentInex=" << combo->currentIndex()
+               << "for" << e_mixable << i;
+    auto range = get_range();
+    switch (combo->currentIndex()) {
+     case E_ComboDefault:
+      button_edit->setEnabled(false);
+      range_slider->setEnabled(false);
+      break;
+     case E_ComboSilence:
+      button_edit->setEnabled(false);
+      range_slider->setEnabled(false);
+      range = range_t{0, 0};
+      break;
+     case E_ComboCustom:
+      button_edit->setEnabled(true);
+      range_slider->setEnabled(true);
+      break;
+     default:
+      qDebug() << qFormat("{}:{} unexpected index={}",
+        __FILE__, __LINE__, combo->currentIndex());
+    }
+    range_slider->SetValues(range[0], range[1]);
+    button_edit->setText(qFormat("{},{}", range[0], range[1]));
+  });
+
 
   layout->addWidget(combo);
   layout->addLayout(vlayout);
