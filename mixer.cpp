@@ -38,7 +38,12 @@ class Mixer::Impl {
   void SetTracksTable();
   void SetChannelsTable();
   QWidget *CreateControlWidget(QWidget *parent, unsigned e_mixable, int i);
-  static std::string ParseLowHigh(const std::string &in, std::string &out);
+  std::string ParseLowHigh(
+    unsigned mixable,
+    size_t i,
+    RangeSlider *range_slider,
+    const std::string &in,
+    std::string &out);
   GPlay &gplay_;
   QPushButton *default_buttons_[E_MixableCount]{nullptr, nullptr};
   QPushButton *silence_buttons_[E_MixableCount]{nullptr, nullptr};
@@ -188,17 +193,20 @@ QWidget *Mixer::Impl::CreateControlWidget(
   };
   QRegularExpression rx("\\d{1,3},\\d{1,3}");
   auto validator = new QRegularExpressionValidator(rx);
+  auto range_slider = new RangeSlider(w);
   auto button_edit = new ButtonEditable(
     get_edit_value(), w, "Volume Range", "Set Volume Range\n0⩽low,high<128",
     get_edit_value,
     validator,
-    &ParseLowHigh
+    [this, e_mixable, i, range_slider]
+      (const std::string &in, std::string &out) -> std::string {
+      return ParseLowHigh(e_mixable, i, range_slider, in, out);
+    }
   );
   button_edit->setEnabled(false);
 
   const auto default_range = get_range();
   qDebug() << qFormat("default_range={},{}", default_range[0], default_range[1]);
-  auto range_slider = new RangeSlider(w);
   range_slider->setEnabled(true);
   range_slider->SetRange(0, 127);
   range_slider->SetValues(default_range[0], default_range[1]);
@@ -244,7 +252,12 @@ QWidget *Mixer::Impl::CreateControlWidget(
   return w;
 }
 
-std::string Mixer::Impl::ParseLowHigh(const std::string &in, std::string &out) {
+std::string Mixer::Impl::ParseLowHigh(
+    unsigned mixable,
+    size_t i,
+    RangeSlider *range_slider,
+    const std::string &in,
+    std::string &out) {
   std::string error;
   auto comma_pos = in.find(',');
   if (comma_pos == std::string::npos) {
@@ -269,6 +282,7 @@ std::string Mixer::Impl::ParseLowHigh(const std::string &in, std::string &out) {
         error = std::format("high={} must be < 128", high);
       } else {
         out = in;
+        range_slider->SetValues(low, high);
       }
     }
   }
