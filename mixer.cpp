@@ -1,6 +1,6 @@
 #include "mixer.h"
 #include <algorithm>
-#include <algorithm>
+#include <array>
 #include <charconv>
 #include <QComboBox>
 #include <QFont>
@@ -56,11 +56,15 @@ class Mixer::Impl {
     size_t i,
     RangeSlider *slider,
     ButtonEditable* button_edit);
+  void SetDefault(unsigned e_mixable);
+  void SetSilence(unsigned e_mixable);
+  void SetCombosTo(unsigned e_mixable, unsigned e_combo);
 
   GPlay &gplay_;
   QPushButton *default_buttons_[E_MixableCount]{nullptr, nullptr};
   QPushButton *silence_buttons_[E_MixableCount]{nullptr, nullptr};
   QTableWidget *tables_[E_MixableCount]{nullptr, nullptr};
+  std::array<std::vector<QComboBox*>, 2> tc_combos;
   midi::Midi::channels_range_t channels_range_;
 };
 
@@ -74,8 +78,8 @@ void Mixer::Impl::CreateUI(QWidget *page) {
   page->setLayout(main_layout);
 }
 
-QFrame* Mixer::Impl::CreateFrame(QWidget *page, unsigned i) {
-  const char *entity_name = (i == E_Tracks ? "Track" : "Channel");
+QFrame* Mixer::Impl::CreateFrame(QWidget *page, unsigned mixable) {
+  const char *entity_name = (mixable == E_Tracks ? "Track" : "Channel");
   auto frame = new QFrame(page);
   frame->setFrameShape(QFrame::Box);
   QVBoxLayout *layout = new QVBoxLayout(frame);
@@ -86,14 +90,21 @@ QFrame* Mixer::Impl::CreateFrame(QWidget *page, unsigned i) {
   font.setPointSize((3*font.pointSize())/2);
   font.setBold(true);
   title->setFont(font);
-  default_buttons_[i] = new QPushButton("Default", frame);
-  silence_buttons_[i] = new QPushButton("Silence", frame);
+  QPushButton* button;
+  default_buttons_[mixable] = button = new QPushButton("Default", frame);
+  connect(button, &QPushButton::clicked, button, [this, mixable]() {
+    SetDefault(mixable); 
+  });
+  silence_buttons_[mixable] = button = new QPushButton("Silence", frame);
+  connect(button, &QPushButton::clicked, button, [this, mixable]() {
+    SetSilence(mixable); 
+  });
   QHBoxLayout *tr_layout = new QHBoxLayout(frame);
   tr_layout->addWidget(title, 2);
-  tr_layout->addWidget(default_buttons_[i], 1);
-  tr_layout->addWidget(silence_buttons_[i], 1);
+  tr_layout->addWidget(default_buttons_[mixable], 1);
+  tr_layout->addWidget(silence_buttons_[mixable], 1);
 
-  QTableWidget *table = tables_[i] = new QTableWidget(frame);
+  QTableWidget *table = tables_[mixable] = new QTableWidget(frame);
   table->setColumnCount(2);
   table->setHorizontalHeaderLabels({entity_name, "Volume Control"});
   table->setHorizontalScrollBarPolicy(Qt::ScrollBarAsNeeded);
@@ -106,6 +117,8 @@ QFrame* Mixer::Impl::CreateFrame(QWidget *page, unsigned i) {
 }
 
 void Mixer::Impl::ResetByMidi() {
+  tc_combos[E_Tracks].clear();
+  tc_combos[E_Channels].clear();
   SetTracksTable();
   SetChannelsTable();
 }
@@ -183,6 +196,7 @@ QWidget *Mixer::Impl::CreateControlWidget(
   auto layout = new QHBoxLayout(w);
 
   QComboBox* combo = new QComboBox(w);
+  tc_combos[e_mixable].push_back(combo);
   combo->addItem("Default", static_cast<int>(E_ComboDefault));
   combo->addItem("Silence", static_cast<int>(E_ComboSilence));
   combo->addItem("Custom", static_cast<int>(E_ComboCustom));
@@ -344,6 +358,20 @@ void Mixer::Impl::Update(
     gplay_.SetTMap(i, low, high);
   } else {
     gplay_.SetCMap(i, low, high);
+  }
+}
+
+void Mixer::Impl::SetDefault(unsigned e_mixable) {
+  SetCombosTo(e_mixable, E_ComboDefault);
+}
+
+void Mixer::Impl::SetSilence(unsigned e_mixable) {
+  SetCombosTo(e_mixable, E_ComboSilence);
+}
+
+void Mixer::Impl::SetCombosTo(unsigned e_mixable, unsigned e_combo) {
+  for (auto combo: tc_combos[e_mixable]) {
+    combo->setCurrentIndex(e_combo);
   }
 }
 
