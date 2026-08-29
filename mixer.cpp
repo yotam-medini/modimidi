@@ -224,21 +224,6 @@ QWidget *Mixer::Impl::CreateControlWidget(
         Update(e_mixable, i, range_slider, button_edit);
       });
   }
-#if 0
-  connect(range_slider, &RangeSlider::lowValueChanged, range_slider,
-      [this, e_mixable, i, range_slider, button_edit](uint32_t low) {
-        qDebug() << qFormat("lowValueChanged low={} range=({}, {})", low,
-        range_slider->LowValue(), range_slider->HighValue());
-        Update(e_mixable, i, range_slider, button_edit);
-      });
-  connect(range_slider, &RangeSlider::highValueChanged, range_slider,
-      [this, range_slider](uint32_t high) {
-        qDebug() << qFormat("highValueChanged high={} range=({}, {})", high,
-          range_slider->LowValue(), range_slider->HighValue());
-          
-      });
-#endif
-
 
   auto vlayout = new QVBoxLayout(w);
   vlayout->addWidget(button_edit);
