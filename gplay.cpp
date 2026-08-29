@@ -178,6 +178,32 @@ class GPlay::Impl {
     play_params_.key_shift_ = ks;
   }
 
+  void SetTMapDefault() {
+    play_params_.tracks_velocity_map_.clear();
+  }
+
+  void SetTMapTrackDefault(uint8_t track) {
+    play_params_.tracks_velocity_map_.erase(track);
+  }
+
+  void SetCMapDefault() {
+    play_params_.channels_velocity_map_.clear();
+  }
+
+  void SetCMapChannelDefault(uint8_t channel) {
+    play_params_.channels_velocity_map_.erase(channel);
+  }
+
+  void SetTMap(uint8_t track, uint8_t low, uint8_t high) {
+    auto &m = play_params_.tracks_velocity_map_;
+    m.insert({track, range_t{low, high}});
+  }
+
+  void SetCMap(uint8_t channel, uint8_t low, uint8_t high) {
+    auto &m = play_params_.channels_velocity_map_;
+    m.insert({channel, range_t{low, high}});
+  }
+
   const midi::Midi *GetMidi() const {
     return parsed_midi_.get();
   }
@@ -187,6 +213,7 @@ class GPlay::Impl {
   }
 
  private:
+  using range_t = player::PlayerParams::range_t;
   void SetState(State state) {
     state_ = state;
     on_state_change_(state);
@@ -283,6 +310,30 @@ float GPlay::GetTempoFactor() const {
 
 void GPlay::SetKeyShift(int8_t ks) {
   impl_->SetKeyShift(ks);
+}
+
+void GPlay::SetTMapDefault() {
+  impl_->SetTMapDefault();
+}
+
+void GPlay::SetTMapTrackDefault(uint8_t track) {
+  impl_->SetTMapTrackDefault(track);
+}
+
+void GPlay::SetCMapDefault() {
+  impl_->SetCMapDefault();
+}
+
+void GPlay::SetCMapChannelDefault(uint8_t channel) {
+  impl_->SetCMapChannelDefault(channel);
+}
+
+void GPlay::SetTMap(uint8_t track, uint8_t low, uint8_t high) {
+  impl_->SetTMap(track, low, high);
+}
+
+void GPlay::SetCMap(uint8_t channel, uint8_t low, uint8_t high) {
+  impl_->SetCMap(channel, low, high);
 }
 
 const midi::Midi *GPlay::GetMidi() const {

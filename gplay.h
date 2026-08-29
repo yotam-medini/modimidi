@@ -38,6 +38,13 @@ class GPlay {
   float GetTempoFactor() const;
   void SetKeyShift(int8_t ks);
 
+  void SetTMapDefault();
+  void SetTMapTrackDefault(uint8_t track);
+  void SetCMapDefault();
+  void SetCMapChannelDefault(uint8_t channel);
+  void SetTMap(uint8_t track, uint8_t low, uint8_t high);
+  void SetCMap(uint8_t channel, uint8_t low, uint8_t high);
+
   const midi::Midi *GetMidi() const;
   std::string GetMidiInfo() const;
 

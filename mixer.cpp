@@ -45,6 +45,11 @@ class Mixer::Impl {
     const std::string &in,
     std::string &out);
   GPlay &gplay_;
+  void Update(
+    unsigned mixable,
+    size_t i,
+    RangeSlider *slider,
+    ButtonEditable* button_edit);
   QPushButton *default_buttons_[E_MixableCount]{nullptr, nullptr};
   QPushButton *silence_buttons_[E_MixableCount]{nullptr, nullptr};
   QTableWidget *tables_[E_MixableCount]{nullptr, nullptr};
@@ -212,6 +217,29 @@ QWidget *Mixer::Impl::CreateControlWidget(
   range_slider->SetValues(default_range[0], default_range[1]);
   range_slider->setEnabled(false);
 
+  for (auto slot:
+      {&RangeSlider::lowValueChanged, &RangeSlider::highValueChanged}) {
+    connect(range_slider, slot, range_slider,
+      [this, e_mixable, i, range_slider, button_edit](uint32_t low_or_high) {
+        Update(e_mixable, i, range_slider, button_edit);
+      });
+  }
+#if 0
+  connect(range_slider, &RangeSlider::lowValueChanged, range_slider,
+      [this, e_mixable, i, range_slider, button_edit](uint32_t low) {
+        qDebug() << qFormat("lowValueChanged low={} range=({}, {})", low,
+        range_slider->LowValue(), range_slider->HighValue());
+        Update(e_mixable, i, range_slider, button_edit);
+      });
+  connect(range_slider, &RangeSlider::highValueChanged, range_slider,
+      [this, range_slider](uint32_t high) {
+        qDebug() << qFormat("highValueChanged high={} range=({}, {})", high,
+          range_slider->LowValue(), range_slider->HighValue());
+          
+      });
+#endif
+
+
   auto vlayout = new QVBoxLayout(w);
   vlayout->addWidget(button_edit);
   vlayout->addWidget(range_slider);
@@ -287,6 +315,17 @@ std::string Mixer::Impl::ParseLowHigh(
     }
   }
   return error;
+}
+
+void Mixer::Impl::Update(
+    unsigned mixable,
+    size_t i,
+    RangeSlider *slider,
+    ButtonEditable* button_edit) {
+  uint8_t low = slider->LowValue();
+  uint8_t high = slider->HighValue();
+  button_edit->setText(qFormat("{},{}", low, high));
+
 }
 
 Mixer::Mixer(QWidget *page, GPlay &gplay) :
