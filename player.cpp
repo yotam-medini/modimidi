@@ -648,8 +648,6 @@ void Player::Impl::PeriodicCallback(
     if (next_send_index_ == 0) {
       now0_ = now;
       date_add_ms_ = now + pp_.initial_delay_ms_;
-std::cerr << std::format("date_add_ms_={} now0_={}, initial_delay_ms_={}\n", 
- date_add_ms_, now0_, pp_.initial_delay_ms_);
       if (pp_.debug_ & 0x1) {
         std::cerr << std::format("date_add_ms_={}\n", date_add_ms_);
       }

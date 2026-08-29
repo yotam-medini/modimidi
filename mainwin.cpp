@@ -476,7 +476,6 @@ void MainWindow::ConnectButtonsActions() {
       {Op::Forward, &GPlay::SkipForward},
       {Op::Backward, &GPlay::SkipBackward}}) {
     connect(actions_[i], &QAction::triggered, this, [this, i, gp_method]() {
-      std::cerr << std::format("{}:{} i={}\n", __FILE__, __LINE__, i);
       (gplay_.*gp_method)();
     });
     connect(actions_[i], &QAction::changed, this, [this, i]() {
