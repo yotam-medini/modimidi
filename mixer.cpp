@@ -75,7 +75,6 @@ void Mixer::Impl::CreateUI(QWidget *page) {
   splitter->addWidget(CreateFrame(page, E_Tracks));
   splitter->addWidget(CreateFrame(page, E_Channels));
   main_layout->addWidget(splitter);
-  page->setLayout(main_layout);
 }
 
 QFrame* Mixer::Impl::CreateFrame(QWidget *page, unsigned mixable) {
@@ -93,13 +92,13 @@ QFrame* Mixer::Impl::CreateFrame(QWidget *page, unsigned mixable) {
   QPushButton* button;
   default_buttons_[mixable] = button = new QPushButton("Default", frame);
   connect(button, &QPushButton::clicked, button, [this, mixable]() {
-    SetDefault(mixable); 
+    SetDefault(mixable);
   });
   silence_buttons_[mixable] = button = new QPushButton("Silence", frame);
   connect(button, &QPushButton::clicked, button, [this, mixable]() {
-    SetSilence(mixable); 
+    SetSilence(mixable);
   });
-  QHBoxLayout *tr_layout = new QHBoxLayout(frame);
+  QHBoxLayout *tr_layout = new QHBoxLayout;
   tr_layout->addWidget(title, 2);
   tr_layout->addWidget(default_buttons_[mixable], 1);
   tr_layout->addWidget(silence_buttons_[mixable], 1);
@@ -129,7 +128,6 @@ void Mixer::Impl::SetTracksTable() {
   if (parsed_midi) {
     const auto &tracks = parsed_midi->GetTracks();
     const auto n_tracks = tracks.size();
-    qDebug() << qFormat("{} n_tracks={}", __func__, n_tracks);
     auto table = tables_[E_Tracks];
     table->setHorizontalHeaderLabels({"Track", "Volume Control"});
     const auto &tracks_ = parsed_midi->GetTracks();
@@ -191,7 +189,6 @@ QWidget *Mixer::Impl::CreateControlWidget(
   QWidget *parent,
   unsigned e_mixable,
   int i) {
-  qDebug() << qFormat("{} e_mixable={}, i={}\n", __func__, e_mixable, i);
   auto w = new QWidget(parent);
   auto layout = new QHBoxLayout(w);
 
@@ -218,7 +215,6 @@ QWidget *Mixer::Impl::CreateControlWidget(
   auto validator = new QRegularExpressionValidator(rx);
   auto range_slider = new RangeSlider(w);
   const auto default_range = get_range();
-  qDebug() << qFormat("default_range={},{}", default_range[0], default_range[1]);
   range_slider->setEnabled(true);
   range_slider->SetRange(0, 127);
   range_slider->SetValues(default_range[0], default_range[1]);
@@ -248,7 +244,7 @@ QWidget *Mixer::Impl::CreateControlWidget(
       });
   }
 
-  auto vlayout = new QVBoxLayout(w);
+  auto vlayout = new QVBoxLayout;
   vlayout->addWidget(button_edit);
   vlayout->addWidget(range_slider);
 
@@ -262,7 +258,6 @@ QWidget *Mixer::Impl::CreateControlWidget(
 
   layout->addWidget(combo);
   layout->addLayout(vlayout);
-  w->setLayout(layout);
   return w;
 }
 
@@ -351,8 +346,6 @@ void Mixer::Impl::Update(
     ButtonEditable* button_edit) {
   uint8_t low = slider->LowValue();
   uint8_t high = slider->HighValue();
-  qDebug() << qFormat("{}:{} mixable={} i={} low={} high={}",
-    __FILE__, __LINE__, mixable, i, low, high);
   button_edit->setText(qFormat("{},{}", low, high));
   if (mixable == E_Tracks) {
     gplay_.SetTMap(i, low, high);

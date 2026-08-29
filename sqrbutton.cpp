@@ -23,8 +23,6 @@ QSize SquareToolButton::sizeHint() const {
   } else {
     size_hint = QToolButton::sizeHint();
   }
-qDebug() << qFormat("sizeHint: size=({},{})",
- size_hint.width(), size_hint.height());
   return size_hint;
 }
 

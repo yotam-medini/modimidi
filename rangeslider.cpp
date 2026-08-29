@@ -85,7 +85,6 @@ QSize RangeSlider::minimumSizeHint() const {
   const QFontMetrics fm = fontMetrics();
   const int w = fm.horizontalAdvance(QStringLiteral("00:00.000")) * 2;
   const int h = 2 * HandleRadius() + fm.height() / 2;
-qDebug() << qFormat("{} {} w={} h={}", __FILE__, __func__, w, h);
   return QSize(w, h);
 }
 

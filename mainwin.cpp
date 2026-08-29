@@ -109,7 +109,6 @@ class TimeCharsValidator : public QValidator {
  public:
   explicit TimeCharsValidator(QObject *parent) : QValidator(parent) {}
   ~TimeCharsValidator() {
-    std::cout << std::format("{}:{} {}\n", __FILE__, __LINE__, __func__);
   }
 
   State validate(QString &input, int &) const override {
@@ -255,14 +254,11 @@ QWidget* MainWindow::BuildAboutPage() {
 }
 
 void MainWindow::openFile() {
-  qDebug() << std::format("{}:{} {}", __FILE__, __LINE__, __func__);
   QString filter = "MIDI Files (*.mid *.MID *.midi *.MIDI);;All Files (*)";
 
   QString fileName = QFileDialog::getOpenFileName(this,
       tr("Open MIDI File"), "", filter);
 
-  qDebug() << std::format("{}:{} fileName={}",
-    __FILE__, __LINE__, fileName.toStdString());
   if (!fileName.isEmpty()) {
     lastOpenedPath = fileName;
     // reOpenAction->setEnabled(true);
@@ -270,10 +266,6 @@ void MainWindow::openFile() {
     std::vector<uint8_t> data;
     std::string err = read_binary_file(fileName, data);
     if (err.empty()) {
-      auto const msg = std::format("{}:{} data.size=={}",
-        __FILE__, __LINE__, data.size());
-      qDebug() << msg;
-      DebugMessage::AddMessage(msg);
       err = gplay_.OpenMidi(data);
     }
     if (!err.empty()) {
@@ -427,8 +419,6 @@ void MainWindow::showDebugDialog() {
 }
 
 void MainWindow::OnStateChange(State state) {
-  qDebug() << std::format("{}:{} {} state={}",
-    __FILE__, __LINE__, __func__, static_cast<int>(state));
   auto const in_pause = (state == State::Pause);
   auto pause_icon =
     in_pause ? QStyle::SP_MediaSeekForward : QStyle::SP_MediaPause;
