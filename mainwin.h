@@ -51,6 +51,7 @@ class MainWindow : public QMainWindow {
   QWidget *BuildAboutPage();
 
   void BuildRangeControl(QWidget *page, QLabel *progress_label);
+  void closeEvent(QCloseEvent *event) override;
 
   GPlay &gplay_;
 

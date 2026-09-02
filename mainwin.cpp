@@ -10,6 +10,7 @@
 
 #include <QAction>
 #include <QApplication>
+#include <QCloseEvent>
 #include <QColor>
 #include <QDebug>
 #include <QDialog>
@@ -379,7 +380,7 @@ void MainWindow::confirmQuit() {
     this, tr("Quit"), tr("Really Quit?"),
     QMessageBox::Yes | QMessageBox::No, QMessageBox::No);
   if (answer == QMessageBox::Yes) {
-    qApp->quit();
+    close(); // Will trigger closeEvent()
   }
 }
 
@@ -571,4 +572,9 @@ void MainWindow::BuildRangeControl(QWidget *page, QLabel *progress_label) {
     progress_label->setText(QString::fromStdString(s));
     rangeSlider->SetCurrentPosition(done_ms);
   });
+}
+
+void MainWindow::closeEvent(QCloseEvent *event) {
+  gplay_.Stop();
+  event->accept();
 }

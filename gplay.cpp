@@ -51,6 +51,11 @@ class Worker {
       player_->PostCommand(player::Command::Quit);
     }
   }
+  void Wait() {
+    if (thread_.joinable()) {
+      thread_.join();
+    }
+  }
   void PauseResume() {
     if (player_ && !finished_) {
       player_->PostCommand(player::Command::PauseResume);
@@ -126,6 +131,7 @@ class GPlay::Impl {
     DebugMessage::AddMessage("Stop...");
     if (worker_) {
       worker_->Stop();
+      worker_->Wait();
     }
     SetState(State::None);
   }
