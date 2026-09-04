@@ -133,6 +133,7 @@ if(BUILD_GUI OR ANDROID)
         speedtune.cpp
         sqrbutton.cpp
         synthseq.cpp
+        version.cpp
         buttonedit.h
         about.h
         debug.h
@@ -144,6 +145,7 @@ if(BUILD_GUI OR ANDROID)
         rangeslider.h
         speedtune.h
         sqrbutton.h
+        version.h
     )
 
     # Both gmodimidi and Android (ModiMidi) need the same icon.png.

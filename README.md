@@ -8,7 +8,7 @@ Additional - work in progress:
   and **NDK** r27d.
 
 ## Version
-The current version is 0.2.4
+The current version is 0.2.6
 
 # Example
 

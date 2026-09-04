@@ -1,21 +1,41 @@
 #include "about.h"
 #include <QFont>
+#include <QHBoxLayout>
 #include <QLabel>
 #include <QMainWindow>
 #include <QPixmap>
 #include <QVBoxLayout>
 #include <QWidget>
+#include "version.h"
+#include "qutil.h"
 
 QWidget* CreateAboutPage(QMainWindow *mainwin) {
   QWidget* page = new QWidget(mainwin);
-  QVBoxLayout *mainLayout = new QVBoxLayout(page);
+  QVBoxLayout *main_layout = new QVBoxLayout(page);
+  QHBoxLayout *title_layout = new QHBoxLayout(page);
 
   QLabel *title = new QLabel("ModiMidi", page);
-  title->setAlignment(Qt::AlignHCenter);
   QFont font = title->font();
   font.setPointSize(3*font.pointSize());
   font.setBold(true);
   title->setFont(font);
+
+  QLabel *label_version = new QLabel(qFormat(" {}", version), page);
+
+  QFontMetrics title_metrics(title->font());
+  QFontMetrics version_metrics(label_version->font());
+  int offset = title_metrics.ascent() - version_metrics.ascent();
+
+  title_layout->addWidget(title, 0, Qt::AlignTop);
+  title_layout->addWidget(label_version, 0, Qt::AlignTop);
+
+  // Adjust version label's vertical position to align base lines
+  if (offset > 0) {
+    title_layout->setContentsMargins(0, 0, 0, 0);
+    label_version->setContentsMargins(0, offset, 0, 0);
+  }
+
+  title_layout->setAlignment(Qt::AlignHCenter);
 
   // Icon from embedded Qt resource (:/icon.png, set up in CMakeLists.txt)
   QLabel *iconLabel = new QLabel(page);
@@ -46,12 +66,12 @@ QWidget* CreateAboutPage(QMainWindow *mainwin) {
   see->setTextFormat(Qt::RichText);
   see->setOpenExternalLinks(true);
 
-  mainLayout->addStretch();
-  mainLayout->addWidget(title, 2);
-  mainLayout->addWidget(iconLabel, 2);
-  mainLayout->addWidget(summary, 1);
-  mainLayout->addWidget(see, 1);
-  mainLayout->addStretch();
+  main_layout->addStretch();
+  main_layout->addLayout(title_layout, 2);
+  main_layout->addWidget(iconLabel, 2);
+  main_layout->addWidget(summary, 1);
+  main_layout->addWidget(see, 1);
+  main_layout->addStretch();
 
   return page;
 }
