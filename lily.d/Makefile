@@ -3,7 +3,7 @@
 icon.png: icon.ly
 	lilypond -fpng -dresolution=600 -dcrop icon.ly
 	convert icon.cropped.png -resize 512x512 \
-            -fill "#aaa" -opaque "#ffffff" \
+            -fill "#e0ffe0" -opaque "#ffffff" \
 	    -background green -gravity center -extent 512x512 $@
 
 clean:

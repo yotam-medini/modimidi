@@ -95,6 +95,19 @@ target_link_libraries(modidump2ly
 )
 endif()
 
+# ============================================================================
+# CMake function to set icon.png dependency for about.cpp and ui.cpp
+# This ensures they are rebuilt when icon.png changes
+# ============================================================================
+function(SetIconDependencies ICON_PNG_PATH)
+    set_source_files_properties(
+        about.cpp
+        ui.cpp
+        PROPERTIES
+        OBJECT_DEPENDS "${ICON_PNG_PATH}"
+    )
+endfunction()
+
 if(BUILD_GUI OR ANDROID)
     find_package(Qt6
         REQUIRED COMPONENTS
@@ -162,6 +175,9 @@ if(BUILD_GUI OR ANDROID)
 endif()
 
 if(BUILD_GUI)
+    # Call the icon dependency function before adding the target
+    SetIconDependencies("${ICON_PNG}")
+
     set(GSOURCE_FILES
         gmain.cpp
         ${UI_SOURCE_FILES}
@@ -196,6 +212,9 @@ if(BUILD_GUI)
 endif()
 
 if(ANDROID)
+    # Call the icon dependency function before adding the target
+    SetIconDependencies("${ICON_PNG}")
+
     # add_compile_options(-fexperimental-library)
     set(FLUID_DIR "${CMAKE_SOURCE_DIR}/third_party/fluidsynth-android")
 
