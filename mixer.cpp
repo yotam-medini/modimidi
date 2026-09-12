@@ -41,7 +41,7 @@ class Mixer::Impl {
   void ComboChangeHandle(
     unsigned mixable,
     size_t i,
-    QComboBox *combo,
+    TouchComboBox *combo,
     RangeSlider *range_slider,
     ButtonEditable *button_edit,
     std::function<range_t()> get_range);
@@ -64,7 +64,7 @@ class Mixer::Impl {
   QPushButton *default_buttons_[E_MixableCount]{nullptr, nullptr};
   QPushButton *silence_buttons_[E_MixableCount]{nullptr, nullptr};
   QTableWidget *tables_[E_MixableCount]{nullptr, nullptr};
-  std::array<std::vector<QComboBox*>, 2> tc_combos;
+  std::array<std::vector<TouchComboBox*>, 2> tc_combos;
   midi::Midi::channels_range_t channels_range_;
 };
 
@@ -193,7 +193,7 @@ QWidget *Mixer::Impl::CreateControlWidget(
   auto w = new QWidget(parent);
   auto layout = new QHBoxLayout(w);
 
-  QComboBox* combo = new QComboBox(w);
+  TouchComboBox* combo = new TouchComboBox(w);
   tc_combos[e_mixable].push_back(combo);
   combo->addItem("Default", static_cast<int>(E_ComboDefault));
   combo->addItem("Silence", static_cast<int>(E_ComboSilence));
@@ -227,7 +227,7 @@ QWidget *Mixer::Impl::CreateControlWidget(
      return std::format("{},{}", low, high);
   };
   auto button_edit = new ButtonEditable(
-    get_edit_value(), w, "Volume Range", "Set Volume Range\n0⩽low,high<128",
+    get_edit_value(), w, "Volume Range", "Set Volume Range\n0≤low,high<128",
     get_edit_value,
     validator,
     [this, e_mixable, i, range_slider]
@@ -249,7 +249,7 @@ QWidget *Mixer::Impl::CreateControlWidget(
   vlayout->addWidget(button_edit);
   vlayout->addWidget(range_slider);
 
-  connect(combo, QOverload<int>::of(&QComboBox::currentIndexChanged),
+  connect(combo, QOverload<int>::of(&TouchComboBox::currentIndexChanged),
     [this, e_mixable, i, combo, range_slider, button_edit, get_range]
         (int index) {
       ComboChangeHandle(
@@ -265,7 +265,7 @@ QWidget *Mixer::Impl::CreateControlWidget(
 void Mixer::Impl::ComboChangeHandle(
     unsigned mixable,
     size_t i,
-    QComboBox *combo,
+    TouchComboBox *combo,
     RangeSlider *range_slider,
     ButtonEditable *button_edit,
     std::function<range_t()> get_range) {
@@ -328,7 +328,7 @@ std::string Mixer::Impl::ParseLowHigh(
     }
     if (error.empty()) {
       if (low > high) {
-        error = std::format("low={} must ⩽ high={}", low, high);
+        error = std::format("low={} must ≤ high={}", low, high);
       } else if (high >= 128) {
         error = std::format("high={} must be < 128", high);
       } else {
