@@ -1,5 +1,12 @@
-cmake_minimum_required(VERSION 3.10)
+cmake_minimum_required(VERSION 3.16)
 project(modimidi LANGUAGES CXX)
+
+# Needed so find_package(Qt6 ...) honors Qt6_ROOT (see CMakeUserPresets.json).
+# Implied by cmake_minimum_required(3.16) already, set explicitly so it
+# stays correct even if the minimum version above is ever changed.
+if(POLICY CMP0074)
+    cmake_policy(SET CMP0074 NEW)
+endif()
 
 # For LSP
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
@@ -30,12 +37,36 @@ option(BUILD_GUI "Build the Qt GUI and Android targets" OFF)
 # option(ANDROID "Build Android target" OFF)
 
 if(BUILD_CLI OR BUILD_GUI)
-    # Find the fluidsynth library (adjust paths as needed)
-    find_library(FLUIDSYNTH_LIBRARY
-        NAMES fluidsynth PATHS /usr/lib /usr/lib/x86_64-linux-gnu)
+    # Prefer pkg-config: fluidsynth ships a .pc file on virtually every
+    # distro/package manager, and this correctly picks up both the
+    # library and its include path in one shot.
+    find_package(PkgConfig QUIET)
+    if(PkgConfig_FOUND)
+        pkg_check_modules(FLUIDSYNTH QUIET fluidsynth)
+    endif()
+
+    if(FLUIDSYNTH_FOUND)
+        set(FLUIDSYNTH_LIBRARY ${FLUIDSYNTH_LIBRARIES})
+        set(FLUIDSYNTH_INCLUDE_DIR ${FLUIDSYNTH_INCLUDE_DIRS})
+    else()
+        # Fallback for systems without pkg-config info (e.g. a fluidsynth
+        # built/installed by hand). Set -DFLUIDSYNTH_ROOT=/path/to/prefix
+        # or export FLUIDSYNTH_ROOT to point at a non-standard install.
+        find_path(FLUIDSYNTH_INCLUDE_DIR
+            NAMES fluidsynth.h
+            HINTS "$ENV{FLUIDSYNTH_ROOT}/include" "${FLUIDSYNTH_ROOT}/include"
+            PATHS /usr/include /usr/local/include)
+        find_library(FLUIDSYNTH_LIBRARY
+            NAMES fluidsynth
+            HINTS "$ENV{FLUIDSYNTH_ROOT}/lib" "${FLUIDSYNTH_ROOT}/lib"
+            PATHS /usr/lib /usr/lib/x86_64-linux-gnu /usr/local/lib)
+    endif()
+
     if(NOT FLUIDSYNTH_LIBRARY)
         message(FATAL_ERROR
-            "fluidsynth library not found. Check the installation and paths.")
+            "fluidsynth not found. Install libfluidsynth-dev (or your "
+            "distro's equivalent), or point at a custom install with "
+            "-DFLUIDSYNTH_ROOT=/path/to/prefix.")
     endif()
 
     # Find the Boost libraries
@@ -43,13 +74,9 @@ if(BUILD_CLI OR BUILD_GUI)
 
     include_directories(
         ${Boost_INCLUDE_DIRS}
+        ${FLUIDSYNTH_INCLUDE_DIR}
     )
 endif()
-
-# /usr/include/fluidsynth
-include_directories(
-    /usr/include
-)
 
 if(BUILD_CLI)
 # Set the source files
@@ -109,6 +136,17 @@ function(SetIconDependencies ICON_PNG_PATH)
 endfunction()
 
 if(BUILD_GUI OR ANDROID)
+    # find_package(Qt6 ...) honors Qt6_ROOT natively (CMP0074), so we only
+    # need to seed a default here. Override per-machine with
+    # -DQt6_ROOT=/path/to/Qt/6.x.y/gcc_64, or set it in a
+    # CMakeUserPresets.json (see README) instead of editing this file.
+    if(BUILD_GUI AND NOT ANDROID
+       AND NOT DEFINED Qt6_ROOT AND NOT DEFINED ENV{Qt6_ROOT})
+        if(EXISTS "$ENV{HOME}/Qt/6.8.0/gcc_64")
+            set(Qt6_ROOT "$ENV{HOME}/Qt/6.8.0/gcc_64" CACHE PATH "Qt6 install root")
+        endif()
+    endif()
+
     find_package(Qt6
         REQUIRED COMPONENTS
             Core
@@ -218,7 +256,21 @@ if(ANDROID)
     SetIconDependencies("${ICON_PNG}")
 
     # add_compile_options(-fexperimental-library)
-    set(FLUID_DIR "${CMAKE_SOURCE_DIR}/third_party/fluidsynth-android")
+
+    # Prebuilt fluidsynth-for-Android bundle (libs + headers). Defaults to
+    # the in-tree copy but is a normal CACHE PATH, so anyone vendoring it
+    # elsewhere (or building it themselves) can point at it without
+    # touching this file:
+    #   cmake --preset ... -DFLUID_DIR=/path/to/fluidsynth-android
+    set(FLUID_DIR
+        "${CMAKE_SOURCE_DIR}/third_party/fluidsynth-android"
+        CACHE PATH "Prebuilt Android fluidsynth bundle (libs + headers)")
+
+    if(NOT EXISTS "${FLUID_DIR}")
+        message(FATAL_ERROR
+            "FLUID_DIR (${FLUID_DIR}) does not exist. Fetch/build the "
+            "Android fluidsynth bundle, or set -DFLUID_DIR to its location.")
+    endif()
 
     set(FLUID_DEPS
         "fluidsynth"
@@ -238,12 +290,32 @@ if(ANDROID)
     set(FLUID_TARGETS "")
 
     foreach(LIB ${FLUID_DEPS})
-        set(LIB_PATH "${FLUID_DIR}/lib/${ANDROID_ABI}/lib${LIB}.so")
         set(TGT "lib_${LIB}")
+
+        # find_library applies the platform's lib prefix/suffix itself
+        # (libfoo.so under the Android toolchain), so this both avoids
+        # assuming the exact filename and fails with a clear, per-library
+        # message instead of a linker error much later.
+        find_library("${TGT}_PATH"
+            NAMES ${LIB}
+            PATHS "${FLUID_DIR}/lib/${ANDROID_ABI}"
+            NO_DEFAULT_PATH
+            # The Android NDK toolchain sets CMAKE_FIND_ROOT_PATH_MODE_LIBRARY
+            # to ONLY, which restricts find_library() to the NDK sysroot and
+            # silently ignores PATHS outside it. FLUID_DIR lives outside the
+            # sysroot, so this must be explicitly opted back in here.
+            NO_CMAKE_FIND_ROOT_PATH)
+
+        if(NOT ${TGT}_PATH)
+            message(FATAL_ERROR
+                "Android dependency '${LIB}' not found under "
+                "${FLUID_DIR}/lib/${ANDROID_ABI}. Check FLUID_DIR / "
+                "ANDROID_ABI, or that the bundle was built for this ABI.")
+        endif()
 
         add_library(${TGT} SHARED IMPORTED)
         set_target_properties(${TGT} PROPERTIES
-            IMPORTED_LOCATION "${LIB_PATH}"
+            IMPORTED_LOCATION "${${TGT}_PATH}"
         )
 
         if(LIB STREQUAL "fluidsynth")
@@ -252,7 +324,7 @@ if(ANDROID)
             )
         endif()
 
-        list(APPEND FLUID_EXTRA_LIBS_PATHS "${LIB_PATH}")
+        list(APPEND FLUID_EXTRA_LIBS_PATHS "${${TGT}_PATH}")
         list(APPEND FLUID_TARGETS ${TGT})
     endforeach()
 

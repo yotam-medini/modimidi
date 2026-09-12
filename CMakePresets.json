@@ -1,0 +1,67 @@
+{
+  "version": 4,
+  "configurePresets": [
+    {
+      "name": "linux-cli",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build-cli",
+      "cacheVariables": {
+        "BUILD_CLI": "ON",
+        "BUILD_GUI": "OFF"
+      }
+    },
+    {
+      "name": "linux-cli-debug",
+      "inherits": "linux-cli",
+      "binaryDir": "${sourceDir}/build-cli-debug",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug"
+      }
+    },
+    {
+      "name": "linux-gui",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build-gui",
+      "cacheVariables": {
+        "BUILD_CLI": "OFF",
+        "BUILD_GUI": "ON"
+      }
+    },
+    {
+      "name": "linux-gui-debug",
+      "inherits": "linux-gui",
+      "binaryDir": "${sourceDir}/build-gui-debug",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug"
+      }
+    },
+    {
+      "name": "android-base",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build-android",
+      "cacheVariables": {
+        "BUILD_CLI": "OFF",
+        "BUILD_GUI": "OFF"
+      }
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "linux-cli",
+      "configurePreset": "linux-cli",
+      "targets": ["modimidi", "modidump2ly"]
+    },
+    {
+      "name": "linux-cli-debug",
+      "configurePreset": "linux-cli-debug",
+      "targets": ["modimidi", "modidump2ly"]
+    },
+    { "name": "linux-gui", "configurePreset": "linux-gui" },
+    { "name": "linux-gui-debug", "configurePreset": "linux-gui-debug" },
+    {
+      "name": "android-base",
+      "configurePreset": "android-base",
+      "targets": ["apk"]
+    }
+  ]
+}
