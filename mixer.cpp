@@ -2,7 +2,6 @@
 #include <algorithm>
 #include <array>
 #include <charconv>
-#include <QComboBox>
 #include <QFont>
 #include <QFrame>
 #include <QHBoxLayout>
@@ -20,6 +19,7 @@
 #include "qutil.h"
 #include "buttonedit.h"
 #include "rangeslider.h"
+#include "touchcombobox.h"
 
 
 class Mixer::Impl {
@@ -74,6 +74,7 @@ void Mixer::Impl::CreateUI(QWidget *page) {
   splitter->setOrientation(Qt::Vertical);
   splitter->addWidget(CreateFrame(page, E_Tracks));
   splitter->addWidget(CreateFrame(page, E_Channels));
+  splitter->setChildrenCollapsible(false);
   main_layout->addWidget(splitter);
 }
 

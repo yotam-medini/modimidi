@@ -5,8 +5,29 @@
 #include <QDebug>
 #include <QIcon>
 #include <QMainWindow>
+#include <QProxyStyle>
 
 #include "gplay.h"
+
+class TouchStyle : public QProxyStyle {
+ public:
+  using QProxyStyle::QProxyStyle;
+
+  int pixelMetric(PixelMetric metric,
+                   const QStyleOption *option = nullptr,
+                   const QWidget *widget = nullptr) const override {
+    if (metric == PM_ScrollBarExtent && widget) {
+      // "Container" = the scroll area/viewport this scrollbar belongs to.
+      // Use whichever dimension makes sense for how it's mounted; width()
+      // covers the common case of a vertical scrollbar at the panel edge.
+      const QWidget *container = widget->parentWidget()
+                                      ? widget->parentWidget() : widget;
+      int extent = container->width() / 12;
+      return qBound(24, extent, 64);  // sane touch-target floor/ceiling
+    }
+    return QProxyStyle::pixelMetric(metric, option, widget);
+  }
+};
 
 class UI::Impl {
  public:
@@ -18,6 +39,7 @@ class UI::Impl {
 
     window_.setWindowTitle("ModiMidi");
     if (is_android) {
+      app_.setStyle(new TouchStyle(app_.style()));
       window_.showMaximized();
       // Android's launcher icon comes from android/res/mipmap-*/
       // (see AndroidManifest.xml's android:icon);n

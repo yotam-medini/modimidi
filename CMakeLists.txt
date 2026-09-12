@@ -158,6 +158,7 @@ if(BUILD_GUI OR ANDROID)
     set(UI_SOURCE_FILES
         about.cpp
         buttonedit.cpp
+        touchcombobox.cpp
         debug.cpp
         dyntiming.cpp
         gplay.cpp
@@ -173,6 +174,7 @@ if(BUILD_GUI OR ANDROID)
         synthseq.cpp
         version.cpp
         buttonedit.h
+        touchcombobox.h
         about.h
         debug.h
         ui.cpp
