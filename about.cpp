@@ -9,14 +9,30 @@
 #include "version.h"
 #include "qutil.h"
 
+namespace {
+
+// QFont::pointSize() returns -1 when the font's size was set in pixels
+// rather than points (common for Android's default system font). Scaling
+// blindly via setPointSize(factor * pointSize()) then silently no-ops.
+// This scales whichever unit is actually in effect.
+QFont ScaledFont(QFont font, qreal factor) {
+  if (font.pointSizeF() > 0) {
+    font.setPointSizeF(font.pointSizeF() * factor);
+  } else {
+    font.setPixelSize(static_cast<int>(font.pixelSize() * factor));
+  }
+  return font;
+}
+
+}  // namespace
+
 QWidget* CreateAboutPage(QMainWindow *mainwin) {
   QWidget* page = new QWidget(mainwin);
   QVBoxLayout *main_layout = new QVBoxLayout(page);
   QHBoxLayout *title_layout = new QHBoxLayout(page);
 
   QLabel *title = new QLabel("ModiMidi", page);
-  QFont font = title->font();
-  font.setPointSize(3*font.pointSize());
+  QFont font = ScaledFont(title->font(), 3);
   font.setBold(true);
   title->setFont(font);
 
@@ -53,8 +69,7 @@ QWidget* CreateAboutPage(QMainWindow *mainwin) {
 
   QLabel *summary = new QLabel("Modifiable Midi file player.", page);
   summary->setAlignment(Qt::AlignHCenter);
-  font = summary->font();
-  font.setPointSize(2*font.pointSize());
+  font = ScaledFont(summary->font(), 2);
   summary->setFont(font);
 
   // Clickable URL via rich text; QLabel opens links when

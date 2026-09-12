@@ -352,6 +352,17 @@ if(ANDROID)
     # before that runs.
     add_dependencies(ModiMidi app_icon)
 
+    # In-app About-page icon, embedded as ":/icon.png" — same as gmodimidi.
+    # (Distinct from the Android launcher icon under android/res, which
+    # app_icon/ANDROID_ICON_PNG above handles separately.)
+    set_source_files_properties("${ICON_PNG}" PROPERTIES
+        QT_RESOURCE_ALIAS "icon.png"
+    )
+    qt_add_resources(ModiMidi "app_icon_qrc"
+        PREFIX "/"
+        FILES "${ICON_PNG}"
+    )
+
     set_source_files_properties("${GEN_SF2PATH}" PROPERTIES 
         QT_RESOURCE_ALIAS "${SF2NAME}"
     )
