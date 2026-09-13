@@ -25,6 +25,17 @@ class TouchStyle : public QProxyStyle {
       int extent = container->width() / 12;
       return qBound(24, extent, 64);  // sane touch-target floor/ceiling
     }
+    if (metric == PM_SplitterWidth && widget) {
+      // Qt queries this with 'widget' being the QSplitter itself (see
+      // QSplitter::handleWidth()), not the handle -- use its own size.
+      // min() so this behaves for both horizontal and vertical splitters.
+      int reference = qMin(widget->width(), widget->height());
+      if (reference <= 0) {
+        reference = qMax(widget->width(), widget->height());
+      }
+      int extent = reference / 40;
+      return qBound(20, extent, 48);
+    }
     return QProxyStyle::pixelMetric(metric, option, widget);
   }
 };
