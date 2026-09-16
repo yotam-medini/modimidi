@@ -1,6 +1,7 @@
 #include "touchcombobox.h"
 
 #ifdef Q_OS_ANDROID
+#include <QCursor>
 #include <QDialog>
 #include <QPushButton>
 #include <QScreen>
@@ -12,6 +13,8 @@ void TouchComboBox::showPopup() {
 #ifndef Q_OS_ANDROID
   QComboBox::showPopup();
 #else
+  qDebug() << "TouchComboBox::showPopup() ENTER this=" << this
+           << "currentIndex=" << currentIndex();
   QDialog dialog(this, Qt::Dialog | Qt::WindowTitleHint);
   if (!accessibleName().isEmpty()) {
     dialog.setWindowTitle(accessibleName());
@@ -28,6 +31,8 @@ void TouchComboBox::showPopup() {
   int row_height = fontMetrics().height() * 3;
 
   for (int i = 0; i < count(); ++i) {
+    qDebug() << "TouchComboBox popup: creating button i=" << i
+             << "text=" << itemText(i);
     QPushButton *button = new QPushButton(itemText(i), content);
     button->setMinimumHeight(row_height);
     if (i == currentIndex()) {
@@ -36,8 +41,16 @@ void TouchComboBox::showPopup() {
       button->setFont(f);
     }
     content_layout->addWidget(button);
+    qDebug() << "TouchComboBox popup: button i=" << i
+             << "global_geometry="
+             << QRect(button->mapToGlobal(QPoint(0, 0)), button->size());
     connect(button, &QPushButton::clicked, &dialog, [this, &dialog, i]() {
+      qDebug() << "TouchComboBox popup: button clicked i=" << i
+                << "this=" << this
+                << "cursor_global_pos=" << QCursor::pos();
       setCurrentIndex(i);
+      qDebug() << "TouchComboBox popup: after setCurrentIndex,"
+                << "currentIndex=" << currentIndex();
       dialog.accept();
     });
   }
@@ -69,5 +82,7 @@ void TouchComboBox::showPopup() {
   dialog.resize(dialog_width, dialog_height);
 
   dialog.exec();
+  qDebug() << "TouchComboBox::showPopup() EXIT this=" << this
+           << "currentIndex=" << currentIndex();
 #endif
 }

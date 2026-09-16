@@ -16,6 +16,7 @@ class TouchStyle : public QProxyStyle {
   int pixelMetric(PixelMetric metric,
                    const QStyleOption *option = nullptr,
                    const QWidget *widget = nullptr) const override {
+    int result;
     if (metric == PM_ScrollBarExtent && widget) {
       // "Container" = the scroll area/viewport this scrollbar belongs to.
       // Use whichever dimension makes sense for how it's mounted; width()
@@ -23,20 +24,21 @@ class TouchStyle : public QProxyStyle {
       const QWidget *container = widget->parentWidget()
                                       ? widget->parentWidget() : widget;
       int extent = container->width() / 12;
-      return qBound(24, extent, 64);  // sane touch-target floor/ceiling
-    }
-    if (metric == PM_SplitterWidth && widget) {
+      result = qBound(24, extent, 64);  // sane touch-target bounds
+    } else if (metric == PM_SplitterWidth && widget) {
       // Qt queries this with 'widget' being the QSplitter itself (see
       // QSplitter::handleWidth()), not the handle -- use its own size.
-      // min() so this behaves for both horizontal and vertical splitters.
+      // min() so this behaves for horizontal and vertical splitters.
       int reference = qMin(widget->width(), widget->height());
       if (reference <= 0) {
         reference = qMax(widget->width(), widget->height());
       }
       int extent = reference / 40;
-      return qBound(20, extent, 48);
+      result = qBound(20, extent, 48);
+    } else {
+      result = QProxyStyle::pixelMetric(metric, option, widget);
     }
-    return QProxyStyle::pixelMetric(metric, option, widget);
+    return result;
   }
 };
 
@@ -51,7 +53,12 @@ class UI::Impl {
     window_.setWindowTitle("ModiMidi");
     if (is_android) {
       app_.setStyle(new TouchStyle(app_.style()));
-      window_.showMaximized();
+      // showMaximized() still conceptually coexists with system chrome
+      // (status bar), which is a common source of a fixed touch-offset
+      // bug on Android (touch coordinates vs. assumed window geometry
+      // disagreeing by roughly the status bar's height). showFullScreen()
+      // gives Qt the whole display surface consistently.
+      window_.showFullScreen();
       // Android's launcher icon comes from android/res/mipmap-*/
       // (see AndroidManifest.xml's android:icon);n
     } else {
