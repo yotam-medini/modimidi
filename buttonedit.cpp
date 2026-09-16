@@ -10,6 +10,10 @@
 #include <QString>
 #include <QValidator>
 #include <QVBoxLayout>
+#ifdef Q_OS_ANDROID
+#include <QGuiApplication>
+#include <QInputMethod>
+#endif
 #include "qutil.h"
 
 ButtonEditable::ButtonEditable(
@@ -59,7 +63,16 @@ void ButtonEditable::Edit() {
   connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
 
   edit->setFocus();
+#ifdef Q_OS_ANDROID
+  // selectAll() right after focus triggers Android's native text-
+  // selection toolbar (Select All / Cut / ...), which swallows the next
+  // tap (e.g. on OK/Cancel) and delays the on-screen keyboard. Request
+  // the keyboard explicitly instead of relying on it appearing as a
+  // side effect of focus.
+  QGuiApplication::inputMethod()->show();
+#else
   edit->selectAll();
+#endif
 
   bool done = false;
   int exec_rc = -1;
