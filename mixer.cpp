@@ -2,7 +2,7 @@
 #include <algorithm>
 #include <array>
 #include <charconv>
-#include <QComboBox>
+// #include <QComboBox>
 #include <QFont>
 #include <QFrame>
 #include <QHBoxLayout>
@@ -20,6 +20,7 @@
 #include "qutil.h"
 #include "buttonedit.h"
 #include "rangeslider.h"
+#include "touchcombobox.h"
 
 
 class Mixer::Impl {
@@ -192,7 +193,7 @@ QWidget *Mixer::Impl::CreateControlWidget(
   auto w = new QWidget(parent);
   auto layout = new QHBoxLayout(w);
 
-  QComboBox* combo = new QComboBox(w);
+  QComboBox* combo = new TouchComboBox(w);
   tc_combos[e_mixable].push_back(combo);
   combo->addItem("Default", static_cast<int>(E_ComboDefault));
   combo->addItem("Silence", static_cast<int>(E_ComboSilence));

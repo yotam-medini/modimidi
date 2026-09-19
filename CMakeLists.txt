@@ -171,6 +171,7 @@ if(BUILD_GUI OR ANDROID)
         speedtune.cpp
         sqrbutton.cpp
         synthseq.cpp
+        touchcombobox.cpp
         version.cpp
         buttonedit.h
         about.h
@@ -183,6 +184,7 @@ if(BUILD_GUI OR ANDROID)
         rangeslider.h
         speedtune.h
         sqrbutton.h
+        touchcombobox.h
         version.h
     )
 
