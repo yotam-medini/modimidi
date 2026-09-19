@@ -161,6 +161,7 @@ if(BUILD_GUI OR ANDROID)
         debug.cpp
         dyntiming.cpp
         gplay.cpp
+        inlinepopup.cpp
         mainwin.cpp
         midi.cpp
         mixer.cpp
@@ -173,12 +174,13 @@ if(BUILD_GUI OR ANDROID)
         synthseq.cpp
         touchcombobox.cpp
         version.cpp
-        buttonedit.h
         about.h
         debug.h
         ui.cpp
         util.cpp
+        buttonedit.h
         dyntiming.h
+        inlinepopup.h
         mainwin.h
         mixer.h
         rangeslider.h

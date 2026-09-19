@@ -1,8 +1,9 @@
 #include "buttonedit.h"
 #include <functional>
 #include <string>
-#include <QDialog>
 #include <QDialogButtonBox>
+#include <QGuiApplication>
+#include <QInputMethod>
 #include <QLabel>
 #include <QLineEdit>
 #include <QObject>
@@ -10,6 +11,7 @@
 #include <QString>
 #include <QValidator>
 #include <QVBoxLayout>
+#include "inlinepopup.h"
 #include "qutil.h"
 
 ButtonEditable::ButtonEditable(
@@ -35,36 +37,39 @@ ButtonEditable::ButtonEditable(
 
 void ButtonEditable::Edit() {
   qDebug() << qFormat("{}:{}", __FILE__, __LINE__);
-  QDialog dialog(this);
-  dialog.setWindowTitle(QString::fromStdString(dialog_title_));
+  InlinePopup popup(window());
+  QWidget *panel = popup.ContentPanel();
 
-  auto layout = new QVBoxLayout(&dialog);
-  auto prompt = new QLabel{QString::fromStdString(dialog_prompt_), &dialog};
+  auto layout = new QVBoxLayout(panel);
+  auto prompt = new QLabel{QString::fromStdString(dialog_prompt_), panel};
   auto edit = new QLineEdit(
-    QString::fromStdString(get_edit_value_()), &dialog);
+    QString::fromStdString(get_edit_value_()), panel);
   if (validator_) {
     edit->setValidator(validator_);
   }
   layout->addWidget(prompt);
   layout->addWidget(edit);
 
-  auto error_label = new QLabel(&dialog);
+  auto error_label = new QLabel(panel);
   error_label->setStyleSheet("color: red;");
   layout->addWidget(error_label);
 
   QDialogButtonBox *buttons = new QDialogButtonBox(
-    QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dialog);
+    QDialogButtonBox::Ok | QDialogButtonBox::Cancel, panel);
   layout->addWidget(buttons);
-  connect(buttons, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
-  connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
+  connect(buttons, &QDialogButtonBox::accepted, &popup,
+      &InlinePopup::Accept);
+  connect(buttons, &QDialogButtonBox::rejected, &popup,
+      &InlinePopup::Reject);
   edit->setFocus();
+  QGuiApplication::inputMethod()->show();
 
   bool done = false;
   int exec_rc = -1;
   std::string parse_error{"dummy-non-empty"};
-  qDebug() << std::format("Accepted={}", int(QDialog::Accepted));
+  qDebug() << std::format("Accepted={}", int(InlinePopup::Accepted));
   while ((!parse_error.empty()) 
-      && ((exec_rc = dialog.exec()) == QDialog::Accepted)) {
+      && ((exec_rc = popup.Exec()) == InlinePopup::Accepted)) {
     qDebug() << std::format("{}:{} exec_rc={}, parse_error={}",
       __FILE__, __LINE__, exec_rc, parse_error);
     const auto qs = edit->text();
