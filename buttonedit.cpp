@@ -57,9 +57,7 @@ void ButtonEditable::Edit() {
   layout->addWidget(buttons);
   connect(buttons, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
   connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
-
   edit->setFocus();
-  edit->selectAll();
 
   bool done = false;
   int exec_rc = -1;
