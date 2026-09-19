@@ -29,7 +29,7 @@ QFont ScaledFont(QFont font, qreal factor) {
 QWidget* CreateAboutPage(QMainWindow *mainwin) {
   QWidget* page = new QWidget(mainwin);
   QVBoxLayout *main_layout = new QVBoxLayout(page);
-  QHBoxLayout *title_layout = new QHBoxLayout(page);
+  QHBoxLayout *title_layout = new QHBoxLayout();
 
   QLabel *title = new QLabel("ModiMidi", page);
   QFont font = ScaledFont(title->font(), 3);
