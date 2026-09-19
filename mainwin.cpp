@@ -2,7 +2,6 @@
 
 #include <cstdint>
 #include <format>
-#include <iostream>
 #include <regex>
 #include <string>
 #include <utility>
@@ -64,8 +63,7 @@ QString FormatMmSsDotMmm(uint32_t ms) {
 //    present, is a decimal fraction of a second: "." followed by
 //    1-3 digits, e.g. ".5" (500ms), ".25" (250ms), ".250" (250ms).
 //    Dropping it (no "." at all, e.g. "3:07") means 0 ms.
-// Returns false, leaving *ms_out untouched, on any syntax or range
-// violation.
+// Returns false, leaving *ms_out untouched, on any syntax or range violation.
 bool ParseMmSsMmm(const std::string &s, uint32_t *ms_out) {
   static const std::regex kPattern(
     R"(^\s*(\d+):(\d{1,2})(?:\.(\d{1,3}))?\s*$)");
@@ -532,12 +530,12 @@ void MainWindow::BuildRangeControl(QWidget *page, QLabel *progress_label) {
     };
     rangeStartEndLabel_[i] = new ButtonEditable{
       std::format("{}: {}",
-        cs_StartEnd, milliseconds_to_string(gplay_.GetBegin())),
+        cs_StartEnd, milliseconds_to_string(gplay_.GetBeginEnd(i))),
       rangeGroup_,
       std::format("Set {}", cs_StartEnd),
       std::format("Set {} time MMM:SS.mmm", cs_StartEnd),
       [this, i]() -> std::string {
-        return milliseconds_to_string(gplay_.GetBeginEnd(i));
+        return milliseconds_to_string_trimmed(gplay_.GetBeginEnd(i));
       },
       t_validator,
       parse

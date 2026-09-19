@@ -36,14 +36,13 @@ ButtonEditable::ButtonEditable(
 }
 
 void ButtonEditable::Edit() {
-  qDebug() << qFormat("{}:{}", __FILE__, __LINE__);
   InlinePopup popup(window());
   QWidget *panel = popup.ContentPanel();
 
   auto layout = new QVBoxLayout(panel);
   auto prompt = new QLabel{QString::fromStdString(dialog_prompt_), panel};
-  auto edit = new QLineEdit(
-    QString::fromStdString(get_edit_value_()), panel);
+  const auto s = QString::fromStdString(get_edit_value_());
+  auto edit = new QLineEdit(s, panel);
   if (validator_) {
     edit->setValidator(validator_);
   }
@@ -70,18 +69,13 @@ void ButtonEditable::Edit() {
   qDebug() << std::format("Accepted={}", int(InlinePopup::Accepted));
   while ((!parse_error.empty()) 
       && ((exec_rc = popup.Exec()) == InlinePopup::Accepted)) {
-    qDebug() << std::format("{}:{} exec_rc={}, parse_error={}",
-      __FILE__, __LINE__, exec_rc, parse_error);
     const auto qs = edit->text();
     const auto s = qs.toStdString();
     std::string text_to_set;
     parse_error = parse_(s, text_to_set);
-    qDebug() << std::format("{}:{} exec_rc={}, parse_error={}",
-      __FILE__, __LINE__, exec_rc, parse_error);
     error_label->setText(QString::fromStdString(parse_error));
     if (parse_error.empty()) {
       setText(QString::fromStdString(text_to_set));
     }
   }
-  qDebug() << std::format("{}:{} exec_rc={}", __FILE__, __LINE__, exec_rc);
 }
