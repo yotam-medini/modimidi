@@ -143,7 +143,7 @@ void Mixer::Impl::SetTracksTable() {
         auto cell = new QWidget(table);
         auto layout = new QVBoxLayout(cell);
         auto name_label = new QLabel(track.GetName().c_str(), cell);
-        auto details = qFormat("{} Volume: {}",
+        auto details = qFormat("{} 🔊 {}",
           midi::MidiNoteRangeToString(track.GetKeyRange()),
           midi::RangeToString(track.GetVelocityRange()));
         auto details_label = new QLabel(details, cell);
@@ -171,7 +171,7 @@ void Mixer::Impl::SetChannelsTable() {
     table->setRowCount(channels_range_.size());
     int row = 0;
     for (const auto &[ci, range]: channels_range_) {
-      auto const details = std::format("{} Volume: {}",
+      auto const details = std::format("{} 🔊 {}",
         midi::MidiNoteRangeToString(range.notes_range_),
         midi::RangeToString(range.velocity_range_));
       const auto s = qFormat("{:2d} {}", ci, details);
